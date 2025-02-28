@@ -1,0 +1,15 @@
+---
+description: Selection of tech and libraries for app
+globs: 
+alwaysApply: false
+---
+
+# Tech Stack
+
+- Typescript, using Bun in preference to Node.
+- Mastra agent framework, for agent creation and workflows.
+- use "bunx" instead of "npx" in all cases.
+
+# Documentation
+- Mermaid diagrams for each module, in `docs/$module.md`
+

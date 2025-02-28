@@ -1,0 +1,83 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Mastra Framework
+
+Mastra is an open-source TypeScript framework designed to streamline the development of AI applications. It offers a robust, type-safe environment for building intelligent agents, workflows, and integrations, making it ideal for creating AI-powered solutions efficiently.
+
+[https://mastra.ai/docs](mdc:docs)
+
+## Core Features
+
+  - Agents:
+        - Create intelligent agents with persistent memory and tool-calling capabilities.
+        - Memory can be retrieved based on recency, semantic similarity, or conversation threads.
+        - 
+  - Workflows:
+        - Use a graph-based engine to execute LLM calls in a deterministic order.
+        - Supports branching, chaining, and conditional logic.
+        - Allows pausing and resuming workflows for human-in-the-loop scenarios.
+  - RAG: Retrieval-Augmented Generation:
+        - Process documents, generate embeddings, and connect to vector stores.
+        - Provides a unified API for various vector stores and embedding providers.
+  - Integrations:
+        - Auto-generates type-safe API clients for third-party services.
+        - Integrations can serve as tools for agents or steps in workflows.
+  - Evaluations:
+        - Offers automated metrics to assess LLM outputs (e.g., toxicity, bias, relevance).
+        - Customizable with user-defined prompts and scoring logic.
+
+## Technical Highlights
+
+  - Model Routing:
+        - Integrates with the Vercel AI SDK for a unified interface to multiple LLM providers, including OpenAI,Anthropic, and Google Gemini.
+  - Type Safety:
+        - Leverages TypeScript’s strong typing for agents, workflows, tools, and integrations, reducing runtime errors.
+  - Observability:
+        - Logs workflow steps and agent interactions automatically.
+        - Supports integration with observability tools for production monitoring.
+  - Deployment:
+        - Embed Mastra in existing React, Next.js, or Node.js projects, or deploy as standalone services.
+        - Compatible with serverless platforms like Vercel, Cloudflare Workers, and Netlify.
+
+##Quick Start
+
+To set up a new Mastra project, run:
+
+```bash
+bunx create-mastra
+```
+
+This command scaffolds a project with a recommended structure and starter code.
+
+### Example: Defining a Simple Agent
+
+Here’s a basic example of creating an agent with a search tool:
+
+```typescript
+
+import { Mastra } from "@mastra/core";
+
+const mastra = new Mastra({
+  agents: {
+    myAgent: {
+      prompt: "You are a helpful assistant.",
+      tools: {
+        search: {
+          description: "Perform a web search",
+          parameters: {
+            query: { type: "string" },
+          },
+          execute: async ({ query }) => {
+            // Add your search implementation here
+            return "Search results";
+          },
+        },
+      },
+    },
+  },
+});
+```
+This code defines an agent with a prompt and a custom search tool, showcasing Mastra’s type-safe configuration.
