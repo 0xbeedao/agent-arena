@@ -1,0 +1,176 @@
+[34mDEBUG[39m [2025-04-07 12:59:13.338 -0700] (Contest): [36mstarting[39m
+Using openai
+[32mINFO[39m [2025-04-07 12:59:13.343 -0700] (Arena): [36mmodel[39m
+    specificationVersion: "v1"
+    modelId: "gpt-3.5-turbo"
+    settings: {}
+    config: {
+      "provider": "openai.chat",
+      "compatibility": "strict"
+    }
+[34mDEBUG[39m [2025-04-07 12:59:13.345 -0700] (Contest): [36mgenerating grid[39m
+[34mDEBUG[39m [2025-04-07 12:59:13.346 -0700] (Arena): [36mprompt: This arena is "A square arena with a red ball and a hoop"
+Please generate 1 random features for the arena
+this will which will be used to generate the arena grid(undefinedxundefined)
+The features should be random objects that can be used by the players to complete the game, 
+or else they should be obstacles that the players must avoid
+respond in JSON, with the following format:
+[ { "name": "feature_name", "position": [x, y] }, "end_position (optional)": [x, y] ]
+examples of features:
+ - a pile of boxes
+ - a tree
+ - a rock
+ - a bush
+ - a door
+ - a car (uses end_position)
+ - a wall (may use end_position)[39m
+[32mINFO[39m [2025-04-07 12:59:14.460 -0700] (Arena): [36mresponse[39m
+    object: [
+      {
+        "name": "a pile of crates",
+        "position": [
+          2,
+          3
+        ]
+      },
+      {
+        "name": "a tree",
+        "position": [
+          4,
+          1
+        ]
+      }
+    ]
+    finishReason: "stop"
+    usage: {
+      "promptTokens": 334,
+      "completionTokens": 30,
+      "totalTokens": 364
+    }
+    warnings: []
+    providerMetadata: {
+      "openai": {
+        "reasoningTokens": 0,
+        "acceptedPredictionTokens": 0,
+        "rejectedPredictionTokens": 0,
+        "cachedPromptTokens": 0
+      }
+    }
+    experimental_providerMetadata: {
+      "openai": {
+        "reasoningTokens": 0,
+        "acceptedPredictionTokens": 0,
+        "rejectedPredictionTokens": 0,
+        "cachedPromptTokens": 0
+      }
+    }
+    response: {
+      "id": "chatcmpl-BJmufawxnYnKC9KJXT2h1NCWiAH6j",
+      "timestamp": "2025-04-07T19:59:13.000Z",
+      "modelId": "gpt-3.5-turbo-0125",
+      "headers": {
+        "access-control-expose-headers": "X-Request-ID",
+        "alt-svc": "h3=\":443\"; ma=86400",
+        "cf-cache-status": "DYNAMIC",
+        "cf-ray": "92cc1aacac0730b1-SEA",
+        "connection": "keep-alive",
+        "content-encoding": "br",
+        "content-type": "application/json",
+        "date": "Mon, 07 Apr 2025 19:59:14 GMT",
+        "openai-organization": "user-n3xoggibjmubuai1jpwk1jnq",
+        "openai-processing-ms": "603",
+        "openai-version": "2020-10-01",
+        "server": "cloudflare",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "transfer-encoding": "chunked",
+        "x-content-type-options": "nosniff",
+        "x-ratelimit-limit-requests": "10000",
+        "x-ratelimit-limit-tokens": "200000",
+        "x-ratelimit-remaining-requests": "9999",
+        "x-ratelimit-remaining-tokens": "199722",
+        "x-ratelimit-reset-requests": "8.64s",
+        "x-ratelimit-reset-tokens": "83ms",
+        "x-request-id": "req_dbade0ae5df0c1fe4b371cf57420a653",
+        "set-cookie": "_cfuvid=TJ3RsUC1yGWgZYVsFWR0KsHb2Xpc9HAAxpufaXaqzbE-1744055954453-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None"
+      }
+    }
+    request: {
+      "body": "{\"model\":\"gpt-3.5-turbo\",\"temperature\":0,\"messages\":[{\"role\":\"system\",\"content\":\"You are a vivid describer of the arena named \\"Arena\\" for a game. \nYour job is to describe the arena in a way that is easy to understand and visualize.\nYou will be given a description of the arena, and events that have happened so far and you will need to describe it in a way that is easy to understand and visualize.\nYou will respond in JSON format.\n\nPersonality: You are a neutral observer.\n\nThere are 1 players in the game:\n- Testy McGee\n\nArena: A square arena with a red ball and a hoop.\"},{\"role\":\"user\",\"content\":\"This arena is \\"A square arena with a red ball and a hoop\\"\nPlease generate 1 random features for the arena\nthis will which will be used to generate the arena grid(undefinedxundefined)\nThe features should be random objects that can be used by the players to complete the game, \nor else they should be obstacles that the players must avoid\nrespond in JSON, with the following format:\n[ { \\"name\\": \\"feature_name\\", \\"position\\": [x, y] }, \\"end_position (optional)\\": [x, y] ]\nexamples of features:\n - a pile of boxes\n - a tree\n - a rock\n - a bush\n - a door\n - a car (uses end_position)\n - a wall (may use end_position)\"}],\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"json\"}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"json\",\"description\":\"Respond with a JSON object.\",\"parameters\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"type\":\"object\",\"properties\":{\"elements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"position\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}},\"end_position\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}}},\"required\":[\"name\",\"position\"],\"additionalProperties\":false}}},\"required\":[\"elements\"],\"additionalProperties\":false}}}]}"
+    }
+[34mDEBUG[39m [2025-04-07 12:59:14.463 -0700] (Contest): [36mgrid generated[39m
+Using openai
+Using openai
+agents added
+[34mDEBUG[39m [2025-04-07 12:59:14.462 -0700] (Arena): [36m--- features[39m
+    0: {
+      "name": "a pile of crates",
+      "position": [
+        2,
+        3
+      ]
+    }
+    1: {
+      "name": "a tree",
+      "position": [
+        4,
+        1
+      ]
+    }
+[34mDEBUG[39m [2025-04-07 12:59:14.462 -0700] (Arena): [36mProcessing a pile of crates[39m
+[34mDEBUG[39m [2025-04-07 12:59:14.462 -0700] (Arena): [36mSet a pile of crates at 2,3[39m
+[34mDEBUG[39m [2025-04-07 12:59:14.462 -0700] (Arena): [36mProcessing a tree[39m
+[34mDEBUG[39m [2025-04-07 12:59:14.462 -0700] (Arena): [36mSet a tree at 4,1[39m
+[34mDEBUG[39m [2025-04-07 12:59:14.462 -0700] (Arena): [36mgenerating player positions[39m
+[34mDEBUG[39m [2025-04-07 12:59:14.463 -0700] (Arena): [36mSet player Testy McGee at [object Object][39m
+[34mDEBUG[39m [2025-04-07 12:59:14.463 -0700] (Arena): [36mfinal grid: {
+  "features": {},
+  "players": {}
+}[39m
+[34mDEBUG[39m [2025-04-07 12:59:14.463 -0700] (Contest): [36m{
+  "features": {},
+  "players": {}
+}[39m
+[32mINFO[39m [2025-04-07 12:59:14.464 -0700] (Contest): [36m{
+  "agentCache": {
+    "cache": {}
+  },
+  "arena": {
+    "id": "arena",
+    "name": "Arena",
+    "instructions": "",
+    "model": "openai:gpt-3.5-turbo",
+    "personality": ""
+  },
+  "judge": {
+    "id": "judge",
+    "name": "Judge",
+    "instructions": "",
+    "model": "openai:gpt-3.5-turbo",
+    "personality": ""
+  },
+  "players": [
+    {
+      "id": "tester1",
+      "name": "Testy McGee",
+      "instructions": "",
+      "model": "openai:gpt-3.5-turbo",
+      "personality": "ready to be creative and help test"
+    }
+  ],
+  "arenaDescription": "A square arena with a red ball and a hoop",
+  "rules": [
+    "The ball must be thrown into the hoop",
+    "maximum distance to throw is 2 squares away"
+  ],
+  "roundHistory": [
+    {
+      "arenaDescription": "",
+      "grid": {
+        "features": {},
+        "players": {}
+      },
+      "actions": [],
+      "round": 0
+    }
+  ]
+}[39m

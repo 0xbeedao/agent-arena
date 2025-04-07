@@ -1,0 +1,70 @@
+[34mDEBUG[39m [2025-04-07 13:06:19.100 -0700] (Contest): [36mstarting[39m
+Using openai
+[32mINFO[39m [2025-04-07 13:06:19.104 -0700] (Arena): [36mmodel[39m
+    specificationVersion: "v1"
+    modelId: "gpt-3.5-turbo"
+    settings: {}
+    config: {
+      "provider": "openai.chat",
+      "compatibility": "strict"
+    }
+Using openai
+Using openai
+agents added
+[34mDEBUG[39m [2025-04-07 13:06:19.106 -0700] (Contest): [36mgenerating grid[39m
+[34mDEBUG[39m [2025-04-07 13:06:19.107 -0700] (Contest): [36mgrid generated[39m
+[34mDEBUG[39m [2025-04-07 13:06:19.107 -0700] (Contest): [36m{
+  "players": {},
+  "features": {}
+}[39m
+[32mINFO[39m [2025-04-07 13:06:19.109 -0700] (Contest): [36m{
+  "agentCache": {
+    "cache": {}
+  },
+  "arena": {
+    "id": "arena",
+    "name": "Arena",
+    "instructions": "",
+    "model": "openai:gpt-3.5-turbo",
+    "personality": ""
+  },
+  "judge": {
+    "id": "judge",
+    "name": "Judge",
+    "instructions": "",
+    "model": "openai:gpt-3.5-turbo",
+    "personality": ""
+  },
+  "players": [
+    {
+      "id": "tester1",
+      "name": "Testy McGee",
+      "instructions": "",
+      "model": "openai:gpt-3.5-turbo",
+      "personality": "ready to be creative and help test"
+    }
+  ],
+  "arenaDescription": "A square arena with a red ball and a hoop",
+  "rules": [
+    "The ball must be thrown into the hoop",
+    "maximum distance to throw is 2 squares away"
+  ],
+  "roundHistory": [
+    {
+      "arenaDescription": "",
+      "grid": {
+        "players": {},
+        "features": {}
+      },
+      "actions": [],
+      "round": 0
+    }
+  ]
+}[39m
+[32mINFO[39m [2025-04-07 13:06:19.106 -0700] (Arena): [36mfeatures now: {}[39m
+[34mDEBUG[39m [2025-04-07 13:06:19.107 -0700] (Arena): [36mgenerating player positions[39m
+[34mDEBUG[39m [2025-04-07 13:06:19.107 -0700] (Arena): [36mSet player Testy McGee at [object Object][39m
+[32mINFO[39m [2025-04-07 13:06:19.107 -0700] (Arena): [36mgrid: {
+  "players": {},
+  "features": {}
+}[39m

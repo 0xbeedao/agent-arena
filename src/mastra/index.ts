@@ -1,5 +1,10 @@
+import { Mastra } from "@mastra/core";
+import { makeContestWorkflow } from "./workflows/contest";
+import { mastraLogger } from "../logging";
 
-import { Mastra } from '@mastra/core';
-
-export const mastra = new Mastra()
-        
+export const mastra = new Mastra({
+  workflows: {
+    contest: makeContestWorkflow(),
+  },
+  logger: mastraLogger,
+});

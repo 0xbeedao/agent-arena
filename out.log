@@ -1,0 +1,1814 @@
+[34mDEBUG[39m [2025-04-07 12:47:55.727 -0700] (Mastra): [36mLogger updated [component=WORKFLOW] [name=Contest][39m
+starting
+Using openai
+[32mINFO[39m [2025-04-07 12:47:55.743 -0700] (Arena): [36mmodel[39m
+    specificationVersion: "v1"
+    modelId: "gpt-3.5-turbo"
+    settings: {}
+    config: {
+      "provider": "openai.chat",
+      "compatibility": "strict"
+    }
+generating grid
+[34mDEBUG[39m [2025-04-07 12:47:55.732 -0700] (Mastra): [36mLogger updated [component=WORKFLOW] [name=Contest][39m
+[34mDEBUG[39m [2025-04-07 12:47:55.733 -0700] (Mastra): [36mLogger updated [component=STORAGE] [name=LibSQLStore][39m
+[34mDEBUG[39m [2025-04-07 12:47:55.733 -0700] (Mastra): [36mMachine input prepared[39m
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+    machineInput: {
+      "steps": {},
+      "triggerData": {
+        "arena": {
+          "id": "arena",
+          "name": "Arena",
+          "instructions": "",
+          "model": "openai:gpt-3.5-turbo",
+          "personality": ""
+        },
+        "judge": {
+          "id": "judge",
+          "name": "Judge",
+          "instructions": "",
+          "model": "openai:gpt-3.5-turbo",
+          "personality": ""
+        },
+        "players": [
+          {
+            "id": "tester1",
+            "name": "Testy McGee",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": "ready to be creative and help test"
+          }
+        ],
+        "arenaDescription": "A square arena with a red ball and a hoop",
+        "maxFeatures": 5,
+        "rules": [
+          "The ball must be thrown into the hoop",
+          "maximum distance to throw is 2 squares away"
+        ]
+      },
+      "attempts": {
+        "startContest": 3
+      }
+    }
+[34mDEBUG[39m [2025-04-07 12:47:55.734 -0700] (Mastra): [36mCreating actor with configuration[39m
+    machineInput: {
+      "steps": {},
+      "triggerData": {
+        "arena": {
+          "id": "arena",
+          "name": "Arena",
+          "instructions": "",
+          "model": "openai:gpt-3.5-turbo",
+          "personality": ""
+        },
+        "judge": {
+          "id": "judge",
+          "name": "Judge",
+          "instructions": "",
+          "model": "openai:gpt-3.5-turbo",
+          "personality": ""
+        },
+        "players": [
+          {
+            "id": "tester1",
+            "name": "Testy McGee",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": "ready to be creative and help test"
+          }
+        ],
+        "arenaDescription": "A square arena with a red ball and a hoop",
+        "maxFeatures": 5,
+        "rules": [
+          "The ball must be thrown into the hoop",
+          "maximum distance to throw is 2 squares away"
+        ]
+      },
+      "attempts": {
+        "startContest": 3
+      }
+    }
+    machineStates: {
+      "startContest": {
+        "initial": "pending",
+        "on": {
+          "RESET_TO_PENDING": {
+            "target": ".pending"
+          }
+        },
+        "states": {
+          "pending": {
+            "invoke": {
+              "src": "conditionCheck",
+              "onDone": [
+                {
+                  "target": "suspended",
+                  "actions": [
+                    null
+                  ]
+                },
+                {
+                  "target": "waiting",
+                  "actions": [
+                    {
+                      "type": "decrementAttemptCount",
+                      "params": {
+                        "stepId": "startContest"
+                      }
+                    },
+                    null
+                  ]
+                },
+                {
+                  "target": "executing"
+                },
+                {
+                  "target": "failed"
+                }
+              ]
+            }
+          },
+          "waiting": {
+            "after": {
+              "startContest": {
+                "target": "pending"
+              }
+            }
+          },
+          "suspended": {
+            "type": "final",
+            "entry": [
+              null,
+              null
+            ]
+          },
+          "executing": {
+            "on": {
+              "SUSPENDED": {
+                "target": "suspended",
+                "actions": [
+                  null
+                ]
+              }
+            },
+            "invoke": {
+              "src": "resolverFunction",
+              "onDone": {
+                "target": "runningSubscribers",
+                "actions": [
+                  null,
+                  {
+                    "type": "updateStepResult",
+                    "params": {
+                      "stepId": "startContest"
+                    }
+                  },
+                  {
+                    "type": "spawnSubscribers",
+                    "params": {
+                      "stepId": "startContest"
+                    }
+                  }
+                ]
+              },
+              "onError": {
+                "target": "failed",
+                "actions": [
+                  {
+                    "type": "setStepError",
+                    "params": {
+                      "stepId": "startContest"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "runningSubscribers": {
+            "invoke": {
+              "src": "spawnSubscriberFunction",
+              "onDone": {
+                "target": "completed",
+                "actions": [
+                  null,
+                  null
+                ]
+              },
+              "onError": {
+                "target": "completed"
+              }
+            }
+          },
+          "completed": {
+            "type": "final",
+            "entry": [
+              {
+                "type": "notifyStepCompletion",
+                "params": {
+                  "stepId": "startContest"
+                }
+              },
+              {
+                "type": "snapshotStep",
+                "params": {
+                  "stepId": "startContest"
+                }
+              },
+              {
+                "type": "persistSnapshot"
+              }
+            ]
+          },
+          "failed": {
+            "type": "final",
+            "entry": [
+              {
+                "type": "notifyStepCompletion",
+                "params": {
+                  "stepId": "startContest"
+                }
+              },
+              {
+                "type": "snapshotStep",
+                "params": {
+                  "stepId": "startContest"
+                }
+              },
+              {
+                "type": "persistSnapshot"
+              }
+            ]
+          }
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.734 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.actor"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.736 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.actor"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.737 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.init",
+      "input": {
+        "steps": {},
+        "triggerData": {
+          "arena": {
+            "id": "arena",
+            "name": "Arena",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "judge": {
+            "id": "judge",
+            "name": "Judge",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "players": [
+            {
+              "id": "tester1",
+              "name": "Testy McGee",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": "ready to be creative and help test"
+            }
+          ],
+          "arenaDescription": "A square arena with a red ball and a hoop",
+          "maxFeatures": 5,
+          "rules": [
+            "The ball must be thrown into the hoop",
+            "maximum distance to throw is 2 squares away"
+          ]
+        },
+        "attempts": {
+          "startContest": 3
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.737 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.init",
+      "input": {
+        "context": {
+          "steps": {},
+          "triggerData": {
+            "arena": {
+              "id": "arena",
+              "name": "Arena",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "judge": {
+              "id": "judge",
+              "name": "Judge",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "players": [
+              {
+                "id": "tester1",
+                "name": "Testy McGee",
+                "instructions": "",
+                "model": "openai:gpt-3.5-turbo",
+                "personality": "ready to be creative and help test"
+              }
+            ],
+            "arenaDescription": "A square arena with a red ball and a hoop",
+            "maxFeatures": 5,
+            "rules": [
+              "The ball must be thrown into the hoop",
+              "maximum distance to throw is 2 squares away"
+            ]
+          },
+          "attempts": {
+            "startContest": 3
+          }
+        },
+        "stepNode": {
+          "step": {
+            "id": "startContest",
+            "description": "",
+            "outputSchema": {
+              "_def": {
+                "unknownKeys": "strip",
+                "catchall": {
+                  "_def": {
+                    "typeName": "ZodNever"
+                  },
+                  "~standard": {
+                    "version": 1,
+                    "vendor": "zod"
+                  }
+                },
+                "typeName": "ZodObject"
+              },
+              "~standard": {
+                "version": 1,
+                "vendor": "zod"
+              },
+              "_cached": null
+            }
+          },
+          "config": {
+            "data": {}
+          }
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.737 -0700] (Mastra): [36mChecking conditions for step startContest[39m
+    stepId: "startContest"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.738 -0700] (Mastra): [36mAttempt count for step startContest[39m
+    attemptCount: 3
+    attempts: {
+      "startContest": 3
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+    stepId: "startContest"
+[34mDEBUG[39m [2025-04-07 12:47:55.738 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.init",
+      "input": {
+        "context": {
+          "steps": {},
+          "triggerData": {
+            "arena": {
+              "id": "arena",
+              "name": "Arena",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "judge": {
+              "id": "judge",
+              "name": "Judge",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "players": [
+              {
+                "id": "tester1",
+                "name": "Testy McGee",
+                "instructions": "",
+                "model": "openai:gpt-3.5-turbo",
+                "personality": "ready to be creative and help test"
+              }
+            ],
+            "arenaDescription": "A square arena with a red ball and a hoop",
+            "maxFeatures": 5,
+            "rules": [
+              "The ball must be thrown into the hoop",
+              "maximum distance to throw is 2 squares away"
+            ]
+          },
+          "attempts": {
+            "startContest": 3
+          }
+        },
+        "stepNode": {
+          "step": {
+            "id": "startContest",
+            "description": "",
+            "outputSchema": {
+              "_def": {
+                "unknownKeys": "strip",
+                "catchall": {
+                  "_def": {
+                    "typeName": "ZodNever"
+                  },
+                  "~standard": {
+                    "version": 1,
+                    "vendor": "zod"
+                  }
+                },
+                "typeName": "ZodObject"
+              },
+              "~standard": {
+                "version": 1,
+                "vendor": "zod"
+              },
+              "_cached": null
+            }
+          },
+          "config": {
+            "data": {}
+          }
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.738 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.738 -0700] (Mastra): [36mStep startContest pending[39m
+    stepId: "startContest"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.738 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.739 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.init",
+      "input": {
+        "steps": {},
+        "triggerData": {
+          "arena": {
+            "id": "arena",
+            "name": "Arena",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "judge": {
+            "id": "judge",
+            "name": "Judge",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "players": [
+            {
+              "id": "tester1",
+              "name": "Testy McGee",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": "ready to be creative and help test"
+            }
+          ],
+          "arenaDescription": "A square arena with a red ball and a hoop",
+          "maxFeatures": 5,
+          "rules": [
+            "The ball must be thrown into the hoop",
+            "maximum distance to throw is 2 squares away"
+          ]
+        },
+        "attempts": {
+          "startContest": 3
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.739 -0700] (Mastra): [36mActor started[39m
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.739 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.promise.resolve",
+      "data": {
+        "type": "CONDITIONS_MET"
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.739 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.done.actor.0.Contest.startContest.pending",
+      "output": {
+        "type": "CONDITIONS_MET"
+      },
+      "actorId": "0.Contest.startContest.pending"
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.740 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.740 -0700] (Mastra): [36mStep startContest finished pending[39m
+    stepId: "startContest"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.740 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.741 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.741 -0700] (Mastra): [36mStep startContest executing[39m
+    stepId: "startContest"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.741 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.actor"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[32mINFO[39m [2025-04-07 12:47:55.745 -0700] (Arena): [36mThis arena is "A square arena with a red ball and a hoop"
+Please generate 1 random features for the arena
+this will which will be used to generate the arena grid(undefinedxundefined)
+The features should be random objects that can be used by the players to complete the game, 
+or else they should be obstacles that the players must avoid
+respond in JSON, with the following format:
+[ { "name": "feature_name", "position": [x, y] }, "end_position (optional)": [x, y] ]
+examples of features:
+ - a pile of boxes
+ - a tree
+ - a rock
+ - a bush
+ - a door
+ - a car (uses end_position)
+ - a wall (may use end_position)[39m
+[34mDEBUG[39m [2025-04-07 12:47:55.741 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.741 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.microstep"
+    event: {
+      "type": "xstate.done.actor.0.Contest.startContest.pending",
+      "output": {
+        "type": "CONDITIONS_MET"
+      },
+      "actorId": "0.Contest.startContest.pending"
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.741 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.init",
+      "input": {
+        "context": {
+          "steps": {},
+          "triggerData": {
+            "arena": {
+              "id": "arena",
+              "name": "Arena",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "judge": {
+              "id": "judge",
+              "name": "Judge",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "players": [
+              {
+                "id": "tester1",
+                "name": "Testy McGee",
+                "instructions": "",
+                "model": "openai:gpt-3.5-turbo",
+                "personality": "ready to be creative and help test"
+              }
+            ],
+            "arenaDescription": "A square arena with a red ball and a hoop",
+            "maxFeatures": 5,
+            "rules": [
+              "The ball must be thrown into the hoop",
+              "maximum distance to throw is 2 squares away"
+            ]
+          },
+          "attempts": {
+            "startContest": 3
+          }
+        },
+        "stepNode": {
+          "step": {
+            "id": "startContest",
+            "description": "",
+            "outputSchema": {
+              "_def": {
+                "unknownKeys": "strip",
+                "catchall": {
+                  "_def": {
+                    "typeName": "ZodNever"
+                  },
+                  "~standard": {
+                    "version": 1,
+                    "vendor": "zod"
+                  }
+                },
+                "typeName": "ZodObject"
+              },
+              "~standard": {
+                "version": 1,
+                "vendor": "zod"
+              },
+              "_cached": null
+            }
+          },
+          "config": {
+            "data": {}
+          }
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.742 -0700] (Mastra): [36mResolving variables for step startContest[39m
+    stepId: "startContest"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.742 -0700] (Mastra): [36mResolved variables for startContest[39m
+    resolvedData: {
+      "steps": {},
+      "triggerData": {
+        "arena": {
+          "id": "arena",
+          "name": "Arena",
+          "instructions": "",
+          "model": "openai:gpt-3.5-turbo",
+          "personality": ""
+        },
+        "judge": {
+          "id": "judge",
+          "name": "Judge",
+          "instructions": "",
+          "model": "openai:gpt-3.5-turbo",
+          "personality": ""
+        },
+        "players": [
+          {
+            "id": "tester1",
+            "name": "Testy McGee",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": "ready to be creative and help test"
+          }
+        ],
+        "arenaDescription": "A square arena with a red ball and a hoop",
+        "maxFeatures": 5,
+        "rules": [
+          "The ball must be thrown into the hoop",
+          "maximum distance to throw is 2 squares away"
+        ]
+      },
+      "attempts": {
+        "startContest": 3
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.746 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.init",
+      "input": {
+        "context": {
+          "steps": {},
+          "triggerData": {
+            "arena": {
+              "id": "arena",
+              "name": "Arena",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "judge": {
+              "id": "judge",
+              "name": "Judge",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "players": [
+              {
+                "id": "tester1",
+                "name": "Testy McGee",
+                "instructions": "",
+                "model": "openai:gpt-3.5-turbo",
+                "personality": "ready to be creative and help test"
+              }
+            ],
+            "arenaDescription": "A square arena with a red ball and a hoop",
+            "maxFeatures": 5,
+            "rules": [
+              "The ball must be thrown into the hoop",
+              "maximum distance to throw is 2 squares away"
+            ]
+          },
+          "attempts": {
+            "startContest": 3
+          }
+        },
+        "stepNode": {
+          "step": {
+            "id": "startContest",
+            "description": "",
+            "outputSchema": {
+              "_def": {
+                "unknownKeys": "strip",
+                "catchall": {
+                  "_def": {
+                    "typeName": "ZodNever"
+                  },
+                  "~standard": {
+                    "version": 1,
+                    "vendor": "zod"
+                  }
+                },
+                "typeName": "ZodObject"
+              },
+              "~standard": {
+                "version": 1,
+                "vendor": "zod"
+              },
+              "_cached": null
+            }
+          },
+          "config": {
+            "data": {}
+          }
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.746 -0700] (Mastra): [36mState completion check[39m
+    allStatesComplete: false
+    suspendedPaths: []
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.747 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.done.actor.0.Contest.startContest.pending",
+      "output": {
+        "type": "CONDITIONS_MET"
+      },
+      "actorId": "0.Contest.startContest.pending"
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:55.747 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.promise.resolve",
+      "data": {
+        "type": "CONDITIONS_MET"
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[32mINFO[39m [2025-04-07 12:47:56.950 -0700] (Arena): [36mresponse[39m
+    object: [
+      {
+        "name": "a pile of crates",
+        "position": [
+          2,
+          3
+        ]
+      },
+      {
+        "name": "a tree",
+        "position": [
+          4,
+          1
+        ]
+      }
+    ]
+    finishReason: "stop"
+    usage: {
+      "promptTokens": 334,
+      "completionTokens": 30,
+      "totalTokens": 364
+    }
+    warnings: []
+    providerMetadata: {
+      "openai": {
+        "reasoningTokens": 0,
+        "acceptedPredictionTokens": 0,
+        "rejectedPredictionTokens": 0,
+        "cachedPromptTokens": 0
+      }
+    }
+    experimental_providerMetadata: {
+      "openai": {
+        "reasoningTokens": 0,
+        "acceptedPredictionTokens": 0,
+        "rejectedPredictionTokens": 0,
+        "cachedPromptTokens": 0
+      }
+    }
+    response: {
+      "id": "chatcmpl-BJmjkzT6vS26aTX0IbN03FSPZoMOR",
+      "timestamp": "2025-04-07T19:47:56.000Z",
+      "modelId": "gpt-3.5-turbo-0125",
+      "headers": {
+        "access-control-expose-headers": "X-Request-ID",
+        "alt-svc": "h3=\":443\"; ma=86400",
+        "cf-cache-status": "DYNAMIC",
+        "cf-ray": "92cc0a21cd6e7684-SEA",
+        "connection": "keep-alive",
+        "content-encoding": "br",
+        "content-type": "application/json",
+        "date": "Mon, 07 Apr 2025 19:47:56 GMT",
+        "openai-organization": "user-n3xoggibjmubuai1jpwk1jnq",
+        "openai-processing-ms": "937",
+        "openai-version": "2020-10-01",
+        "server": "cloudflare",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "transfer-encoding": "chunked",
+        "x-content-type-options": "nosniff",
+        "x-ratelimit-limit-requests": "10000",
+        "x-ratelimit-limit-tokens": "200000",
+        "x-ratelimit-remaining-requests": "9999",
+        "x-ratelimit-remaining-tokens": "199722",
+        "x-ratelimit-reset-requests": "8.64s",
+        "x-ratelimit-reset-tokens": "83ms",
+        "x-request-id": "req_dcf1cb783656ef356816dbb1aac345a6",
+        "set-cookie": "_cfuvid=74KpxfBsX07UEUtOqTLhSsIbtCCjgEoTODH_Ln0livQ-1744055276939-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None"
+      }
+    }
+    request: {
+      "body": "{\"model\":\"gpt-3.5-turbo\",\"temperature\":0,\"messages\":[{\"role\":\"system\",\"content\":\"You are a vivid describer of the arena named \\"Arena\\" for a game. \nYour job is to describe the arena in a way that is easy to understand and visualize.\nYou will be given a description of the arena, and events that have happened so far and you will need to describe it in a way that is easy to understand and visualize.\nYou will respond in JSON format.\n\nPersonality: You are a neutral observer.\n\nThere are 1 players in the game:\n- Testy McGee\n\nArena: A square arena with a red ball and a hoop.\"},{\"role\":\"user\",\"content\":\"This arena is \\"A square arena with a red ball and a hoop\\"\nPlease generate 1 random features for the arena\nthis will which will be used to generate the arena grid(undefinedxundefined)\nThe features should be random objects that can be used by the players to complete the game, \nor else they should be obstacles that the players must avoid\nrespond in JSON, with the following format:\n[ { \\"name\\": \\"feature_name\\", \\"position\\": [x, y] }, \\"end_position (optional)\\": [x, y] ]\nexamples of features:\n - a pile of boxes\n - a tree\n - a rock\n - a bush\n - a door\n - a car (uses end_position)\n - a wall (may use end_position)\"}],\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"json\"}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"json\",\"description\":\"Respond with a JSON object.\",\"parameters\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"type\":\"object\",\"properties\":{\"elements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"position\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}},\"end_position\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}}},\"required\":[\"name\",\"position\"],\"additionalProperties\":false}}},\"required\":[\"elements\"],\"additionalProperties\":false}}}]}"
+    }
+--- features [
+  {
+    [0mname[2m:[0m [0m[32m[0m[32m"a pile of crates"[0m[0m[0m[2m,[0m
+    [0mposition[2m:[0m [ [0m[33m2[0m[0m[2m,[0m [0m[33m3[0m ][0m[2m,[0m
+  }[0m[2m,[0m {
+    [0mname[2m:[0m [0m[32m[0m[32m"a tree"[0m[0m[0m[2m,[0m
+    [0mposition[2m:[0m [ [0m[33m4[0m[0m[2m,[0m [0m[33m1[0m ][0m[2m,[0m
+  }
+]
+grid generated
+Using openai
+Using openai
+agents added
+{
+  [0magentCache[2m:[0m AgentCache {
+    [0mcache[2m:[0m Map(3) {
+      [0m[32m"arena"[0m: [0m[36m[Object ...][0m[0m[2m,[0m
+      [0m[32m"judge"[0m: [0m[36m[Object ...][0m[0m[2m,[0m
+      [0m[32m"player-tester1"[0m: [0m[36m[Object ...][0m[0m[2m,[0m
+    }[0m[2m,[0m
+    [0mgetAgent[2m:[0m [36m[Function: getAgent][0m[0m[2m,[0m
+    [0maddAgent[2m:[0m [36m[Function: addAgent][0m[0m[2m,[0m
+  }[0m[2m,[0m
+  [0marena[2m:[0m {
+    [0mid[2m:[0m [0m[32m[0m[32m"arena"[0m[0m[0m[2m,[0m
+    [0mname[2m:[0m [0m[32m[0m[32m"Arena"[0m[0m[0m[2m,[0m
+    [0minstructions[2m:[0m [0m[32m""[0m[0m[2m,[0m
+    [0mmodel[2m:[0m [0m[32m[0m[32m"openai:gpt-3.5-turbo"[0m[0m[0m[2m,[0m
+    [0mpersonality[2m:[0m [0m[32m""[0m[0m[2m,[0m
+  }[0m[2m,[0m
+  [0mjudge[2m:[0m {
+    [0mid[2m:[0m [0m[32m[0m[32m"judge"[0m[0m[0m[2m,[0m
+    [0mname[2m:[0m [0m[32m[0m[32m"Judge"[0m[0m[0m[2m,[0m
+    [0minstructions[2m:[0m [0m[32m""[0m[0m[2m,[0m
+    [0mmodel[2m:[0m [0m[32m[0m[32m"openai:gpt-3.5-turbo"[0m[0m[0m[2m,[0m
+    [0mpersonality[2m:[0m [0m[32m""[0m[0m[2m,[0m
+  }[0m[2m,[0m
+  [0mplayers[2m:[0m [
+    {
+      [0mid[2m:[0m [0m[32m[0m[32m"tester1"[0m[0m[0m[2m,[0m
+      [0mname[2m:[0m [0m[32m[0m[32m"Testy McGee"[0m[0m[0m[2m,[0m
+      [0minstructions[2m:[0m [0m[32m""[0m[0m[2m,[0m
+      [0mmodel[2m:[0m [0m[32m[0m[32m"openai:gpt-3.5-turbo"[0m[0m[0m[2m,[0m
+      [0mpersonality[2m:[0m [0m[32m[0m[32m"ready to be creative and help test"[0m[0m[0m[2m,[0m
+    }
+  ][0m[2m,[0m
+  [0marenaDescription[2m:[0m [0m[32m[0m[32m"A square arena with a red ball and a hoop"[0m[0m[0m[2m,[0m
+  [0mrules[2m:[0m [ [0m[32m"The ball must be thrown into the hoop"[0m[0m[0m[2m,[0m [0m[32m"maximum distance to throw is 2 squares away"[0m[0m ][0m[2m,[0m
+  [0mroundHistory[2m:[0m [
+    {
+      [0marenaDescription[2m:[0m [0m[32m""[0m[0m[2m,[0m
+      [0mgrid[2m:[0m [0m[36m[Object ...][0m[0m[2m,[0m
+      [0mactions[2m:[0m [][0m[2m,[0m
+      [0mround[2m:[0m [0m[33m0[0m[0m[2m,[0m
+    }
+  ][0m[2m,[0m
+}
+[34mDEBUG[39m [2025-04-07 12:47:56.952 -0700] (Mastra): [36mStep startContest result[39m
+    stepId: "startContest"
+    result: {
+      "agentCache": {
+        "cache": {}
+      },
+      "arena": {
+        "id": "arena",
+        "name": "Arena",
+        "instructions": "",
+        "model": "openai:gpt-3.5-turbo",
+        "personality": ""
+      },
+      "judge": {
+        "id": "judge",
+        "name": "Judge",
+        "instructions": "",
+        "model": "openai:gpt-3.5-turbo",
+        "personality": ""
+      },
+      "players": [
+        {
+          "id": "tester1",
+          "name": "Testy McGee",
+          "instructions": "",
+          "model": "openai:gpt-3.5-turbo",
+          "personality": "ready to be creative and help test"
+        }
+      ],
+      "arenaDescription": "A square arena with a red ball and a hoop",
+      "rules": [
+        "The ball must be thrown into the hoop",
+        "maximum distance to throw is 2 squares away"
+      ],
+      "roundHistory": [
+        {
+          "arenaDescription": "",
+          "grid": {
+            "features": {},
+            "players": {}
+          },
+          "actions": [],
+          "round": 0
+        }
+      ]
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.953 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.promise.resolve",
+      "data": {
+        "stepId": "startContest",
+        "result": {
+          "agentCache": {
+            "cache": {}
+          },
+          "arena": {
+            "id": "arena",
+            "name": "Arena",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "judge": {
+            "id": "judge",
+            "name": "Judge",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "players": [
+            {
+              "id": "tester1",
+              "name": "Testy McGee",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": "ready to be creative and help test"
+            }
+          ],
+          "arenaDescription": "A square arena with a red ball and a hoop",
+          "rules": [
+            "The ball must be thrown into the hoop",
+            "maximum distance to throw is 2 squares away"
+          ],
+          "roundHistory": [
+            {
+              "arenaDescription": "",
+              "grid": {
+                "features": {},
+                "players": {}
+              },
+              "actions": [],
+              "round": 0
+            }
+          ]
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.953 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.done.actor.0.Contest.startContest.executing",
+      "output": {
+        "stepId": "startContest",
+        "result": {
+          "agentCache": {
+            "cache": {}
+          },
+          "arena": {
+            "id": "arena",
+            "name": "Arena",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "judge": {
+            "id": "judge",
+            "name": "Judge",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "players": [
+            {
+              "id": "tester1",
+              "name": "Testy McGee",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": "ready to be creative and help test"
+            }
+          ],
+          "arenaDescription": "A square arena with a red ball and a hoop",
+          "rules": [
+            "The ball must be thrown into the hoop",
+            "maximum distance to throw is 2 squares away"
+          ],
+          "roundHistory": [
+            {
+              "arenaDescription": "",
+              "grid": {
+                "features": {},
+                "players": {}
+              },
+              "actions": [],
+              "round": 0
+            }
+          ]
+        }
+      },
+      "actorId": "0.Contest.startContest.executing"
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.953 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.953 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.953 -0700] (Mastra): [36mStep startContest finished executing[39m
+    stepId: "startContest"
+    output: {
+      "stepId": "startContest",
+      "result": {
+        "agentCache": {
+          "cache": {}
+        },
+        "arena": {
+          "id": "arena",
+          "name": "Arena",
+          "instructions": "",
+          "model": "openai:gpt-3.5-turbo",
+          "personality": ""
+        },
+        "judge": {
+          "id": "judge",
+          "name": "Judge",
+          "instructions": "",
+          "model": "openai:gpt-3.5-turbo",
+          "personality": ""
+        },
+        "players": [
+          {
+            "id": "tester1",
+            "name": "Testy McGee",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": "ready to be creative and help test"
+          }
+        ],
+        "arenaDescription": "A square arena with a red ball and a hoop",
+        "rules": [
+          "The ball must be thrown into the hoop",
+          "maximum distance to throw is 2 squares away"
+        ],
+        "roundHistory": [
+          {
+            "arenaDescription": "",
+            "grid": {
+              "features": {},
+              "players": {}
+            },
+            "actions": [],
+            "round": 0
+          }
+        ]
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.954 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.954 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.954 -0700] (Mastra): [36mStep startContest running subscribers[39m
+    stepId: "startContest"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.954 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.actor"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.954 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.954 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.microstep"
+    event: {
+      "type": "xstate.done.actor.0.Contest.startContest.executing",
+      "output": {
+        "stepId": "startContest",
+        "result": {
+          "agentCache": {
+            "cache": {}
+          },
+          "arena": {
+            "id": "arena",
+            "name": "Arena",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "judge": {
+            "id": "judge",
+            "name": "Judge",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "players": [
+            {
+              "id": "tester1",
+              "name": "Testy McGee",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": "ready to be creative and help test"
+            }
+          ],
+          "arenaDescription": "A square arena with a red ball and a hoop",
+          "rules": [
+            "The ball must be thrown into the hoop",
+            "maximum distance to throw is 2 squares away"
+          ],
+          "roundHistory": [
+            {
+              "arenaDescription": "",
+              "grid": {
+                "features": {},
+                "players": {}
+              },
+              "actions": [],
+              "round": 0
+            }
+          ]
+        }
+      },
+      "actorId": "0.Contest.startContest.executing"
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.954 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.init",
+      "input": {
+        "parentStepId": "startContest",
+        "context": {
+          "steps": {
+            "startContest": {
+              "status": "success",
+              "output": {
+                "agentCache": {
+                  "cache": {}
+                },
+                "arena": {
+                  "id": "arena",
+                  "name": "Arena",
+                  "instructions": "",
+                  "model": "openai:gpt-3.5-turbo",
+                  "personality": ""
+                },
+                "judge": {
+                  "id": "judge",
+                  "name": "Judge",
+                  "instructions": "",
+                  "model": "openai:gpt-3.5-turbo",
+                  "personality": ""
+                },
+                "players": [
+                  {
+                    "id": "tester1",
+                    "name": "Testy McGee",
+                    "instructions": "",
+                    "model": "openai:gpt-3.5-turbo",
+                    "personality": "ready to be creative and help test"
+                  }
+                ],
+                "arenaDescription": "A square arena with a red ball and a hoop",
+                "rules": [
+                  "The ball must be thrown into the hoop",
+                  "maximum distance to throw is 2 squares away"
+                ],
+                "roundHistory": [
+                  {
+                    "arenaDescription": "",
+                    "grid": {
+                      "features": {},
+                      "players": {}
+                    },
+                    "actions": [],
+                    "round": 0
+                  }
+                ]
+              }
+            }
+          },
+          "triggerData": {
+            "arena": {
+              "id": "arena",
+              "name": "Arena",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "judge": {
+              "id": "judge",
+              "name": "Judge",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "players": [
+              {
+                "id": "tester1",
+                "name": "Testy McGee",
+                "instructions": "",
+                "model": "openai:gpt-3.5-turbo",
+                "personality": "ready to be creative and help test"
+              }
+            ],
+            "arenaDescription": "A square arena with a red ball and a hoop",
+            "maxFeatures": 5,
+            "rules": [
+              "The ball must be thrown into the hoop",
+              "maximum distance to throw is 2 squares away"
+            ]
+          },
+          "attempts": {
+            "startContest": 3
+          }
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.955 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.init",
+      "input": {
+        "parentStepId": "startContest",
+        "context": {
+          "steps": {
+            "startContest": {
+              "status": "success",
+              "output": {
+                "agentCache": {
+                  "cache": {}
+                },
+                "arena": {
+                  "id": "arena",
+                  "name": "Arena",
+                  "instructions": "",
+                  "model": "openai:gpt-3.5-turbo",
+                  "personality": ""
+                },
+                "judge": {
+                  "id": "judge",
+                  "name": "Judge",
+                  "instructions": "",
+                  "model": "openai:gpt-3.5-turbo",
+                  "personality": ""
+                },
+                "players": [
+                  {
+                    "id": "tester1",
+                    "name": "Testy McGee",
+                    "instructions": "",
+                    "model": "openai:gpt-3.5-turbo",
+                    "personality": "ready to be creative and help test"
+                  }
+                ],
+                "arenaDescription": "A square arena with a red ball and a hoop",
+                "rules": [
+                  "The ball must be thrown into the hoop",
+                  "maximum distance to throw is 2 squares away"
+                ],
+                "roundHistory": [
+                  {
+                    "arenaDescription": "",
+                    "grid": {
+                      "features": {},
+                      "players": {}
+                    },
+                    "actions": [],
+                    "round": 0
+                  }
+                ]
+              }
+            }
+          },
+          "triggerData": {
+            "arena": {
+              "id": "arena",
+              "name": "Arena",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "judge": {
+              "id": "judge",
+              "name": "Judge",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "players": [
+              {
+                "id": "tester1",
+                "name": "Testy McGee",
+                "instructions": "",
+                "model": "openai:gpt-3.5-turbo",
+                "personality": "ready to be creative and help test"
+              }
+            ],
+            "arenaDescription": "A square arena with a red ball and a hoop",
+            "maxFeatures": 5,
+            "rules": [
+              "The ball must be thrown into the hoop",
+              "maximum distance to throw is 2 squares away"
+            ]
+          },
+          "attempts": {
+            "startContest": 3
+          }
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.955 -0700] (Mastra): [36mState completion check[39m
+    allStatesComplete: false
+    suspendedPaths: []
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.955 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.done.actor.0.Contest.startContest.executing",
+      "output": {
+        "stepId": "startContest",
+        "result": {
+          "agentCache": {
+            "cache": {}
+          },
+          "arena": {
+            "id": "arena",
+            "name": "Arena",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "judge": {
+            "id": "judge",
+            "name": "Judge",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "players": [
+            {
+              "id": "tester1",
+              "name": "Testy McGee",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": "ready to be creative and help test"
+            }
+          ],
+          "arenaDescription": "A square arena with a red ball and a hoop",
+          "rules": [
+            "The ball must be thrown into the hoop",
+            "maximum distance to throw is 2 squares away"
+          ],
+          "roundHistory": [
+            {
+              "arenaDescription": "",
+              "grid": {
+                "features": {},
+                "players": {}
+              },
+              "actions": [],
+              "round": 0
+            }
+          ]
+        }
+      },
+      "actorId": "0.Contest.startContest.executing"
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.955 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.promise.resolve",
+      "data": {
+        "stepId": "startContest",
+        "result": {
+          "agentCache": {
+            "cache": {}
+          },
+          "arena": {
+            "id": "arena",
+            "name": "Arena",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "judge": {
+            "id": "judge",
+            "name": "Judge",
+            "instructions": "",
+            "model": "openai:gpt-3.5-turbo",
+            "personality": ""
+          },
+          "players": [
+            {
+              "id": "tester1",
+              "name": "Testy McGee",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": "ready to be creative and help test"
+            }
+          ],
+          "arenaDescription": "A square arena with a red ball and a hoop",
+          "rules": [
+            "The ball must be thrown into the hoop",
+            "maximum distance to throw is 2 squares away"
+          ],
+          "roundHistory": [
+            {
+              "arenaDescription": "",
+              "grid": {
+                "features": {},
+                "players": {}
+              },
+              "actions": [],
+              "round": 0
+            }
+          ]
+        }
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.955 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.promise.resolve",
+      "data": {
+        "steps": {}
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.955 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.event"
+    event: {
+      "type": "xstate.done.actor.0.Contest.startContest.runningSubscribers",
+      "output": {
+        "steps": {}
+      },
+      "actorId": "0.Contest.startContest.runningSubscribers"
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.956 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.956 -0700] (Mastra): [36mStep startContest finished running subscribers[39m
+    stepId: "startContest"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.956 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.956 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.956 -0700] (Mastra): [36mSubscriber execution completed[39m
+    stepId: "startContest"
+[34mDEBUG[39m [2025-04-07 12:47:56.956 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.956 -0700] (Mastra): [36mStep startContest completed[39m
+[34mDEBUG[39m [2025-04-07 12:47:56.956 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.action"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.957 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.microstep"
+    event: {
+      "type": "xstate.done.actor.0.Contest.startContest.runningSubscribers",
+      "output": {
+        "steps": {}
+      },
+      "actorId": "0.Contest.startContest.runningSubscribers"
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.958 -0700] (Mastra): [36mState completion check[39m
+    allStatesComplete: true
+    suspendedPaths: []
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.958 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.done.actor.0.Contest.startContest.runningSubscribers",
+      "output": {
+        "steps": {}
+      },
+      "actorId": "0.Contest.startContest.runningSubscribers"
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.958 -0700] (Mastra): [36mXState inspection event[39m
+    type: "@xstate.snapshot"
+    event: {
+      "type": "xstate.promise.resolve",
+      "data": {
+        "steps": {}
+      }
+    }
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+[34mDEBUG[39m [2025-04-07 12:47:56.958 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_workflow_snapshot"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_evals"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_threads"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_messages"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_traces"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_workflow_snapshot"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_evals"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_threads"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_messages"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mCreating database table[39m
+    tableName: "mastra_traces"
+    operation: "schema init"
+[34mDEBUG[39m [2025-04-07 12:47:56.959 -0700] (Mastra): [36mPersisting workflow snapshot[39m
+    workflowName: "Contest"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+    data: {
+      "workflow_name": "Contest",
+      "run_id": "f61815f0-e3a3-464c-9ced-e87e25eb0e5c",
+      "snapshot": {
+        "status": "active",
+        "value": {
+          "startContest": "runningSubscribers"
+        },
+        "historyValue": {},
+        "context": {
+          "steps": {
+            "startContest": {
+              "status": "success",
+              "output": {
+                "agentCache": {
+                  "cache": {}
+                },
+                "arena": {
+                  "id": "arena",
+                  "name": "Arena",
+                  "instructions": "",
+                  "model": "openai:gpt-3.5-turbo",
+                  "personality": ""
+                },
+                "judge": {
+                  "id": "judge",
+                  "name": "Judge",
+                  "instructions": "",
+                  "model": "openai:gpt-3.5-turbo",
+                  "personality": ""
+                },
+                "players": [
+                  {
+                    "id": "tester1",
+                    "name": "Testy McGee",
+                    "instructions": "",
+                    "model": "openai:gpt-3.5-turbo",
+                    "personality": "ready to be creative and help test"
+                  }
+                ],
+                "arenaDescription": "A square arena with a red ball and a hoop",
+                "rules": [
+                  "The ball must be thrown into the hoop",
+                  "maximum distance to throw is 2 squares away"
+                ],
+                "roundHistory": [
+                  {
+                    "arenaDescription": "",
+                    "grid": {
+                      "features": {},
+                      "players": {}
+                    },
+                    "actions": [],
+                    "round": 0
+                  }
+                ]
+              }
+            }
+          },
+          "triggerData": {
+            "arena": {
+              "id": "arena",
+              "name": "Arena",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "judge": {
+              "id": "judge",
+              "name": "Judge",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "players": [
+              {
+                "id": "tester1",
+                "name": "Testy McGee",
+                "instructions": "",
+                "model": "openai:gpt-3.5-turbo",
+                "personality": "ready to be creative and help test"
+              }
+            ],
+            "arenaDescription": "A square arena with a red ball and a hoop",
+            "maxFeatures": 5,
+            "rules": [
+              "The ball must be thrown into the hoop",
+              "maximum distance to throw is 2 squares away"
+            ]
+          },
+          "attempts": {
+            "startContest": 3
+          }
+        },
+        "children": {
+          "0.Contest.startContest.runningSubscribers": {
+            "snapshot": {
+              "status": "done",
+              "output": {
+                "steps": {}
+              }
+            },
+            "src": "spawnSubscriberFunction",
+            "syncSnapshot": false
+          }
+        }
+      },
+      "createdAt": "2025-04-07T19:47:56.959Z",
+      "updatedAt": "2025-04-07T19:47:56.959Z"
+    }
+[34mDEBUG[39m [2025-04-07 12:47:56.960 -0700] (Mastra): [36mPersisting workflow snapshot[39m
+    workflowName: "Contest"
+    runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
+    data: {
+      "workflow_name": "Contest",
+      "run_id": "f61815f0-e3a3-464c-9ced-e87e25eb0e5c",
+      "snapshot": {
+        "status": "done",
+        "value": {
+          "startContest": "completed"
+        },
+        "historyValue": {},
+        "context": {
+          "steps": {
+            "startContest": {
+              "status": "success",
+              "output": {
+                "agentCache": {
+                  "cache": {}
+                },
+                "arena": {
+                  "id": "arena",
+                  "name": "Arena",
+                  "instructions": "",
+                  "model": "openai:gpt-3.5-turbo",
+                  "personality": ""
+                },
+                "judge": {
+                  "id": "judge",
+                  "name": "Judge",
+                  "instructions": "",
+                  "model": "openai:gpt-3.5-turbo",
+                  "personality": ""
+                },
+                "players": [
+                  {
+                    "id": "tester1",
+                    "name": "Testy McGee",
+                    "instructions": "",
+                    "model": "openai:gpt-3.5-turbo",
+                    "personality": "ready to be creative and help test"
+                  }
+                ],
+                "arenaDescription": "A square arena with a red ball and a hoop",
+                "rules": [
+                  "The ball must be thrown into the hoop",
+                  "maximum distance to throw is 2 squares away"
+                ],
+                "roundHistory": [
+                  {
+                    "arenaDescription": "",
+                    "grid": {
+                      "features": {},
+                      "players": {}
+                    },
+                    "actions": [],
+                    "round": 0
+                  }
+                ]
+              }
+            }
+          },
+          "triggerData": {
+            "arena": {
+              "id": "arena",
+              "name": "Arena",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "judge": {
+              "id": "judge",
+              "name": "Judge",
+              "instructions": "",
+              "model": "openai:gpt-3.5-turbo",
+              "personality": ""
+            },
+            "players": [
+              {
+                "id": "tester1",
+                "name": "Testy McGee",
+                "instructions": "",
+                "model": "openai:gpt-3.5-turbo",
+                "personality": "ready to be creative and help test"
+              }
+            ],
+            "arenaDescription": "A square arena with a red ball and a hoop",
+            "maxFeatures": 5,
+            "rules": [
+              "The ball must be thrown into the hoop",
+              "maximum distance to throw is 2 squares away"
+            ]
+          },
+          "attempts": {
+            "startContest": 3
+          },
+          "_snapshot": {
+            "stepId": "startContest"
+          }
+        },
+        "children": {}
+      },
+      "createdAt": "2025-04-07T19:47:56.960Z",
+      "updatedAt": "2025-04-07T19:47:56.960Z"
+    }
