@@ -49,7 +49,7 @@ const PointSchema = z.object({
 
 // Create a Grid schema that matches the Grid type
 const GridSchema = z.object({
-  features: z.map(PointSchema, z.string()),
+  features: z.map(z.string(), z.string()),
   height: z.number(),
   players: z.map(z.string(), PointSchema),
   width: z.number(),

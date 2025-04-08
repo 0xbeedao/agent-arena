@@ -14,6 +14,8 @@ await start({
       model: "openai:gpt-3.5-turbo",
       personality: "",
     },
+    arenaHeight: 10,
+    arenaWidth: 10,
     judge: {
       id: "judge",
       name: "Judge",
@@ -31,7 +33,17 @@ await start({
       },
     ],
     arenaDescription: "A square arena with a red ball and a hoop",
-    maxFeatures: 5,
+    maxFeatures: 0,
+    requiredFeatures: [
+      {
+        name: "red ball",
+        position: { x: 1, y: 1 },
+      },
+      {
+        name: "hoop",
+        position: { x: 1, y: 1 },
+      },
+    ],
     rules: [
       "The ball must be thrown into the hoop",
       "maximum distance to throw is 2 squares away",

@@ -6,7 +6,7 @@ import {
 import { z } from "zod";
 
 export type Grid = {
-  features: Map<Point, string>;
+  features: Map<string, string>;
   height: number;
   players: Map<string, Point>;
   width: number;
@@ -27,4 +27,10 @@ export type ArenaPosition = {
   x: number;
   y: number;
   description: string;
+};
+
+export type ArenaFeature = {
+  name: string;
+  position: Point;
+  end_position?: Point;
 };

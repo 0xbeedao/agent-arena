@@ -29,14 +29,24 @@ const startContestStep = new Step({
   outputSchema: contestWorkflowSchema,
   execute: async ({ context }) => {
     contestLogger.debug("starting");
-    const { arena, judge, players, arenaDescription, rules } =
-      context.triggerData;
+    const {
+      arena,
+      judge,
+      players,
+      arenaDescription,
+      rules,
+      arenaHeight,
+      arenaWidth,
+      maxFeatures,
+      requiredFeatures,
+    } = context.triggerData;
     const arenaAgent = makeArenaAgent(arena, players, arenaDescription);
     contestLogger.debug("generating grid");
     const grid = await generateGrid(
-      arena.width,
-      arena.height,
-      arena.maxFeatures,
+      arenaWidth,
+      arenaHeight,
+      maxFeatures,
+      requiredFeatures,
       arenaDescription,
       players,
       arenaAgent

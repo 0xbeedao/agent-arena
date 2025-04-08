@@ -1,6 +1,6 @@
-[34mDEBUG[39m [2025-04-07 13:06:19.100 -0700] (Contest): [36mstarting[39m
+[34mDEBUG[39m [2025-04-07 13:10:07.727 -0700] (Contest): [36mstarting[39m
 Using openai
-[32mINFO[39m [2025-04-07 13:06:19.104 -0700] (Arena): [36mmodel[39m
+[32mINFO[39m [2025-04-07 13:10:07.732 -0700] (Arena): [36mmodel[39m
     specificationVersion: "v1"
     modelId: "gpt-3.5-turbo"
     settings: {}
@@ -11,13 +11,13 @@ Using openai
 Using openai
 Using openai
 agents added
-[34mDEBUG[39m [2025-04-07 13:06:19.106 -0700] (Contest): [36mgenerating grid[39m
-[34mDEBUG[39m [2025-04-07 13:06:19.107 -0700] (Contest): [36mgrid generated[39m
-[34mDEBUG[39m [2025-04-07 13:06:19.107 -0700] (Contest): [36m{
+[34mDEBUG[39m [2025-04-07 13:10:07.733 -0700] (Contest): [36mgenerating grid[39m
+[34mDEBUG[39m [2025-04-07 13:10:07.734 -0700] (Contest): [36mgrid generated[39m
+[34mDEBUG[39m [2025-04-07 13:10:07.735 -0700] (Contest): [36m{
   "players": {},
   "features": {}
 }[39m
-[32mINFO[39m [2025-04-07 13:06:19.109 -0700] (Contest): [36m{
+[32mINFO[39m [2025-04-07 13:10:07.736 -0700] (Contest): [36m{
   "agentCache": {
     "cache": {}
   },
@@ -61,10 +61,10 @@ agents added
     }
   ]
 }[39m
-[32mINFO[39m [2025-04-07 13:06:19.106 -0700] (Arena): [36mfeatures now: {}[39m
-[34mDEBUG[39m [2025-04-07 13:06:19.107 -0700] (Arena): [36mgenerating player positions[39m
-[34mDEBUG[39m [2025-04-07 13:06:19.107 -0700] (Arena): [36mSet player Testy McGee at [object Object][39m
-[32mINFO[39m [2025-04-07 13:06:19.107 -0700] (Arena): [36mgrid: {
+[32mINFO[39m [2025-04-07 13:10:07.734 -0700] (Arena): [36mfeatures now: {}[39m
+[34mDEBUG[39m [2025-04-07 13:10:07.734 -0700] (Arena): [36mgenerating player positions[39m
+[34mDEBUG[39m [2025-04-07 13:10:07.734 -0700] (Arena): [36mSet player Testy McGee at [object Object][39m
+[32mINFO[39m [2025-04-07 13:10:07.734 -0700] (Arena): [36mgrid: {
   "players": {},
   "features": {}
 }[39m
