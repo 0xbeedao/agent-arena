@@ -1,8 +1,8 @@
-import { addFeature, generateGrid } from "./stadium";
+import { addFeature, generateFeatures, generateGrid } from "./stadium";
 import { describe, it, expect } from "vitest";
 import { Agent } from "@mastra/core/agent";
-import { openai } from "@ai-sdk/openai";
-import MockAgent from "./mockagent";
+import { google } from "@ai-sdk/google";
+import { D, A, S, pipe } from "@mobily/ts-belt";
 
 describe("addFeature", () => {
   it("should add a single point feature to the map", () => {
@@ -23,7 +23,7 @@ describe("addFeature", () => {
     const feature = {
       name: "wall",
       position: { x: 0, y: 0 },
-      end_position: { x: 2, y: 0 },
+      endPosition: { x: 2, y: 0 },
     };
 
     addFeature(featureMap, feature);
@@ -40,7 +40,7 @@ describe("addFeature", () => {
     const feature = {
       name: "fence",
       position: { x: 0, y: 0 },
-      end_position: { x: 2, y: 2 },
+      endPosition: { x: 2, y: 2 },
     };
 
     addFeature(featureMap, feature);
@@ -52,13 +52,62 @@ describe("addFeature", () => {
     expect(featureMap["2,2"]).toBe("fence");
   });
 
+  describe("generateFeatures", async () => {
+    it("should generate a single feature", async () => {
+      const agent = new Agent({
+        name: "player",
+        instructions: "You are a player in a game",
+        model: google("gemini-2.0-flash-lite"),
+      });
+
+      const features = await generateFeatures(
+        agent,
+        "A square arena",
+        10,
+        10,
+        1
+      );
+      expect(features.length).toBe(1);
+      expect(features[0].name).toBeDefined();
+      expect(features[0].position).toBeDefined();
+    });
+
+    it("should generate multiple features", async () => {
+      const agent = new Agent({
+        name: "player",
+        instructions: "You are a player in a game",
+        model: google("gemini-2.0-flash-lite"),
+      });
+      const features = await generateFeatures(
+        agent,
+        "A square arena",
+        10,
+        10,
+        5
+      );
+      expect(features.length).toBeGreaterThan(0);
+      // both names and positions should be unique
+      expect(A.uniq(features.map((f) => f.name)).length).toBe(features.length);
+      expect(A.uniq(features.map((f) => f.position)).length).toBe(
+        features.length
+      );
+      // positions should be within the grid
+      features.forEach((f) => {
+        expect(f.position.x).toBeGreaterThanOrEqual(0);
+        expect(f.position.x).toBeLessThanOrEqual(10);
+        expect(f.position.y).toBeGreaterThanOrEqual(0);
+        expect(f.position.y).toBeLessThanOrEqual(10);
+      });
+    });
+  });
+
   describe("generateGrid", async () => {
     it("should generate a grid with a single required feature", async () => {
       // Create mock agent for testing without paying for OpenAI
-      const agent = new MockAgent({
+      const agent = new Agent({
         name: "player",
         instructions: "You are a player in a game",
-        model: openai("gpt-3.5-turbo"),
+        model: google("gemini-2.0-flash-lite"),
       });
 
       const grid = await generateGrid(
@@ -80,23 +129,19 @@ describe("addFeature", () => {
       expect(grid.features["2,3"]).toBe("rock");
     });
 
-    it("should generate a grid with a single required feature and a single optional feature", async () => {
+    it("should generate a grid with a single required feature and at least one rainbow feature", async () => {
       // Create the AgentWrapper and set up mocked responses
-      const agent = new MockAgent({
+      const agent = new Agent({
         name: "player",
-        instructions: "You are a player in a game",
-        model: openai("gpt-3.5-turbo"),
-      });
-
-      agent.addMockedResponseObject({
-        name: "a brilliant rainbow",
-        position: { x: 2, y: 3 },
+        instructions:
+          "You are setting up a game, please generate a grid with a rock and a rainbow",
+        model: google("gemini-2.0-flash-lite"),
       });
 
       const grid = await generateGrid(
         10,
         10,
-        1,
+        4,
         [
           {
             name: "rock",
@@ -108,9 +153,17 @@ describe("addFeature", () => {
         agent
       );
 
-      expect(Object.keys(grid.features).length).toBe(2);
+      expect(Object.keys(grid.features).length).toBeGreaterThan(1);
+
       expect(grid.features["6,6"]).toBe("rock");
-      expect(grid.features["2,3"]).toBe("a brilliant rainbow");
+
+      const hasRainbow = pipe(
+        grid.features,
+        D.values,
+        A.some((value) => S.includes("rainbow", value))
+      );
+
+      expect(hasRainbow).toBe(true);
     });
   });
 });

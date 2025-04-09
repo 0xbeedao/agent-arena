@@ -32,5 +32,5 @@ export type ArenaPosition = {
 export type ArenaFeature = {
   name: string;
   position: Point;
-  end_position?: Point;
+  endPosition?: Point;
 };

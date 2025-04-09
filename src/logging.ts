@@ -24,3 +24,13 @@ export const playerLogger = createLogger({
   name: "Player",
   level: "debug",
 });
+
+export const systemLogger = createLogger({
+  name: "System",
+  level: "debug",
+});
+
+export const testLogger = createLogger({
+  name: "Test",
+  level: "debug",
+});

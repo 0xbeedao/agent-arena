@@ -548,15 +548,15 @@ this will which will be used to generate the arena grid(undefinedxundefined)
 The features should be random objects that can be used by the players to complete the game, 
 or else they should be obstacles that the players must avoid
 respond in JSON, with the following format:
-[ { "name": "feature_name", "position": [x, y] }, "end_position (optional)": [x, y] ]
+[ { "name": "feature_name", "position": [x, y] }, "endPosition (optional)": [x, y] ]
 examples of features:
  - a pile of boxes
  - a tree
  - a rock
  - a bush
  - a door
- - a car (uses end_position)
- - a wall (may use end_position)[39m
+ - a car (uses endPosition)
+ - a wall (may use endPosition)[39m
 [34mDEBUG[39m [2025-04-07 12:47:55.741 -0700] (Mastra): [36mXState inspection event[39m
     type: "@xstate.action"
     runId: "f61815f0-e3a3-464c-9ced-e87e25eb0e5c"
@@ -854,7 +854,7 @@ examples of features:
       }
     }
     request: {
-      "body": "{\"model\":\"gpt-3.5-turbo\",\"temperature\":0,\"messages\":[{\"role\":\"system\",\"content\":\"You are a vivid describer of the arena named \\"Arena\\" for a game. \nYour job is to describe the arena in a way that is easy to understand and visualize.\nYou will be given a description of the arena, and events that have happened so far and you will need to describe it in a way that is easy to understand and visualize.\nYou will respond in JSON format.\n\nPersonality: You are a neutral observer.\n\nThere are 1 players in the game:\n- Testy McGee\n\nArena: A square arena with a red ball and a hoop.\"},{\"role\":\"user\",\"content\":\"This arena is \\"A square arena with a red ball and a hoop\\"\nPlease generate 1 random features for the arena\nthis will which will be used to generate the arena grid(undefinedxundefined)\nThe features should be random objects that can be used by the players to complete the game, \nor else they should be obstacles that the players must avoid\nrespond in JSON, with the following format:\n[ { \\"name\\": \\"feature_name\\", \\"position\\": [x, y] }, \\"end_position (optional)\\": [x, y] ]\nexamples of features:\n - a pile of boxes\n - a tree\n - a rock\n - a bush\n - a door\n - a car (uses end_position)\n - a wall (may use end_position)\"}],\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"json\"}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"json\",\"description\":\"Respond with a JSON object.\",\"parameters\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"type\":\"object\",\"properties\":{\"elements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"position\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}},\"end_position\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}}},\"required\":[\"name\",\"position\"],\"additionalProperties\":false}}},\"required\":[\"elements\"],\"additionalProperties\":false}}}]}"
+      "body": "{\"model\":\"gpt-3.5-turbo\",\"temperature\":0,\"messages\":[{\"role\":\"system\",\"content\":\"You are a vivid describer of the arena named \\"Arena\\" for a game. \nYour job is to describe the arena in a way that is easy to understand and visualize.\nYou will be given a description of the arena, and events that have happened so far and you will need to describe it in a way that is easy to understand and visualize.\nYou will respond in JSON format.\n\nPersonality: You are a neutral observer.\n\nThere are 1 players in the game:\n- Testy McGee\n\nArena: A square arena with a red ball and a hoop.\"},{\"role\":\"user\",\"content\":\"This arena is \\"A square arena with a red ball and a hoop\\"\nPlease generate 1 random features for the arena\nthis will which will be used to generate the arena grid(undefinedxundefined)\nThe features should be random objects that can be used by the players to complete the game, \nor else they should be obstacles that the players must avoid\nrespond in JSON, with the following format:\n[ { \\"name\\": \\"feature_name\\", \\"position\\": [x, y] }, \\"endPosition (optional)\\": [x, y] ]\nexamples of features:\n - a pile of boxes\n - a tree\n - a rock\n - a bush\n - a door\n - a car (uses endPosition)\n - a wall (may use endPosition)\"}],\"tool_choice\":{\"type\":\"function\",\"function\":{\"name\":\"json\"}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"json\",\"description\":\"Respond with a JSON object.\",\"parameters\":{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"type\":\"object\",\"properties\":{\"elements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"position\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}},\"endPosition\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}}},\"required\":[\"name\",\"position\"],\"additionalProperties\":false}}},\"required\":[\"elements\"],\"additionalProperties\":false}}}]}"
     }
 --- features [
   {

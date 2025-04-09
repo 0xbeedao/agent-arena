@@ -1,5 +1,5 @@
 import type { ArenaFeature, Participant, Point } from "../../../types/types.d";
-import { GridFeaturesResponseSchema } from "../../../types/schemas.d";
+import { GridFeatureListSchema } from "../../../types/schemas.d";
 import { Agent } from "@mastra/core/agent";
 import { arenaLogger } from "../../../logging";
 
@@ -86,23 +86,26 @@ export async function generateFeatures(
     "The features should be random objects that can be used by the players to complete the game, ",
     "or else they should be obstacles that the players must avoid",
     "respond in JSON, with the following format:",
-    '[ { "name": "feature_name", "position": [x, y] }, "end_position (optional)": [x, y] ]',
+    '[ { "name": "feature_name", "position": {"x": <number>, "y": <number>}, "endPosition (optional)": {"x": <number>, "y": <number>} } ]',
     "examples of features:",
     " - a pile of boxes",
     " - a tree",
     " - a rock",
     " - a bush",
     " - a door",
-    " - a car (uses end_position)",
-    " - a wall (may use end_position)",
+    " - a car (uses endPosition)",
+    " - a wall (may use endPosition)",
   ].join("\n");
 
   arenaLogger.debug("prompt: " + prompt);
 
   const response = await agent.generate(prompt, {
-    output: GridFeaturesResponseSchema,
+    output: GridFeatureListSchema,
   });
-  const responseFeatures = JSON.parse(response.text) as ArenaFeature[];
+  const responseFeatures =
+    "object" in response
+      ? (response.object as ArenaFeature[])
+      : (JSON.parse(response.text) as ArenaFeature[]);
   arenaLogger.debug("--- features", responseFeatures);
   return responseFeatures;
 }
@@ -121,13 +124,13 @@ export function addFeature(
   featureMap: { [key: string]: string },
   feature: ArenaFeature
 ) {
-  const { name, position, end_position } = feature;
-  if (!end_position) {
+  const { name, position, endPosition } = feature;
+  if (!endPosition) {
     featureMap[serializePoint(position)] = name;
     arenaLogger.debug("Set " + name + " at " + serializePoint(position));
   } else {
     const start = position;
-    const end = end_position;
+    const end = endPosition;
     const direction = { x: end.x - start.x, y: end.y - start.y };
     for (
       let i = 0;

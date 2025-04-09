@@ -1,21 +1,32 @@
 import { z } from "zod";
-import { Point } from "./types"; // Make sure we import Point type
+import { Point } from "./types";
 
-export const GridFeatureResponseSchema = z.object({
-  name: z.string(),
-  position: z.array(z.number()),
-  end_position: z.array(z.number()).optional(),
+export const AgentSchema = z.custom<Agent>((val) => {
+  if (val instanceof Agent) {
+    return val;
+  }
+  throw new Error("Invalid agent");
 });
 
-export const GridFeaturesResponseSchema = z.array(GridFeatureResponseSchema);
-
-export const ParticipantSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  instructions: z.string(),
-  model: z.string(),
-  personality: z.string(),
+export const PointSchema = z.object({
+  x: z.number(),
+  y: z.number(),
 });
+
+export const GridSchema = z.object({
+  features: z.map(z.string(), z.string()),
+  height: z.number(),
+  players: z.map(z.string(), PointSchema),
+  width: z.number(),
+});
+
+export const GridFeatureSchema = z.object({
+  name: z.string(),
+  position: PointSchema,
+  endPosition: PointSchema.optional(),
+});
+
+export const GridFeatureListSchema = z.array(GridFeatureSchema);
 
 export const JudgeResponseSchema = z.object({
   results: z.array(
@@ -28,32 +39,21 @@ export const JudgeResponseSchema = z.object({
   ),
 });
 
+export const ParticipantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  instructions: z.string(),
+  model: z.string(),
+  personality: z.string(),
+});
+
 export const PlayerActionSchema = z.object({
   playerId: z.string(),
   action: z.string(),
   narration: z.string(),
 });
 
-const AgentSchema = z.custom<Agent>((val) => {
-  if (val instanceof Agent) {
-    return val;
-  }
-  throw new Error("Invalid agent");
-});
-
-// First, let's create a Point schema to match the Point type
-const PointSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-});
-
-// Create a Grid schema that matches the Grid type
-const GridSchema = z.object({
-  features: z.map(z.string(), z.string()),
-  height: z.number(),
-  players: z.map(z.string(), PointSchema),
-  width: z.number(),
-});
+// ---- Workflow Schemas ----
 
 export const contestWorkflowSetupSchema = z.object({
   arena: ParticipantSchema,
@@ -63,7 +63,7 @@ export const contestWorkflowSetupSchema = z.object({
   arenaHeight: z.number(),
   arenaWidth: z.number(),
   maxFeatures: z.number(),
-  requiredFeatures: GridFeaturesResponseSchema.optional(),
+  requiredFeatures: GridFeatureListSchema.optional(),
   rules: z.array(z.string()),
 });
 
@@ -79,7 +79,7 @@ export const contestWorkflowSchema = contestWorkflowSetupSchema.extend({
         })
       ),
       arenaDescription: z.string(),
-      grid: GridSchema, // Updated to use the proper Grid schema
+      grid: GridSchema,
       round: z.number(),
     })
   ),
