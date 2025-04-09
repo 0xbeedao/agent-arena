@@ -28,7 +28,6 @@ const startContestStep = new Step({
   id: "startContest",
   outputSchema: contestWorkflowSchema,
   execute: async ({ context }) => {
-    contestLogger.debug("starting");
     const {
       arena,
       judge,
@@ -41,7 +40,6 @@ const startContestStep = new Step({
       requiredFeatures,
     } = context.triggerData;
     const arenaAgent = makeArenaAgent(arena, players, arenaDescription);
-    contestLogger.debug("generating grid");
     const grid = await generateGrid(
       arenaWidth,
       arenaHeight,
@@ -51,8 +49,6 @@ const startContestStep = new Step({
       players,
       arenaAgent
     );
-    contestLogger.debug("grid generated");
-    contestLogger.debug(JSON.stringify(grid, null, 2));
 
     const agentCache = new AgentCache();
     agentCache.addAgent("arena", arenaAgent);
@@ -63,7 +59,6 @@ const startContestStep = new Step({
         makePlayerAgent(player, players, rules)
       );
     }
-    console.log("agents added");
 
     const rv = {
       agentCache,
@@ -81,7 +76,7 @@ const startContestStep = new Step({
         },
       ],
     };
-    contestLogger.info(JSON.stringify(rv, null, 2));
+    contestLogger.info("Setup results: " + JSON.stringify(rv, null, 2));
     return rv;
   },
 });

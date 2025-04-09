@@ -1,22 +1,9 @@
-/**
- * This needs to be refactored to be a workflow - "SetupStadium"
- *
- * The stadium is the main object in the game. It is the arena where the players compete.
- * It has a description, a list of players, and a list of judges.
- * It also has a list of rules that the players and judges must follow.
- *
- * The stadium is responsible for starting the game, and for updating the state of the game.
- *
- * The stadium is responsible for validating the actions of the players and judges.
- *
- */
-
 import type { ArenaFeature, Participant, Point } from "../../../types/types.d";
 import { GridFeaturesResponseSchema } from "../../../types/schemas.d";
 import { Agent } from "@mastra/core/agent";
 import { arenaLogger } from "../../../logging";
+import { AgentWrapper } from "./agentwrapper";
 
-// Define the Grid type to use regular objects
 interface Grid {
   height: number;
   width: number;
@@ -40,7 +27,7 @@ export async function generateGrid(
   requiredFeatures: Array<ArenaFeature>,
   description: string,
   players: Participant[],
-  agent: Agent
+  agent: AgentWrapper
 ): Promise<Grid> {
   const features: { [key: string]: string } = {};
   const playerPositions: { [key: string]: Point } = {};
@@ -56,7 +43,7 @@ export async function generateGrid(
     );
     addFeatures(features, responseFeatures);
   }
-  arenaLogger.info("features: " + JSON.stringify(features, null, 2));
+  arenaLogger.debug("features: " + JSON.stringify(features, null, 2));
   if (requiredFeatures.length > 0) {
     arenaLogger.info(
       "Adding " + requiredFeatures.length + " required features"
@@ -86,7 +73,7 @@ export async function generateGrid(
 }
 
 export async function generateFeatures(
-  agent: Agent,
+  agent: AgentWrapper,
   description: string,
   width: number,
   height: number,
@@ -113,21 +100,8 @@ export async function generateFeatures(
 
   arenaLogger.debug("prompt: " + prompt);
 
-  const response = await agent.generate(
-    [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    {
-      output: GridFeaturesResponseSchema,
-    }
-  );
-
-  arenaLogger.info("response", response);
-
-  const responseFeatures = JSON.parse(response.text) as ArenaFeature[];
+  const response = await agent.generate(prompt, GridFeaturesResponseSchema);
+  const responseFeatures = JSON.parse(response) as ArenaFeature[];
   arenaLogger.debug("--- features", responseFeatures);
   return responseFeatures;
 }

@@ -5,7 +5,7 @@ const contest = mastra.getWorkflow("contest");
 const { runId, start } = contest.createRun();
 
 // Start the workflow execution
-await start({
+const result = await start({
   triggerData: {
     arena: {
       id: "arena",
@@ -41,7 +41,7 @@ await start({
       },
       {
         name: "hoop",
-        position: { x: 1, y: 1 },
+        position: { x: 10, y: 8 },
       },
     ],
     rules: [
@@ -50,3 +50,5 @@ await start({
     ],
   },
 });
+console.log("result");
+console.log(JSON.stringify(result, null, 2));

@@ -1,8 +1,8 @@
 import { addFeature, generateGrid } from "./stadium";
-import type { Point } from "../../../types/types";
 import { describe, it, expect } from "vitest";
 import { Agent } from "@mastra/core/agent";
 import { openai } from "@ai-sdk/openai";
+import { AgentWrapper } from "./agentwrapper";
 
 describe("addFeature", () => {
   it("should add a single point feature to the map", () => {
@@ -77,6 +77,42 @@ describe("addFeature", () => {
 
       expect(Object.keys(grid.features).length).toBe(1);
       expect(grid.features["2,3"]).toBe("rock");
+    });
+
+    it("should generate a grid with a single required feature and a single optional feature", async () => {
+      const object = [
+        {
+          name: "a brilliant rainbow",
+          position: { x: 2, y: 3 },
+        },
+      ];
+      const agent = new Agent({
+        name: "player",
+        instructions: "You are a player in a game",
+        model: openai("gpt-3.5-turbo"),
+      });
+
+      const agentWrapper = new AgentWrapper(agent, true, [
+        JSON.stringify(object),
+      ]);
+
+      const grid = await generateGrid(
+        10,
+        10,
+        1,
+        [
+          {
+            name: "rock",
+            position: { x: 6, y: 6 },
+          },
+        ],
+        "A square arena with a rock",
+        [],
+        agentWrapper
+      );
+      expect(Object.keys(grid.features).length).toBe(2);
+      expect(grid.features["6,6"]).toBe("rock");
+      expect(grid.features["2,3"]).toBe("a brilliant rainbow");
     });
   });
 });
