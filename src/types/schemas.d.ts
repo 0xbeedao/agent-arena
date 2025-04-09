@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { Point } from "./types";
 
 export const AgentSchema = z.custom<Agent>((val) => {
   if (val instanceof Agent) {
@@ -14,9 +13,9 @@ export const PointSchema = z.object({
 });
 
 export const GridSchema = z.object({
-  features: z.map(z.string(), z.string()),
+  features: z.record(z.string(), z.string()),
   height: z.number(),
-  players: z.map(z.string(), PointSchema),
+  players: z.record(z.string(), PointSchema),
   width: z.number(),
 });
 
@@ -48,9 +47,21 @@ export const ParticipantSchema = z.object({
 });
 
 export const PlayerActionSchema = z.object({
-  playerId: z.string(),
   action: z.string(),
   narration: z.string(),
+});
+
+export const PlayerStatusSchema = z.object({
+  status: z.string(),
+  health: z.number(),
+  inventory: z.array(z.string()),
+});
+
+export const ContestRoundSchema = z.object({
+  actions: z.record(z.string(), PlayerActionSchema),
+  arenaDescription: z.string(),
+  grid: GridSchema,
+  status: z.record(z.string(), PlayerStatusSchema),
 });
 
 // ---- Workflow Schemas ----
@@ -67,20 +78,8 @@ export const contestWorkflowSetupSchema = z.object({
   rules: z.array(z.string()),
 });
 
-export const contestWorkflowSchema = contestWorkflowSetupSchema.extend({
+export const contestWorkflowRoundSchema = z.object({
   agentCache: z.record(z.string(), AgentSchema),
-  roundHistory: z.array(
-    z.object({
-      actions: z.array(
-        z.object({
-          playerId: z.string(),
-          action: z.string(),
-          narration: z.string(),
-        })
-      ),
-      arenaDescription: z.string(),
-      grid: GridSchema,
-      round: z.number(),
-    })
-  ),
+  roundHistory: z.array(ContestRoundSchema),
+  roundNumber: z.number(),
 });

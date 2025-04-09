@@ -2,7 +2,7 @@ import { createLogger } from "@mastra/core/logger";
 
 export const mastraLogger = createLogger({
   name: "Mastra",
-  level: "debug",
+  level: "info",
 });
 
 export const arenaLogger = createLogger({
@@ -12,7 +12,7 @@ export const arenaLogger = createLogger({
 
 export const contestLogger = createLogger({
   name: "Contest",
-  level: "info",
+  level: "debug",
 });
 
 export const judgeLogger = createLogger({

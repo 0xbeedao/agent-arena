@@ -1,4 +1,9 @@
-import type { ArenaFeature, Participant, Point } from "../../../types/types.d";
+import type {
+  ArenaFeature,
+  Participant,
+  Point,
+  PlayerStatus,
+} from "../../../types/types.d";
 import { GridFeatureListSchema } from "../../../types/schemas.d";
 import { Agent } from "@mastra/core/agent";
 import { arenaLogger } from "../../../logging";
@@ -17,6 +22,48 @@ function serializePoint(point: Point): string {
 function deserializePoint(str: string): Point {
   const [x, y] = str.split(",").map(Number);
   return { x, y };
+}
+
+export interface RoundDescriptionParams {
+  agent: Agent;
+  arenaDescription: string;
+  extraInstructions: string;
+  grid: Grid;
+  player: Participant;
+  playerStatus: PlayerStatus;
+  roundNumber: number;
+}
+
+/**
+ * To be an agent call eventually, this function will describe the round to the player
+ * @param agent
+ * @param player
+ * @param playerStatus
+ * @param grid
+ * @param arenaDescription
+ * @param extraInstructions
+ * @param roundNumber
+ * @returns
+ */
+export async function describeRoundForPlayer(params: RoundDescriptionParams) {
+  const {
+    agent,
+    player,
+    playerStatus,
+    grid,
+    arenaDescription,
+    extraInstructions,
+    roundNumber,
+  } = params;
+  return Promise.resolve(
+    [
+      `This arena is: "${arenaDescription}"`,
+      `The arena notes are: ${extraInstructions}`,
+      `The current grid is ${JSON.stringify(grid)}`,
+      `The current round is ${roundNumber}`,
+      `Your status is: ${JSON.stringify(playerStatus)}`,
+    ].join("\n")
+  );
 }
 
 export async function generateGrid(
@@ -50,7 +97,7 @@ export async function generateGrid(
     addFeatures(features, requiredFeatures);
   }
 
-  arenaLogger.info("features now: " + JSON.stringify(features, null, 2));
+  arenaLogger.debug("features now: " + JSON.stringify(features, null, 2));
 
   arenaLogger.debug("generating player positions");
   for (const player of players) {
@@ -67,7 +114,7 @@ export async function generateGrid(
     players: playerPositions,
     features,
   };
-  arenaLogger.info("grid: " + JSON.stringify(grid, null, 2));
+  arenaLogger.debug("grid: " + JSON.stringify(grid, null, 2));
   return grid;
 }
 

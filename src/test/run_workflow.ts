@@ -4,6 +4,10 @@ import { mastra } from "../mastra/index";
 const contest = mastra.getWorkflow("contest");
 const { runId, start } = contest.createRun();
 
+const GEMINI_MODEL = "openrouter:google/gemini-2.5-pro-exp-03-25:free";
+const LLAMA_MODEL = "openrouter:meta-llama/llama-4-maverick:free";
+const QUASAR_MODEL = "openrouter:openrouter/quasar-alpha";
+
 // Start the workflow execution
 const result = await start({
   triggerData: {
@@ -11,7 +15,7 @@ const result = await start({
       id: "arena",
       name: "Arena",
       instructions: "",
-      model: "openai:gpt-3.5-turbo",
+      model: QUASAR_MODEL,
       personality: "",
     },
     arenaHeight: 10,
@@ -20,7 +24,7 @@ const result = await start({
       id: "judge",
       name: "Judge",
       instructions: "",
-      model: "openai:gpt-3.5-turbo",
+      model: "openrouter:meta-llama/llama-4-maverick:free",
       personality: "",
     },
     players: [
@@ -28,12 +32,12 @@ const result = await start({
         id: "tester1",
         name: "Testy McGee",
         instructions: "",
-        model: "openai:gpt-3.5-turbo",
+        model: "openrouter:openrouter/quasar-alpha",
         personality: "ready to be creative and help test",
       },
     ],
     arenaDescription: "A square arena with a red ball and a hoop",
-    maxFeatures: 0,
+    maxFeatures: 5,
     requiredFeatures: [
       {
         name: "red ball",
@@ -48,6 +52,7 @@ const result = await start({
       "The ball must be thrown into the hoop",
       "maximum distance to throw is 2 squares away",
     ],
+    roundHistory: [],
   },
 });
 console.log("result");
