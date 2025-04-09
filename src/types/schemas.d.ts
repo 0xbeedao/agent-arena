@@ -60,7 +60,10 @@ export const contestWorkflowSetupSchema = z.object({
   judge: ParticipantSchema,
   players: z.array(ParticipantSchema),
   arenaDescription: z.string(),
+  arenaHeight: z.number(),
+  arenaWidth: z.number(),
   maxFeatures: z.number(),
+  requiredFeatures: GridFeaturesResponseSchema.optional(),
   rules: z.array(z.string()),
 });
 

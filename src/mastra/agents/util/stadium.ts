@@ -2,7 +2,6 @@ import type { ArenaFeature, Participant, Point } from "../../../types/types.d";
 import { GridFeaturesResponseSchema } from "../../../types/schemas.d";
 import { Agent } from "@mastra/core/agent";
 import { arenaLogger } from "../../../logging";
-import { AgentWrapper } from "./agentwrapper";
 
 interface Grid {
   height: number;
@@ -27,7 +26,7 @@ export async function generateGrid(
   requiredFeatures: Array<ArenaFeature>,
   description: string,
   players: Participant[],
-  agent: AgentWrapper
+  agent: Agent
 ): Promise<Grid> {
   const features: { [key: string]: string } = {};
   const playerPositions: { [key: string]: Point } = {};
@@ -73,7 +72,7 @@ export async function generateGrid(
 }
 
 export async function generateFeatures(
-  agent: AgentWrapper,
+  agent: Agent,
   description: string,
   width: number,
   height: number,
@@ -100,8 +99,10 @@ export async function generateFeatures(
 
   arenaLogger.debug("prompt: " + prompt);
 
-  const response = await agent.generate(prompt, GridFeaturesResponseSchema);
-  const responseFeatures = JSON.parse(response) as ArenaFeature[];
+  const response = await agent.generate(prompt, {
+    output: GridFeaturesResponseSchema,
+  });
+  const responseFeatures = JSON.parse(response.text) as ArenaFeature[];
   arenaLogger.debug("--- features", responseFeatures);
   return responseFeatures;
 }

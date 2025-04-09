@@ -2,7 +2,7 @@ import { addFeature, generateGrid } from "./stadium";
 import { describe, it, expect } from "vitest";
 import { Agent } from "@mastra/core/agent";
 import { openai } from "@ai-sdk/openai";
-import { AgentWrapper } from "./agentwrapper";
+import MockAgent from "./mockagent";
 
 describe("addFeature", () => {
   it("should add a single point feature to the map", () => {
@@ -54,7 +54,8 @@ describe("addFeature", () => {
 
   describe("generateGrid", async () => {
     it("should generate a grid with a single required feature", async () => {
-      const agent = new Agent({
+      // Create mock agent for testing without paying for OpenAI
+      const agent = new MockAgent({
         name: "player",
         instructions: "You are a player in a game",
         model: openai("gpt-3.5-turbo"),
@@ -80,21 +81,17 @@ describe("addFeature", () => {
     });
 
     it("should generate a grid with a single required feature and a single optional feature", async () => {
-      const object = [
-        {
-          name: "a brilliant rainbow",
-          position: { x: 2, y: 3 },
-        },
-      ];
-      const agent = new Agent({
+      // Create the AgentWrapper and set up mocked responses
+      const agent = new MockAgent({
         name: "player",
         instructions: "You are a player in a game",
         model: openai("gpt-3.5-turbo"),
       });
 
-      const agentWrapper = new AgentWrapper(agent, true, [
-        JSON.stringify(object),
-      ]);
+      agent.addMockedResponseObject({
+        name: "a brilliant rainbow",
+        position: { x: 2, y: 3 },
+      });
 
       const grid = await generateGrid(
         10,
@@ -108,8 +105,9 @@ describe("addFeature", () => {
         ],
         "A square arena with a rock",
         [],
-        agentWrapper
+        agent
       );
+
       expect(Object.keys(grid.features).length).toBe(2);
       expect(grid.features["6,6"]).toBe("rock");
       expect(grid.features["2,3"]).toBe("a brilliant rainbow");
