@@ -7,7 +7,7 @@ export const mastraLogger = createLogger({
 
 export const arenaLogger = createLogger({
   name: "Arena",
-  level: "info",
+  level: "debug",
 });
 
 export const contestLogger = createLogger({

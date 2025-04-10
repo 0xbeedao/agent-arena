@@ -12,6 +12,7 @@ export type Grid = z.infer<typeof GridSchema>;
 
 export type Participant = z.infer<typeof ParticipantSchema>;
 
+export type JudgeResult = z.infer<typeof JudgeResultSchema>;
 export type JudgeResponse = z.infer<typeof JudgeResponseSchema>;
 
 export type PlayerAction = z.infer<typeof PlayerActionSchema>;

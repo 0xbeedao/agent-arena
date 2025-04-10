@@ -27,17 +27,6 @@ export const GridFeatureSchema = z.object({
 
 export const GridFeatureListSchema = z.array(GridFeatureSchema);
 
-export const JudgeResponseSchema = z.object({
-  results: z.array(
-    z.object({
-      playerId: z.string(),
-      result: z.string(),
-      narration: z.string(),
-      reason: z.string(),
-    })
-  ),
-});
-
 export const ParticipantSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -48,6 +37,7 @@ export const ParticipantSchema = z.object({
 
 export const PlayerActionSchema = z.object({
   action: z.string(),
+  target: PointSchema.optional(),
   narration: z.string(),
 });
 
@@ -55,6 +45,23 @@ export const PlayerStatusSchema = z.object({
   status: z.string(),
   health: z.number(),
   inventory: z.array(z.string()),
+});
+
+// [{playerId: <playerId>, status: <PlayerStatus>, result: <result>, reason: <reason>}]
+export const JudgeResultSchema = z.object({
+  playerId: z.string(),
+  position: PointSchema,
+  result: z.string(),
+  reason: z.string(),
+  status: PlayerStatusSchema,
+});
+
+export const JudgeResultListSchema = z.array(JudgeResultSchema);
+
+export const JudgeResponseSchema = z.object({
+  arenaDescription: z.string(),
+  grid: GridSchema,
+  results: z.array(JudgeResultSchema),
 });
 
 export const ContestRoundSchema = z.object({

@@ -8,9 +8,13 @@ import { makeArenaAgent } from "../agents/arena";
 import { makeJudgeAgent } from "../agents/judge";
 import { makePlayerAgent } from "../agents/player";
 import { AgentCache } from "../agents/util/agentcache";
-import { describeRoundForPlayer, generateGrid } from "../agents/util/stadium";
+import {
+  generateGrid,
+  generateJudgement,
+  generatePlayerAction,
+} from "../agents/util/stadium";
 import { contestLogger } from "../../logging";
-import { ContestRound } from "../../types/types";
+import { ContestRound, PlayerStatus } from "../../types/types";
 
 export function makeContestWorkflow() {
   const workflow = new Workflow({
@@ -107,29 +111,44 @@ const startRoundStep = new Step({
         inventory: [],
         status: "fresh",
       };
-      const agent = agentCache.getAgent("arena");
-      const roundDescription = await describeRoundForPlayer({
-        agent,
-        arenaDescription: arenaDescription + "\n" + round.arenaDescription,
+
+      const playerAction = await generatePlayerAction({
+        agentCache,
+        arenaDescription,
         extraInstructions: "First round!",
-        grid: round.grid,
         player,
         playerStatus,
+        round,
         roundNumber: roundNumber + 1,
       });
-      const prompt = [
-        roundDescription,
-        'Please respond with your action in the following json format: {"action": <action>, "narration": <narration>}',
-      ].join("\n");
-      const playerAgent = agentCache.getAgent(`player-${player.id}`);
-      const response = await playerAgent.generate(prompt, {
-        output: PlayerActionSchema,
-      });
-      contestLogger.info("Player action: " + JSON.stringify(response, null, 2));
-      const playerAction = response.output;
       newRound.actions[player.id] = playerAction;
     }
-    contestLogger.info("New round: " + JSON.stringify(newRound, null, 2));
+    contestLogger.info(
+      "New round after players: " + JSON.stringify(newRound, null, 2)
+    );
+
+    const judgeResponse = await generateJudgement({
+      agentCache,
+      arenaDescription,
+      extraInstructions: "",
+      round: newRound,
+      roundNumber: roundNumber + 1,
+      players,
+    });
+    contestLogger.info(
+      "Judge response: " + JSON.stringify(judgeResponse, null, 2)
+    );
+
+    newRound.arenaDescription = judgeResponse.arenaDescription;
+    newRound.grid = judgeResponse.grid;
+    newRound.status = judgeResponse.results.reduce(
+      (acc, result) => {
+        acc[result.playerId] = result.status;
+        return acc;
+      },
+      {} as Record<string, PlayerStatus>
+    );
+
     return {
       agentCache,
       arena,

@@ -24,7 +24,7 @@ const result = await start({
       id: "judge",
       name: "Judge",
       instructions: "",
-      model: "openrouter:meta-llama/llama-4-maverick:free",
+      model: QUASAR_MODEL,
       personality: "",
     },
     players: [
@@ -32,7 +32,7 @@ const result = await start({
         id: "tester1",
         name: "Testy McGee",
         instructions: "",
-        model: "openrouter:openrouter/quasar-alpha",
+        model: QUASAR_MODEL,
         personality: "ready to be creative and help test",
       },
     ],
@@ -52,7 +52,6 @@ const result = await start({
       "The ball must be thrown into the hoop",
       "maximum distance to throw is 2 squares away",
     ],
-    roundHistory: [],
   },
 });
 console.log("result");

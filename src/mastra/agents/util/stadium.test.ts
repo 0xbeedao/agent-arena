@@ -1,4 +1,9 @@
-import { addFeature, generateFeatures, generateGrid } from "./stadium";
+import {
+  addFeature,
+  generateFeatures,
+  generateGrid,
+  updateGridFromJudgeResults,
+} from "./stadium";
 import { describe, it, expect } from "vitest";
 import { Agent } from "@mastra/core/agent";
 import { google } from "@ai-sdk/google";
@@ -165,5 +170,118 @@ describe("addFeature", () => {
 
       expect(hasRainbow).toBe(true);
     });
+  });
+});
+
+describe("updateGridFromJudgeResults", () => {
+  it("should update player positions and features in the grid", () => {
+    // Set up initial grid with players
+    const grid = {
+      height: 10,
+      width: 10,
+      players: {
+        player1: { x: 1, y: 1 },
+        player2: { x: 5, y: 5 },
+      },
+      features: {
+        "1,1": "player1",
+        "5,5": "player2",
+        "3,3": "rock",
+      } as Record<string, string>,
+    };
+
+    // Create judge results that move players to new positions
+    const judgeResults = [
+      {
+        playerId: "player1",
+        status: {
+          status: "ok",
+          health: 100,
+          inventory: [],
+          position: { x: 2, y: 1 },
+        },
+        result: "success",
+        reason: "Moved right",
+      },
+      {
+        playerId: "player2",
+        status: {
+          status: "ok",
+          health: 100,
+          inventory: [],
+          position: { x: 5, y: 6 },
+        },
+        result: "success",
+        reason: "Moved down",
+      },
+    ];
+
+    // Update the grid
+    updateGridFromJudgeResults(judgeResults, grid);
+
+    // Check that player positions were updated
+    expect(grid.players["player1"]).toEqual({ x: 2, y: 1 });
+    expect(grid.players["player2"]).toEqual({ x: 5, y: 6 });
+
+    // Check that features were updated
+    expect(grid.features["1,1"]).toBe(""); // Old position cleared
+    expect(grid.features["5,5"]).toBe(""); // Old position cleared
+    expect(grid.features["2,1"]).toBe("player1"); // New position has player1
+    expect(grid.features["5,6"]).toBe("player2"); // New position has player2
+    expect(grid.features["3,3"]).toBe("rock"); // Other features remain unchanged
+  });
+
+  it("should handle multiple moves for the same player", () => {
+    // Set up initial grid with one player
+    const grid = {
+      height: 10,
+      width: 10,
+      players: {
+        player1: { x: 1, y: 1 },
+      },
+      features: {
+        "1,1": "player1",
+        "3,3": "rock",
+      } as Record<string, string>,
+    };
+
+    // Create judge results with multiple entries for the same player
+    // (simulating a bug or multiple rounds being processed at once)
+    const judgeResults = [
+      {
+        playerId: "player1",
+        status: {
+          status: "ok",
+          health: 100,
+          inventory: [],
+          position: { x: 2, y: 1 },
+        },
+        result: "success",
+        reason: "First move",
+      },
+      {
+        playerId: "player1",
+        status: {
+          status: "ok",
+          health: 90,
+          inventory: ["key"],
+          position: { x: 3, y: 1 },
+        },
+        result: "success",
+        reason: "Second move",
+      },
+    ];
+
+    // Update the grid
+    updateGridFromJudgeResults(judgeResults, grid);
+
+    // Check that the final position is the last one in the results
+    expect(grid.players["player1"]).toEqual({ x: 3, y: 1 });
+
+    // Check that features were updated correctly
+    expect(grid.features["1,1"]).toBe(""); // Initial position cleared
+    expect(grid.features["2,1"]).toBe(""); // Intermediate position cleared
+    expect(grid.features["3,1"]).toBe("player1"); // Final position has player
+    expect(grid.features["3,3"]).toBe("rock"); // Other features remain unchanged
   });
 });
