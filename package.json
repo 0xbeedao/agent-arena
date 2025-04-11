@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "vitest",
+    "test": "vitest src/!(experiments)/**/*.test.ts",
+    "test:experiments": "vitest src/experiments/*.test.ts",
     "dev": "mastra dev",
     "workflow": "bun run /src/test/run_workflow.ts"
   },

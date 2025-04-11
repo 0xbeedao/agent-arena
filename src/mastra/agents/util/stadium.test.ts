@@ -68,32 +68,59 @@ describe("addFeature", () => {
 
 describe("generateFeatures", async () => {
   it("should generate a single feature", async () => {
-    const agent = new Agent({
-      name: "player",
-      instructions: "You are a player in a game",
-      model: google("gemini-2.0-flash-lite"),
-    });
+    const mockFeatures = [
+      {
+        name: "rock",
+        position: { x: 2, y: 3 },
+      },
+    ];
+    const mockAgent = {
+      generate: vi.fn().mockResolvedValue({
+        text: JSON.stringify(mockFeatures),
+      }),
+    } as unknown as Agent;
 
-    const features = await generateFeatures(agent, "A square arena", 10, 10, 1);
+    const features = await generateFeatures(
+      mockAgent,
+      "A square arena",
+      10,
+      10,
+      1
+    );
     expect(features.length).toBe(1);
     expect(features[0].name).toBeDefined();
     expect(features[0].position).toBeDefined();
   });
 
   it("should generate multiple features", async () => {
-    const agent = new Agent({
-      name: "player",
-      instructions: "You are a player in a game",
-      model: google("gemini-2.0-flash-lite"),
-    });
-    const features = await generateFeatures(agent, "A square arena", 10, 10, 5);
+    const mockFeatures = [
+      {
+        name: "rock",
+        position: { x: 2, y: 3 },
+      },
+      {
+        name: "tree",
+        position: { x: 4, y: 5 },
+      },
+    ];
+    const mockAgent = {
+      generate: vi.fn().mockResolvedValue({
+        text: JSON.stringify(mockFeatures),
+      }),
+    } as unknown as Agent;
+
+    const features = await generateFeatures(
+      mockAgent,
+      "A square arena",
+      10,
+      10,
+      5
+    );
     expect(features.length).toBeGreaterThan(0);
-    // both names and positions should be unique
     expect(A.uniq(features.map((f) => f.name)).length).toBe(features.length);
     expect(A.uniq(features.map((f) => f.position)).length).toBe(
       features.length
     );
-    // positions should be within the grid
     features.forEach((f) => {
       expect(f.position.x).toBeGreaterThanOrEqual(0);
       expect(f.position.x).toBeLessThanOrEqual(10);
@@ -105,67 +132,55 @@ describe("generateFeatures", async () => {
 
 describe("generateGrid", async () => {
   it("should generate a grid with a single required feature", async () => {
-    // Create mock agent for testing without paying for OpenAI
-    const agent = new Agent({
-      name: "player",
-      instructions: "You are a player in a game",
-      model: google("gemini-2.0-flash-lite"),
-    });
+    const mockGrid = {
+      features: {
+        "2,3": "rock",
+      },
+    };
+    const mockAgent = {
+      generate: vi.fn().mockResolvedValue({
+        text: JSON.stringify(mockGrid),
+      }),
+    } as unknown as Agent;
 
     const grid = await generateGrid(
       10,
       10,
       0,
-      [
-        {
-          name: "rock",
-          position: { x: 2, y: 3 },
-        },
-      ],
+      [{ name: "rock", position: { x: 2, y: 3 } }],
       "A square arena with a rock",
       [],
-      agent
+      mockAgent
     );
-
     expect(Object.keys(grid.features).length).toBe(1);
     expect(grid.features["2,3"]).toBe("rock");
   });
 
   it("should generate a grid with a single required feature and at least one rainbow feature", async () => {
-    // Create the AgentWrapper and set up mocked responses
-    const agent = new Agent({
-      name: "player",
-      instructions:
-        "You are setting up a game, please generate a grid with a rock and a rainbow",
-      model: google("gemini-2.0-flash-lite"),
-    });
+    const mockFeaturesResponse = [
+      {
+        name: "rainbow",
+        position: { x: 7, y: 7 },
+      },
+    ];
+    const mockAgent = {
+      generate: vi.fn().mockResolvedValue({
+        text: JSON.stringify(mockFeaturesResponse),
+      }),
+    } as unknown as Agent;
 
     const grid = await generateGrid(
       10,
       10,
       4,
-      [
-        {
-          name: "rock",
-          position: { x: 6, y: 6 },
-        },
-      ],
+      [{ name: "rock", position: { x: 6, y: 6 } }],
       "A square arena with a rock",
       [],
-      agent
+      mockAgent
     );
-
     expect(Object.keys(grid.features).length).toBeGreaterThan(1);
-
     expect(grid.features["6,6"]).toBe("rock");
-
-    const hasRainbow = pipe(
-      grid.features,
-      D.values,
-      A.some((value) => S.includes("rainbow", value))
-    );
-
-    expect(hasRainbow).toBe(true);
+    expect(grid.features["7,7"]).toBe("rainbow");
   });
 });
 
@@ -267,7 +282,8 @@ describe("generateNarrativeFromResults", () => {
     );
 
     // Check that the prompt includes all the necessary information
-    const generateCall = mockAgent.generate.mock.calls[0][0] as string;
+    const generateCall = (mockAgent.generate as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as string;
     expect(generateCall).toContain("Beware of hidden traps");
     expect(generateCall).toContain(JSON.stringify(round.grid));
     expect(generateCall).toContain(JSON.stringify(round.actions));
@@ -496,12 +512,13 @@ describe("generateJudgement", () => {
     );
 
     // Check that the prompt includes all the necessary information
-    const generateCall = (mockJudge.generate as any).mock.calls[0][0] as string;
+    const generateCall = (mockJudge.generate as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as string;
     expect(generateCall).toContain("Beware of hidden traps");
     expect(generateCall).toContain(
       JSON.stringify(round.grid.players["player1"])
     );
-    const generateCall2 = (mockJudge.generate as any).mock
+    const generateCall2 = (mockJudge.generate as ReturnType<typeof vi.fn>).mock
       .calls[1][0] as string;
     expect(generateCall2).toContain("right");
   });
