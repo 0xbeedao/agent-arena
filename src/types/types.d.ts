@@ -1,16 +1,21 @@
 import {
   ContestRoundSchema,
+  ContestWorkflowSetupSchema,
   JudgeResponseSchema,
   PlayerActionSchema,
-  ParticipantSchema,
+  PlayerSchema,
 } from "./schemas";
 import { z } from "zod";
 
 export type ContestRound = z.infer<typeof ContestRoundSchema>;
 
+export type ContestWorkflowSetup = z.infer<typeof ContestWorkflowSetupSchema>;
+
+export type ContestWorkflowRound = z.infer<typeof ContestWorkflowRoundSchema>;
+
 export type Grid = z.infer<typeof GridSchema>;
 
-export type Participant = z.infer<typeof ParticipantSchema>;
+export type Participant = z.infer<typeof PlayerSchema>;
 
 export type JudgeResult = z.infer<typeof JudgeResultSchema>;
 export type JudgeResponse = z.infer<typeof JudgeResponseSchema>;

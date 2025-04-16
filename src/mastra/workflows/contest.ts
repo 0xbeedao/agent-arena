@@ -4,24 +4,36 @@ import {
   contestWorkflowSetupSchema,
   PlayerActionSchema,
 } from "../../types/schemas.d";
-import { makeArenaAgent } from "../agents/arena";
-import { makeJudgeAgent } from "../agents/judge";
-import { makePlayerAgent } from "../agents/player";
-import { AgentCache } from "../agents/util/agentcache";
 import {
   generateGrid,
   generateJudgement,
   generatePlayerAction,
 } from "../agents/util/stadium";
 import { contestLogger } from "../../logging";
-import { ContestRound, PlayerStatus } from "../../types/types";
+import {
+  ContestRound,
+  ContestWorkflowRound,
+  ContestWorkflowSetup,
+  PlayerStatus,
+} from "../../types/types";
+import { AgentCache } from "../agents/util/agentcache";
+import { judgeAgent } from "../agents/judge";
+import { arenaAgent } from "../agents/arena";
+import { mastra } from "..";
+import { makePlayerAgent } from "../agents/player";
+import { judgeAgent } from "../../../.history/src/mastra/agents/judge_20250411175821";
 
 export function makeContestWorkflow() {
   const workflow = new Workflow({
     name: "Contest",
     triggerSchema: contestWorkflowSetupSchema,
   });
-  workflow.step(startContestStep).then(startRoundStep).commit();
+  workflow
+    .step(startContestStep)
+    .then(startRoundStep)
+    .then(collectPlayerActionsStep)
+    .then(generateJudgeResponseStep)
+    .commit();
   return workflow;
 }
 
@@ -35,17 +47,13 @@ const startContestStep = new Step({
   outputSchema: contestWorkflowRoundSchema,
   execute: async ({ context }) => {
     const {
-      arena,
-      judge,
       players,
       arenaDescription,
-      rules,
       arenaHeight,
       arenaWidth,
       maxFeatures,
       requiredFeatures,
-    } = context.triggerData;
-    const arenaAgent = makeArenaAgent(arena, players, arenaDescription);
+    } = context.triggerData as ContestWorkflowSetup;
     const grid = await generateGrid(
       arenaWidth,
       arenaHeight,
@@ -57,13 +65,8 @@ const startContestStep = new Step({
     );
 
     const agentCache = new AgentCache();
-    agentCache.addAgent("arena", arenaAgent);
-    agentCache.addAgent("judge", makeJudgeAgent(judge, players, rules));
     for (const player of players) {
-      agentCache.addAgent(
-        `player-${player.id}`,
-        makePlayerAgent(player, players, rules)
-      );
+      agentCache.addAgent(player.id, makePlayerAgent(player));
     }
 
     const rv = {
@@ -91,8 +94,8 @@ const startRoundStep = new Step({
     if (context.steps.startContest.status !== "success") {
       throw new Error("Failed to start contest");
     }
-    const { agentCache, roundHistory, roundNumber } =
-      context.steps.startContest?.output;
+    const { agentCache, roundHistory, roundNumber } = context.steps.startContest
+      ?.output as ContestWorkflowRound;
 
     contestLogger.info(
       "Starting round: " + JSON.stringify(roundHistory, null, 2)
@@ -104,6 +107,27 @@ const startRoundStep = new Step({
       grid: round.grid,
       status: {},
     };
+
+    return {
+      agentCache,
+      roundHistory: [...roundHistory, newRound],
+      roundNumber: roundNumber + 1,
+    };
+  },
+});
+
+const collectPlayerActionsStep = new Step({
+  id: "collectPlayerActions",
+  outputSchema: contestWorkflowRoundSchema,
+  execute: async ({ context }) => {
+    const { players, arenaDescription, rules } = context.triggerData;
+    if (context.steps.startRound.status !== "success") {
+      throw new Error("Failed to start round");
+    }
+    const { agentCache, roundHistory, roundNumber } = context.steps.startRound
+      ?.output as ContestWorkflowRound;
+    const round = roundHistory[roundHistory.length - 1];
+
     // collect actions from each player
     for (const player of players) {
       const playerStatus = {
@@ -112,36 +136,59 @@ const startRoundStep = new Step({
         status: "fresh",
       };
 
+      const extraInstructions =
+        roundNumber === 1 ? `The rules are: ${rules.join("\n")}` : "";
+
       const playerAction = await generatePlayerAction({
         agentCache,
         arenaDescription,
-        extraInstructions: "First round!",
+        extraInstructions,
         player,
         playerStatus,
         round,
-        roundNumber: roundNumber + 1,
+        roundNumber,
       });
-      newRound.actions[player.id] = playerAction;
+      round.actions[player.id] = playerAction;
     }
     contestLogger.info(
-      "New round after players: " + JSON.stringify(newRound, null, 2)
+      "New round after players: " + JSON.stringify(round, null, 2)
     );
 
-    const judgeResponse = await generateJudgement({
+    return {
       agentCache,
+      roundHistory,
+      roundNumber,
+    };
+  },
+});
+
+const generateJudgeResponseStep = new Step({
+  id: "generateJudgeResponse",
+  outputSchema: contestWorkflowRoundSchema,
+  execute: async ({ context }) => {
+    const { arena, judge, players, arenaDescription, rules } =
+      context.triggerData;
+    if (context.steps.collectPlayerActions.status !== "success") {
+      throw new Error("Failed to collect player actions");
+    }
+    const { roundHistory, roundNumber } = context.steps.collectPlayerActions
+      ?.output as ContestWorkflowRound;
+    const round = roundHistory[roundHistory.length - 1];
+    const extraInstructions =
+      roundNumber === 1 ? `The rules are: ${rules.join("\n")}` : "";
+    const judgeResponse = await generateJudgement({
+      judgeAgent,
       arenaDescription,
-      extraInstructions: "",
-      round: newRound,
-      roundNumber: roundNumber + 1,
-      players,
+      extraInstructions,
+      round,
     });
     contestLogger.info(
       "Judge response: " + JSON.stringify(judgeResponse, null, 2)
     );
 
-    newRound.arenaDescription = judgeResponse.arenaDescription;
-    newRound.grid = judgeResponse.grid;
-    newRound.status = judgeResponse.results.reduce(
+    round.arenaDescription = judgeResponse.arenaDescription;
+    round.grid = judgeResponse.grid;
+    round.status = judgeResponse.results.reduce(
       (acc, result) => {
         acc[result.playerId] = result.status;
         return acc;
@@ -151,12 +198,8 @@ const startRoundStep = new Step({
 
     return {
       agentCache,
-      arena,
-      judge,
-      players,
-      arenaDescription,
-      rules,
-      roundHistory: [...roundHistory, newRound],
+      roundHistory,
+      roundNumber,
     };
   },
 });

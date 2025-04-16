@@ -215,7 +215,7 @@ export async function generateFeatures(
 }
 
 export interface GenerateJudgementProps {
-  agentCache: AgentCache;
+  judgeAgent: Agent;
   arenaDescription: string;
   extraInstructions: string;
   round: ContestRound;
@@ -224,8 +224,7 @@ export interface GenerateJudgementProps {
 export async function generateJudgement(
   props: GenerateJudgementProps
 ): Promise<JudgeResponse> {
-  const { agentCache, arenaDescription, extraInstructions, round } = props;
-  const judgeAgent = agentCache.getAgent("judge");
+  const { arenaDescription, extraInstructions, judgeAgent, round } = props;
   const prompt = [
     `This arena is "${arenaDescription}"`,
     `The arena notes are: ${extraInstructions}`,

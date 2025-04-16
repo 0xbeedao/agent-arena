@@ -27,12 +27,12 @@ export const GridFeatureSchema = z.object({
 
 export const GridFeatureListSchema = z.array(GridFeatureSchema);
 
-export const ParticipantSchema = z.object({
+export const PlayerSchema = z.object({
   id: z.string(),
   name: z.string(),
-  instructions: z.string(),
   model: z.string(),
   personality: z.string(),
+  instructions: z.string().optional(),
 });
 
 export const PlayerActionSchema = z.object({
@@ -74,13 +74,13 @@ export const ContestRoundSchema = z.object({
 // ---- Workflow Schemas ----
 
 export const contestWorkflowSetupSchema = z.object({
-  arena: ParticipantSchema,
-  judge: ParticipantSchema,
-  players: z.array(ParticipantSchema),
-  arenaDescription: z.string(),
-  arenaHeight: z.number(),
-  arenaWidth: z.number(),
-  maxFeatures: z.number(),
+  arena: z.string().default("arena"), // agent id, default: arena
+  judge: z.string().default("judge"), // agent id, default: judge
+  players: z.array(PlayerSchema),
+  arenaDescription: z.string().default("A square arena"),
+  arenaHeight: z.number().positive(),
+  arenaWidth: z.number().positive(),
+  maxFeatures: z.number().positive(),
   requiredFeatures: GridFeatureListSchema.optional(),
   rules: z.array(z.string()),
 });

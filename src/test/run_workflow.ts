@@ -11,22 +11,10 @@ const QUASAR_MODEL = "openrouter:openrouter/quasar-alpha";
 // Start the workflow execution
 const result = await start({
   triggerData: {
-    arena: {
-      id: "arena",
-      name: "Arena",
-      instructions: "",
-      model: QUASAR_MODEL,
-      personality: "",
-    },
+    arena: "arena",
     arenaHeight: 10,
     arenaWidth: 10,
-    judge: {
-      id: "judge",
-      name: "Judge",
-      instructions: "",
-      model: QUASAR_MODEL,
-      personality: "",
-    },
+    judge: "judge",
     players: [
       {
         id: "tester1",

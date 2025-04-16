@@ -1,25 +1,18 @@
 import { Agent } from "@mastra/core/agent";
-import { openai } from "@ai-sdk/openai";
-import type { Participant } from "../../types/types.d.ts";
-import { parseLanguageModel } from "./util/languagemodel-parser.js";
- 
-export function makeJudgeAgent(judge: Participant, players: Participant[], rules: String[]) {
-  const instructions = `You are a judge named "${judge.name} || "The Judge"}" that will be given:
-- a personality 
+import { getLanguageModel } from "../../config.js";
+
+const name = process.env.ARENA_JUDGE_NAME ?? "judge";
+const personality =
+  process.env.ARENA_JUDGE_PERSONALITY ?? "You are a fair and impartial judge.";
+
+export const judgeAgent = new Agent({
+  name,
+  instructions: `You are a judge named "${name}" that will be given:
 - a set of game rules
-- the game state
 - a list of player actions. 
 You will then decide the result of the player actions based on the rules.
-There are ${players.length} players in the game:
-${players.map(player => `- ${player.name}`).join("\n")}
 You will respond in JSON format.
 
-Personality: ${judge.personality || "You are a fair and impartial judge."}
-
-Rules: ${rules.join("\n")}`
-  return new Agent({
-    name: judge.name || "The Judge",
-    instructions,
-    model: parseLanguageModel(judge.model)
-  });
-}
+Personality: ${personality}`,
+  model: getLanguageModel("judge"),
+});
