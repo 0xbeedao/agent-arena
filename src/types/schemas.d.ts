@@ -12,10 +12,16 @@ export const PointSchema = z.object({
   y: z.number(),
 });
 
+export const ArenaFeatureSchema = z.object({
+  name: z.string(),
+  position: PointSchema,
+  endPosition: PointSchema.optional(),
+});
+
 export const GridSchema = z.object({
   features: z.record(z.string(), z.string()),
   height: z.number(),
-  players: z.record(z.string(), PointSchema),
+  playerPositions: z.record(z.string(), PointSchema),
   width: z.number(),
 });
 
@@ -50,10 +56,8 @@ export const PlayerStatusSchema = z.object({
 // [{playerId: <playerId>, status: <PlayerStatus>, result: <result>, reason: <reason>}]
 export const JudgeResultSchema = z.object({
   playerId: z.string(),
-  position: PointSchema,
   result: z.string(),
   reason: z.string(),
-  status: PlayerStatusSchema,
 });
 
 export const JudgeResultListSchema = z.array(JudgeResultSchema);
@@ -62,6 +66,19 @@ export const JudgeResponseSchema = z.object({
   arenaDescription: z.string(),
   grid: GridSchema,
   results: z.array(JudgeResultSchema),
+});
+
+export const PlayerResultSchema = z.object({
+  status: PlayerStatusSchema,
+  result: z.string(),
+  reason: z.string(),
+  playerId: z.string(),
+});
+
+export const RoundResultSchema = z.object({
+  arenaDescription: z.string(),
+  grid: GridSchema,
+  results: z.array(PlayerResultSchema),
 });
 
 export const ContestRoundSchema = z.object({

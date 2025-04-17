@@ -1,31 +1,27 @@
 import type {
   PlayerAction,
-  ArenaFeature,
+  GridFeature,
   Participant,
   Point,
   PlayerStatus,
   ContestRound,
   JudgeResponse,
   JudgeResult,
+  PlayerResult,
+  Grid,
 } from "../../../types/types.d";
 import {
   GridFeatureListSchema,
-  JudgeResponseSchema,
   JudgeResultListSchema,
   PlayerActionSchema,
+  PlayerStatusSchema,
+  PointSchema,
 } from "../../../types/schemas.d";
 import { Agent } from "@mastra/core/agent";
 import { arenaLogger } from "../../../logging";
 import { AgentCache } from "./agentcache";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { z } from "zod";
-
-interface Grid {
-  height: number;
-  width: number;
-  players: { [key: string]: Point };
-  features: { [key: string]: string };
-}
+import { parseResponse } from "./parser";
 
 function serializePoint(point: Point): string {
   return `${point.x},${point.y}`;
@@ -48,7 +44,7 @@ export interface RoundDescriptionParams {
 
 export function addFeatures(
   featureMap: { [key: string]: string },
-  features: Array<ArenaFeature>
+  features: Array<GridFeature>
 ) {
   for (const feature of features) {
     addFeature(featureMap, feature);
@@ -58,7 +54,7 @@ export function addFeatures(
 
 export function addFeature(
   featureMap: { [key: string]: string },
-  feature: ArenaFeature
+  feature: GridFeature
 ) {
   const { name, position, endPosition } = feature;
   if (!endPosition) {
@@ -127,7 +123,7 @@ export async function generateGrid(
   width: number,
   height: number,
   maxFeatures: number,
-  requiredFeatures: Array<ArenaFeature>,
+  requiredFeatures: Array<GridFeature>,
   description: string,
   players: Participant[],
   agent: Agent
@@ -206,10 +202,7 @@ export async function generateFeatures(
   const response = await agent.generate(prompt, {
     output: GridFeatureListSchema,
   });
-  const responseFeatures =
-    "object" in response
-      ? (response.object as ArenaFeature[])
-      : (JSON.parse(response.text) as ArenaFeature[]);
+  const responseFeatures = parseResponse(response, GridFeatureListSchema);
   arenaLogger.debug("--- features", responseFeatures);
   return responseFeatures;
 }
@@ -231,7 +224,11 @@ export async function generateJudgement(
     `The current grid is: ${JSON.stringify(round.grid)}`,
     `Players have submitted the following actions: ${JSON.stringify(round.actions)}`,
     "Please judge the actions for each player and make any changes to their status",
-    `return the results in json format: [{playerId: <playerId>, status: {status: <string>, health: <number>, inventory: <string[]>}, position: {x: <number>, y: <number>}, result: <result>, reason: <reason>}]`,
+    "These results will be used to update player statuses, and to generate a narrative for the next round",
+    "Example results:",
+    `[{playerId: "player1", result: "success, add a key to inventory", reason: "Moved right and found a key"},`,
+    `{ playerId: "player2", result: "success with consequences", reason: "Moved right but triggered a trap" }]`,
+    `return the results in json format: [{playerId: <playerId>, result: <result text>, reason: <reason text>}]`,
   ].join("\n");
   arenaLogger.debug("prompt: " + prompt);
   const response = await judgeAgent.generate(prompt, {
@@ -239,10 +236,90 @@ export async function generateJudgement(
   });
   arenaLogger.info("Judge response: " + JSON.stringify(response, null, 2));
   const judgeResults = response.object as JudgeResult[];
+  return {
+    arenaDescription,
+    grid: round.grid,
+    results: judgeResults,
+  };
+}
 
-  updateGridFromJudgeResults(judgeResults, round.grid);
+export interface GenerateRoundUpdatesProps {
+  judgeAgent: Agent;
+  arenaDescription: string;
+  judgeResults: JudgeResult[];
+  round: ContestRound;
+}
+
+export async function generatePositionUpdates(
+  props: GenerateRoundUpdatesProps
+): Promise<JudgeResponse> {
+  const { judgeAgent, arenaDescription, judgeResults, round } = props;
+
+  const prompt = [
+    `This arena is "${arenaDescription}"`,
+    `Previously, the players were at the following positions: ${JSON.stringify(round.grid.playerPositions)}`,
+    `The judge has returned the following results: ${JSON.stringify(judgeResults)}`,
+    "Please generate the new positions for the players in the same JSON format as the original positions",
+  ].join("\n");
+
+  const response = await judgeAgent.generate(prompt, {
+    output: z.record(z.string(), PointSchema),
+  });
+  const positionUpdates: Record<string, Point> = parseResponse(
+    response,
+    z.record(z.string(), PointSchema)
+  );
+
+  round.grid = updateGridFromPlayerPositions(positionUpdates, round.grid);
+  return {
+    arenaDescription,
+    grid: round.grid,
+    results: judgeResults,
+  };
+}
+
+export async function generatePlayerStatusUpdates(
+  props: GenerateRoundUpdatesProps
+): Promise<JudgeResponse> {
+  const { judgeAgent, arenaDescription, judgeResults, round } = props;
+  const generationPromises = judgeResults.map((result) =>
+    generatePlayerStatus({
+      agent: judgeAgent,
+      result,
+      grid: round.grid,
+    })
+  );
+  const playerResults: PlayerResult[] = await Promise.all(generationPromises);
+  await Promise.all(generationPromises);
+
+  updateStatusesFromJudgeResults(playerResults, round.status);
+  return {
+    arenaDescription,
+    grid: round.grid,
+    results: playerResults,
+  };
+}
+
+export interface GenerateNarrativeForJudgementProps {
+  arenaAgent: Agent;
+  arenaDescription: string;
+  extraInstructions: string;
+  judgeResults: JudgeResult[];
+  round: ContestRound;
+}
+
+export async function generateNarrativeForJudgement(
+  props: GenerateNarrativeForJudgementProps
+): Promise<JudgeResponse> {
+  const {
+    arenaAgent,
+    arenaDescription,
+    extraInstructions,
+    judgeResults,
+    round,
+  } = props;
   const arenaNarrative = await generateNarrativeFromResults({
-    agent: judgeAgent,
+    agent: arenaAgent,
     arenaDescription,
     extraInstructions,
     judgeResults,
@@ -280,8 +357,9 @@ export async function generateNarrativeFromResults(
   const response = await agent.generate(prompt, {
     output: z.string(),
   });
-  arenaLogger.info("Narrative: " + response.text);
-  return response.text;
+  const narrative = parseResponse(response);
+  arenaLogger.info("Narrative: " + narrative);
+  return narrative;
 }
 
 export interface GeneratePlayerActionProps {
@@ -330,6 +408,33 @@ export async function generatePlayerAction(
   return response.object as PlayerAction;
 }
 
+export interface GeneratePlayerStatusProps {
+  agent: Agent;
+  result: JudgeResult;
+  grid: Grid;
+}
+
+export async function generatePlayerStatus(
+  props: GeneratePlayerStatusProps
+): Promise<PlayerResult> {
+  const { agent, result, grid } = props;
+  const playerStatus = grid.players[result.playerId];
+  const prompt = [
+    `The current grid is: ${JSON.stringify(grid)}`,
+    `The judge has returned the following result: ${JSON.stringify(result)}`,
+    `The player has the following status: ${JSON.stringify(playerStatus)}`,
+    "Please generate an updated status for the player in the same format as the original status",
+  ].join("\n");
+  const response = await agent.generate(prompt, {
+    output: PlayerStatusSchema,
+  });
+  const status = parseResponse(response, PlayerStatusSchema);
+  return {
+    status,
+    ...result,
+  };
+}
+
 export function randomPosition(
   height: number,
   width: number,
@@ -345,17 +450,28 @@ export function randomPosition(
   return position;
 }
 
-export function updateGridFromJudgeResults(
-  judgeResults: JudgeResult[],
+export function updateGridFromPlayerPositions(
+  playerPositions: Record<string, Point>,
   grid: Grid
 ) {
-  for (const judgeResult of judgeResults) {
-    const { playerId, status, result, reason } = judgeResult;
-    const { x: targetX, y: targetY } = status.position;
-    const { x: currentX, y: currentY } = grid.players[playerId];
-    grid.players[playerId] = { x: targetX, y: targetY };
+  for (const [playerId, position] of Object.entries(playerPositions)) {
+    const { x: targetX, y: targetY } = position;
+    const { x: currentX, y: currentY } = grid.playerPositions[playerId];
+    grid.playerPositions[playerId] = { x: targetX, y: targetY };
     grid.features[serializePoint({ x: currentX, y: currentY })] = "";
     grid.features[serializePoint({ x: targetX, y: targetY })] = playerId;
   }
   return grid;
+}
+
+export function updateStatusesFromJudgeResults(
+  judgeResults: JudgeResult[],
+  statuses: Record<string, PlayerStatus>
+) {
+  for (const judgeResult of judgeResults) {
+    const { playerId } = judgeResult;
+    const status = statuses[playerId];
+    statuses[playerId] = status;
+  }
+  return statuses;
 }

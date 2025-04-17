@@ -48,11 +48,45 @@ describe("parseLanguageModel", () => {
     expect(response.text).toContain("Hello, world!");
   });
 
+  it("Should call moonshot", async () => {
+    const languageModel = parseLanguageModel(
+      "openrouter:moonshotai/kimi-vl-a3b-thinking:free"
+    );
+    expect(languageModel).toBeDefined();
+    const response = await generateText({
+      model: languageModel,
+      prompt: "Hello, world!",
+    });
+    expect(response).toBeDefined();
+    testLogger.debug(JSON.stringify(response, null, 2));
+    expect(response.text).toContain("Hello, world!");
+  });
+
   it("Should call using a Mastra Agent to received structured output", async () => {
     const agent = new Agent({
       name: "test",
       instructions: "You are a test agent",
       model: parseLanguageModel("openai:gpt-4o-mini"),
+    });
+    const response = await agent.generate(
+      'respond with a json object with hello = "world"',
+      {
+        output: z.object({
+          hello: z.string(),
+        }),
+      }
+    );
+    expect(response).toBeDefined();
+    testLogger.debug(JSON.stringify(response, null, 2));
+    expect(response.object).toEqual({ hello: "world" });
+    // expect(response.text).toEqual('{"hello":"world"}');
+  });
+
+  it("Should call using a GPT4.1 Nano Agent to received structured output", async () => {
+    const agent = new Agent({
+      name: "test",
+      instructions: "You are a test agent",
+      model: parseLanguageModel("openrouter:openai/gpt-4.1-nano"),
     });
     const response = await agent.generate(
       'respond with a json object with hello = "world"',

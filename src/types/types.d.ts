@@ -2,8 +2,12 @@ import {
   ContestRoundSchema,
   ContestWorkflowSetupSchema,
   JudgeResponseSchema,
+  JudgeResultSchema,
   PlayerActionSchema,
+  PlayerResultSchema,
   PlayerSchema,
+  PlayerStatusSchema,
+  PointSchema,
 } from "./schemas";
 import { z } from "zod";
 
@@ -26,8 +30,6 @@ export type Point = z.infer<typeof PointSchema>;
 
 export type PlayerStatus = z.infer<typeof PlayerStatusSchema>;
 
-export type ArenaFeature = {
-  name: string;
-  position: Point;
-  endPosition?: Point;
-};
+export type GridFeature = z.infer<typeof GridFeatureSchema>;
+
+export type PlayerResult = z.infer<typeof PlayerResultSchema>;
