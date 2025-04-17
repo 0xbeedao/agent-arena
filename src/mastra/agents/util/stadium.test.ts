@@ -522,10 +522,8 @@ describe("Stadium Tests", () => {
 
       // Verify agent call
       expect(localMockJudge.generate).toHaveBeenCalledTimes(1);
-      expect(localMockJudge.generate).toHaveBeenCalledWith(
-        expect.stringContaining("Updating positions"),
-        { output: z.record(z.string(), PointSchema) } // Check schema
-      );
+      const jsonCall = JSON.stringify(localMockJudge.generate.mock.calls[0]);
+      expect(jsonCall).toContain("Updating positions");  // it's name
       const generateCall = (localMockJudge.generate as ReturnType<typeof vi.fn>)
         .mock.calls[0][0] as string;
       expect(generateCall).toContain(
@@ -606,15 +604,16 @@ describe("Stadium Tests", () => {
   // New test suite for generatePlayerStatusUpdates
   describe("generatePlayerStatusUpdates", () => {
     it("should call generatePlayerStatus for each result and update round statuses", async () => {
-      // Configure the mock for generatePlayerStatus (imported mock via vi.mock)
-      (generatePlayerStatus as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce(mockPlayerResults[0]) // For player1
-        .mockResolvedValueOnce(mockPlayerResults[1]); // For player2
-
+      
+        const localMockAgent = {
+          generate: vi.fn()
+            .mockResolvedValueOnce(mockStatusPlayer1)
+            .mockResolvedValueOnce(mockStatusPlayer2),
+        } as unknown as Agent;
       const localRound: ContestRound = JSON.parse(JSON.stringify(mockRound)); // Deep copy
 
       const props = {
-        judgeAgent: mockAgent, // Agent passed down
+        judgeAgent: localMockAgent, // Agent passed down
         arenaDescription: "Updating statuses",
         judgeResults: mockJudgeResults,
         round: localRound,

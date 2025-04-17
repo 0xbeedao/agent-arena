@@ -164,7 +164,7 @@ export async function generateGrid(
   const grid: Grid = {
     height,
     width,
-    players: playerPositions,
+    playerPositions,
     features,
   };
   arenaLogger.debug("grid: " + JSON.stringify(grid, null, 2));
