@@ -13,6 +13,7 @@ import { google } from "@ai-sdk/google";
 import { D, A, S, pipe } from "@mobily/ts-belt";
 import type {
   ContestRound,
+  Grid,
   GridFeature,
   PlayerAction,
   PlayerStatus,
@@ -136,18 +137,8 @@ describe("Stadium Tests", () => {
   });
 
   describe("generateGrid", async () => {
-    it("should generate a grid with a single required feature", async () => {
-      const mockGrid = {
-        features: {
-          "2,3": "rock",
-        },
-      };
-      const mockAgent = {
-        generate: vi.fn().mockResolvedValue({
-          text: JSON.stringify(mockGrid),
-        }),
-      } as unknown as Agent;
-
+    it("should generate a grid with only the required feature when maxFeatures is 0", async () => {
+      // No agent mock needed here as maxFeatures = 0 means generateFeatures is not called.
       const grid = await generateGrid(
         10,
         10,
@@ -155,13 +146,13 @@ describe("Stadium Tests", () => {
         [{ name: "rock", position: { x: 2, y: 3 } }],
         "A square arena with a rock",
         [],
-        mockAgent
+        null as unknown as Agent // Pass null or a dummy agent if type requires it
       );
       expect(Object.keys(grid.features).length).toBe(1);
       expect(grid.features["2,3"]).toBe("rock");
     });
 
-    it("should generate a grid with a single required feature and at least one rainbow feature", async () => {
+    it("should generate a grid calling generateFeatures for random features", async () => {
       const mockFeaturesResponse = [
         {
           name: "rainbow",
@@ -296,13 +287,13 @@ describe("Stadium Tests", () => {
     });
   });
 
-  describe("updateGridFromJudgeResults", () => {
-    it("should update player positions and features in the grid", () => {
+  describe("updateGridFromPlayerPositions", () => { // Renamed describe block
+    it("should update player positions and features in the grid based on new positions", () => {
       // Set up initial grid with players
-      const grid = {
+      const grid: Grid = {
         height: 10,
         width: 10,
-        players: {
+        playerPositions: {
           player1: { x: 1, y: 1 },
           player2: { x: 5, y: 5 },
         },
@@ -313,38 +304,18 @@ describe("Stadium Tests", () => {
         } as Record<string, string>,
       };
 
-      // Create judge results that move players to new positions
-      const judgeResults = [
-        {
-          playerId: "player1",
-          status: {
-            status: "ok",
-            health: 100,
-            inventory: [],
-            position: { x: 2, y: 1 },
-          },
-          result: "success",
-          reason: "Moved right",
-        },
-        {
-          playerId: "player2",
-          status: {
-            status: "ok",
-            health: 100,
-            inventory: [],
-            position: { x: 5, y: 6 },
-          },
-          result: "success",
-          reason: "Moved down",
-        },
-      ];
+      // Define the new positions for players
+      const newPositions: Record<string, { x: number; y: number }> = {
+        player1: { x: 2, y: 1 },
+        player2: { x: 5, y: 6 },
+      };
 
       // Update the grid
-      updateGridFromPlayerPositions(judgeResults, grid);
+      updateGridFromPlayerPositions(newPositions, grid);
 
       // Check that player positions were updated
-      expect(grid.players["player1"]).toEqual({ x: 2, y: 1 });
-      expect(grid.players["player2"]).toEqual({ x: 5, y: 6 });
+      expect(grid.playerPositions["player1"]).toEqual({ x: 2, y: 1 });
+      expect(grid.playerPositions["player2"]).toEqual({ x: 5, y: 6 });
 
       // Check that features were updated
       expect(grid.features["1,1"]).toBe(""); // Old position cleared
@@ -354,63 +325,12 @@ describe("Stadium Tests", () => {
       expect(grid.features["3,3"]).toBe("rock"); // Other features remain unchanged
     });
 
-    it("should handle multiple moves for the same player", () => {
-      // Set up initial grid with one player
-      const grid = {
-        height: 10,
-        width: 10,
-        players: {
-          player1: { x: 1, y: 1 },
-        },
-        features: {
-          "1,1": "player1",
-          "3,3": "rock",
-        } as Record<string, string>,
-      };
-
-      // Create judge results with multiple entries for the same player
-      // (simulating a bug or multiple rounds being processed at once)
-      const judgeResults = [
-        {
-          playerId: "player1",
-          status: {
-            status: "ok",
-            health: 100,
-            inventory: [],
-            position: { x: 2, y: 1 },
-          },
-          result: "success",
-          reason: "First move",
-        },
-        {
-          playerId: "player1",
-          status: {
-            status: "ok",
-            health: 90,
-            inventory: ["key"],
-            position: { x: 3, y: 1 },
-          },
-          result: "success",
-          reason: "Second move",
-        },
-      ];
-
-      // Update the grid
-      updateGridFromJudgeResults(judgeResults, grid);
-
-      // Check that the final position is the last one in the results
-      expect(grid.players["player1"]).toEqual({ x: 3, y: 1 });
-
-      // Check that features were updated correctly
-      expect(grid.features["1,1"]).toBe(""); // Initial position cleared
-      expect(grid.features["2,1"]).toBe(""); // Intermediate position cleared
-      expect(grid.features["3,1"]).toBe("player1"); // Final position has player
-      expect(grid.features["3,3"]).toBe("rock"); // Other features remain unchanged
-    });
+    // Removed the test "should handle multiple moves for the same player"
+    // as it tested a non-existent function 'updateGridFromJudgeResults'
   });
 
-  describe("generateJudgement", () => {
-    it("should generate a judge response based on player actions", async () => {
+  describe("generateJudgement (Initial Results)", () => { // Updated describe block
+    it("should generate initial judge results based on player actions and grid state", async () => { // Updated test description
       // Create mock agent that returns a predefined judge response
       const mockJudgeResponse = {
         object: [
@@ -439,14 +359,10 @@ describe("Stadium Tests", () => {
         ],
       };
 
-      const mockNarrative =
-        "Round 1 summary: Player1 moved right and collected a key! Player2 was hit by a trap and lost health.";
+      // Removed mockNarrative as it's not generated by this function anymore
 
       const mockJudge = {
-        generate: vi
-          .fn()
-          .mockResolvedValueOnce(mockJudgeResponse)
-          .mockResolvedValueOnce({ text: mockNarrative }),
+        generate: vi.fn().mockResolvedValueOnce(mockJudgeResponse), // Only one mock call needed now
       } as unknown as Agent;
 
       // Create mock round data
@@ -505,7 +421,7 @@ describe("Stadium Tests", () => {
       expect(judgeResponse.arenaDescription).toBeDefined();
 
       // Verify that agent.generate was called with the expected prompt
-      expect(mockJudge.generate).toHaveBeenCalledTimes(2);
+      expect(mockJudge.generate).toHaveBeenCalledTimes(1); // Expect only one call
       expect(mockJudge.generate).toHaveBeenCalledWith(
         expect.stringContaining("A dangerous arena with traps and treasures"),
         { output: expect.any(Object) }
@@ -515,12 +431,10 @@ describe("Stadium Tests", () => {
       const generateCall = (mockJudge.generate as ReturnType<typeof vi.fn>).mock
         .calls[0][0] as string;
       expect(generateCall).toContain("Beware of hidden traps");
-      expect(generateCall).toContain(
-        JSON.stringify(round.grid.playerPositions["player1"])
-      );
-      const generateCall2 = (mockJudge.generate as ReturnType<typeof vi.fn>)
-        .mock.calls[1][0] as string;
-      expect(generateCall2).toContain("right");
+      expect(generateCall).toContain(JSON.stringify(round.grid)); // Check if grid is included
+      expect(generateCall).toContain(JSON.stringify(round.actions)); // Check if actions are included
+
+      // Removed checks for the second generate call (narrative)
     });
   });
 });
