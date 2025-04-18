@@ -4,11 +4,6 @@ import {
   contestWorkflowSetupSchema,
   PlayerActionSchema,
 } from "../../types/schemas.d";
-import {
-  generateGrid,
-  generateJudgement,
-  generatePlayerAction,
-} from "../agents/util/stadium";
 import { contestLogger } from "../../logging";
 import {
   ContestRound,
@@ -21,7 +16,7 @@ import { judgeAgent } from "../agents/judge";
 import { arenaAgent } from "../agents/arena";
 import { mastra } from "..";
 import { makePlayerAgent } from "../agents/player";
-import { judgeAgent } from "../../../.history/src/mastra/agents/judge_20250411175821";
+import { generateGrid, generateJudgement, generatePlayerAction } from "../core";
 
 export function makeContestWorkflow() {
   const workflow = new Workflow({
@@ -100,17 +95,17 @@ const startRoundStep = new Step({
     contestLogger.info(
       "Starting round: " + JSON.stringify(roundHistory, null, 2)
     );
-    const round: ContestRound = roundHistory[roundHistory.length - 1];
-    const newRound: ContestRound = {
+    const round: ContestRound = {
       actions: {},
       arenaDescription,
-      grid: round.grid,
+      positions: {},
+      results: {},
       status: {},
     };
 
     return {
       agentCache,
-      roundHistory: [...roundHistory, newRound],
+      roundHistory: [...roundHistory, round],
       roundNumber: roundNumber + 1,
     };
   },
