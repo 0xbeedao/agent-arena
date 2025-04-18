@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Grid generator for Mastra Arena
+ * @description Generates game grids with features and player positions
+ * 
+ * ```mermaid
+ * graph TD
+ *   A[Grid Initialization] --> B[Add Required Features]
+ *   B --> C[Generate Optional Features]
+ *   C --> D[Place Players]
+ *   D --> E[Finalize Grid]
+ * ```
+ */
 import type { GridFeature, Participant, Point } from "../../types/types.d";
 import { GridFeatureListSchema } from "../../types/schemas.d";
 import { Agent } from "@mastra/core/agent";
@@ -5,15 +17,40 @@ import { arenaLogger } from "../../logging";
 import { parseResponse } from "../agents/util/parser";
 import { A, D } from "@mobily/ts-belt";
 
+/**
+ * Represents a game grid with features and player positions
+ * @property description - Human-readable description of the grid
+ * @property features - Map of feature names to their positions
+ */
+export interface Grid {
+  description: string;
+  features: { [key: string]: Point };
+}
+
+/**
+ * Converts a Point object to a string representation
+ * @param point The point to serialize
+ * @returns Comma-separated string of x,y coordinates
+ */
 export function serializePoint(point: Point): string {
   return `${point.x},${point.y}`;
 }
 
+/**
+ * Converts a comma-separated string to a Point object
+ * @param str The string to deserialize
+ * @returns Point object with x,y coordinates
+ */
 export function deserializePoint(str: string): Point {
   const [x, y] = str.split(",").map(Number);
   return { x, y };
 }
 
+/**
+ * Adds multiple features to the feature map
+ * @param featureMap The current map of features
+ * @param features Array of features to add
+ */
 export function addFeatures(
   featureMap: { [key: string]: Point },
   features: Array<GridFeature>
@@ -24,6 +61,11 @@ export function addFeatures(
   arenaLogger.debug("featureMap: " + JSON.stringify(featureMap, null, 2));
 }
 
+/**
+ * Adds a single feature to the feature map
+ * @param featureMap The current map of features
+ * @param feature The feature to add
+ */
 export function addFeature(
   featureMap: { [key: string]: Point },
   feature: GridFeature
@@ -59,11 +101,18 @@ export function addFeature(
   }
 }
 
-export interface Grid {
-  description: string;
-  features: { [key: string]: Point };
-}
-
+/**
+ * Generates a game grid with specified dimensions and features
+ * @param width Grid width in units
+ * @param height Grid height in units
+ * @param maxFeatures Maximum number of features to generate (including required ones)
+ * @param requiredFeatures Array of mandatory features to include
+ * @param description Human-readable description of the grid
+ * @param players Array of participants needing positions
+ * @param agent AI agent used for generating optional features
+ * @returns Promise resolving to the generated Grid object
+ * @throws Error if maxFeatures is less than requiredFeatures.length
+ */
 export async function generateGrid(
   width: number,
   height: number,
@@ -82,7 +131,6 @@ export async function generateGrid(
     );
     addFeatures(features, requiredFeatures);
   }
-
   maxFeatures -= requiredFeatures.length;
 
   if (maxFeatures > 0) {
@@ -107,6 +155,7 @@ export async function generateGrid(
       "Set player " + player.name + " at " + serializePoint(playerPosition)
     );
   }
+
   const grid: Grid = {
     description: `${description} a (${height}x${width}) grid`,
     features,
@@ -115,14 +164,22 @@ export async function generateGrid(
   return grid;
 }
 
+/**
+ * Generates optional features using an AI agent
+ * @param agent The AI agent to use for generation
+ * @param description Grid description for context
+ * @param width Grid width
+ * @param height Grid height
+ * @param maxFeatures Maximum number of features to generate
+ * @returns Array of generated GridFeature objects
+ */
 export async function generateFeatures(
   agent: Agent,
   description: string,
   width: number,
   height: number,
   maxFeatures: number
-) {
-  // Generate the features
+): Promise<Array<GridFeature>> {
   const prompt = [
     `This arena is "${description}"`,
     `Please generate ${maxFeatures} random features for the arena`,
@@ -151,6 +208,13 @@ export async function generateFeatures(
   return responseFeatures;
 }
 
+/**
+ * Generates a random position not occupied by existing features
+ * @param height Grid height
+ * @param width Grid width
+ * @param features Current map of features
+ * @returns Random valid Point object
+ */
 export function randomPosition(
   height: number,
   width: number,
@@ -164,14 +228,4 @@ export function randomPosition(
     };
   } while (A.includes(D.values(features), position));
   return position;
-}
-
-export function updateGridFromPlayerPositions(
-  playerPositions: { [key: string]: Point },
-  features: { [key: string]: Point }
-): { [key: string]: Point } {
-  for (const [id, position] of Object.entries(playerPositions)) {
-    features[`player:${id}`] = position;
-  }
-  return features;
 }
