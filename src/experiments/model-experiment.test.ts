@@ -33,4 +33,24 @@ describe("Model Experiments for " + MODEL, () => {
       expect(response.object).toEqual({ hello: "world" });
     }
   );
+
+  it(
+    "Should call using " + MODEL + " to received structured output of a record",
+    async () => {
+      const agent = new Agent({
+        name: "test",
+        instructions: "You are a test agent",
+        model: parseLanguageModel(MODEL),
+      });
+      const response = await agent.generate(
+        'respond with a json object with hello = "world"',
+        {
+          output: z.record(z.string(), z.string()),
+        }
+      );
+      expect(response).toBeDefined();
+      testLogger.debug(JSON.stringify(response, null, 2));
+      expect(response.object).toEqual({ hello: "world" });
+    }
+  );
 });

@@ -18,13 +18,6 @@ export const ArenaFeatureSchema = z.object({
   endPosition: PointSchema.optional(),
 });
 
-export const GridSchema = z.object({
-  features: z.record(z.string(), z.string()),
-  height: z.number(),
-  playerPositions: z.record(z.string(), PointSchema),
-  width: z.number(),
-});
-
 export const GridFeatureSchema = z.object({
   name: z.string(),
   position: PointSchema,
@@ -62,12 +55,6 @@ export const JudgeResultSchema = z.object({
 
 export const JudgeResultListSchema = z.array(JudgeResultSchema);
 
-export const JudgeResponseSchema = z.object({
-  arenaDescription: z.string(),
-  grid: GridSchema,
-  results: z.array(JudgeResultSchema),
-});
-
 export const PlayerResultSchema = z.object({
   status: PlayerStatusSchema,
   result: z.string(),
@@ -77,15 +64,16 @@ export const PlayerResultSchema = z.object({
 
 export const RoundResultSchema = z.object({
   arenaDescription: z.string(),
-  grid: GridSchema,
   results: z.array(PlayerResultSchema),
 });
 
 export const ContestRoundSchema = z.object({
-  actions: z.record(z.string(), PlayerActionSchema),
-  arenaDescription: z.string(),
-  grid: GridSchema,
-  status: z.record(z.string(), PlayerStatusSchema),
+  actions: z.record(z.string(), PlayerActionSchema),  // player actions
+  arenaDescription: z.string(),                       // changes to arena description
+  results: z.record(z.string(), PlayerResultSchema),  // judge results by player
+  status: z.record(z.string(), PlayerStatusSchema),   // player status
+  positions: z.record(z.string(), PointSchema)         // positions of players and features. Players have a "player:" prefix
+                                                      // and features have an "feature:"
 });
 
 // ---- Workflow Schemas ----

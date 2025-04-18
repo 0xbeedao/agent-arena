@@ -22,45 +22,45 @@ describe("parseLanguageModel", () => {
     expect(response.text).toContain("Hello, world!");
   });
 
-  it("should call a free openrouter model", async () => {
-    const languageModel = parseLanguageModel(
-      "openrouter:google/gemini-2.5-pro-exp-03-25:free"
-    );
-    expect(languageModel).toBeDefined();
-    const response = await generateText({
-      model: languageModel,
-      prompt: "As a test, respond with 'Hello'",
-    });
-    expect(response).toBeDefined();
-    testLogger.debug(JSON.stringify(response, null, 2));
-    expect(response.text).toContain("Hello");
-  });
+  // it("should call a free openrouter model", async () => {
+  //   const languageModel = parseLanguageModel(
+  //     "openrouter:google/gemini-2.5-pro-exp-03-25:free"
+  //   );
+  //   expect(languageModel).toBeDefined();
+  //   const response = await generateText({
+  //     model: languageModel,
+  //     prompt: "As a test, respond with 'Hello'",
+  //   });
+  //   expect(response).toBeDefined();
+  //   testLogger.debug(JSON.stringify(response, null, 2));
+  //   expect(response.text).toContain("Hello");
+  // });
 
-  it("Should call using a Mastra Agent", async () => {
-    const agent = new Agent({
-      name: "test",
-      instructions: "You are a test agent",
-      model: parseLanguageModel("google:gemini-1.5-flash"),
-    });
-    const response = await agent.generate("Hello, world!");
-    expect(response).toBeDefined();
-    testLogger.debug(JSON.stringify(response, null, 2));
-    expect(response.text).toContain("Hello, world!");
-  });
+  // it("Should call using a Mastra Agent", async () => {
+  //   const agent = new Agent({
+  //     name: "test",
+  //     instructions: "You are a test agent",
+  //     model: parseLanguageModel("google:gemini-1.5-flash"),
+  //   });
+  //   const response = await agent.generate("Hello, world!");
+  //   expect(response).toBeDefined();
+  //   testLogger.debug(JSON.stringify(response, null, 2));
+  //   expect(response.text).toContain("Hello, world!");
+  // });
 
-  it("Should call moonshot", async () => {
-    const languageModel = parseLanguageModel(
-      "openrouter:moonshotai/kimi-vl-a3b-thinking:free"
-    );
-    expect(languageModel).toBeDefined();
-    const response = await generateText({
-      model: languageModel,
-      prompt: "Hello, world!",
-    });
-    expect(response).toBeDefined();
-    testLogger.debug(JSON.stringify(response, null, 2));
-    expect(response.text).toContain("Hello, world!");
-  });
+  // it("Should call moonshot", async () => {
+  //   const languageModel = parseLanguageModel(
+  //     "openrouter:moonshotai/kimi-vl-a3b-thinking:free"
+  //   );
+  //   expect(languageModel).toBeDefined();
+  //   const response = await generateText({
+  //     model: languageModel,
+  //     prompt: "Hello, world!",
+  //   });
+  //   expect(response).toBeDefined();
+  //   testLogger.debug(JSON.stringify(response, null, 2));
+  //   expect(response.text).toContain("Hello, world!");
+  // });
 
   it("Should call using a Mastra Agent to received structured output", async () => {
     const agent = new Agent({

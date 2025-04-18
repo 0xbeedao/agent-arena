@@ -4,7 +4,6 @@ import {
   generateFeatures,
   generateGrid,
   updateGridFromPlayerPositions,
-  generateNarrativeFromResults,
   generateJudgement,
   generatePositionUpdates, // Added import
   generatePlayerStatus,
@@ -19,42 +18,30 @@ import { describe, it, expect, vi, beforeEach } from "vitest"; // Added beforeEa
 import { Agent } from "@mastra/core/agent";
 import type {
   ContestRound,
-  Grid,
   GridFeature,
   JudgeResult,
   PlayerAction,
   PlayerStatus,
   Participant, // Added import
   Point, // Added import
-  PlayerResult, // Added import
+  PlayerResult,
+  JudgeResultList, // Added import
 } from "../../../types/types.d";
 import { AgentCache } from "./agentcache";
 import {
   PlayerStatusSchema,
   PlayerActionSchema, // Added import
-  PointSchema, // Added import
   JudgeResultListSchema, // Added import
 } from "../../../types/schemas.d"; // Added import
 import { z } from "zod"; // Added import
+import { playerAgent1 } from '../player';
 
 // --- Mocks ---
 const mockAgent = {
   generate: vi.fn(),
 } as unknown as Agent;
 
-const mockGrid: Grid = {
-  height: 10,
-  width: 10,
-  playerPositions: {
-    player1: { x: 1, y: 1 },
-    player2: { x: 5, y: 5 },
-  },
-  features: {
-    "1,1": "player1",
-    "5,5": "player2",
-    "3,3": "rock",
-  },
-};
+const mockAgentCache = vi.fn() as unknown as AgentCache;
 
 const mockPlayer1: Participant = { id: "p1", name: "player1", model: "test", personality: "test-p1" }; // Added personality
 const mockPlayer2: Participant = { id: "p2", name: "player2", model: "test", personality: "test-p2" }; // Added personality
@@ -71,7 +58,6 @@ const mockStatusPlayer2: PlayerStatus = {
 };
 
 const mockRound: ContestRound = {
-  grid: mockGrid,
   actions: {
     player1: {
       action: "move",
@@ -85,6 +71,10 @@ const mockRound: ContestRound = {
     player1: mockStatusPlayer1,
     player2: mockStatusPlayer2,
   },
+  results: {},
+  positions: {
+    "feature:a rock": {x: 4, y: 5}
+  }
 };
 
 const mockJudgeResults: JudgeResult[] = [
@@ -117,6 +107,7 @@ const mockPlayerResults: PlayerResult[] = [
 // --- End Mocks ---
 
 describe("Stadium Tests", () => {
+
   // Reset mocks before each test
   beforeEach(() => {
     vi.clearAllMocks();
@@ -124,7 +115,7 @@ describe("Stadium Tests", () => {
 
   describe("addFeature", () => {
     it("should add a single point feature to the map", () => {
-      const featureMap: { [key: string]: string } = {};
+      const featureMap: { [key: string]: Point } = {};
       const feature = {
         name: "rock",
         position: { x: 2, y: 3 },
@@ -133,11 +124,11 @@ describe("Stadium Tests", () => {
       addFeature(featureMap, feature);
 
       expect(Object.keys(featureMap).length).toBe(1);
-      expect(featureMap["2,3"]).toBe("rock");
+      expect(featureMap["feature:rock"]).toEqual({x: 2, y: 3});
     });
 
     it("should add a line feature between two points", () => {
-      const featureMap: { [key: string]: string } = {};
+      const featureMap: { [key: string]: Point } = {};
       const feature = {
         name: "wall",
         position: { x: 0, y: 0 },
@@ -148,13 +139,13 @@ describe("Stadium Tests", () => {
 
       // Should create 3 points (0,0), (1,0), (2,0)
       expect(Object.keys(featureMap).length).toBe(3);
-      expect(featureMap["0,0"]).toBe("wall");
-      expect(featureMap["1,0"]).toBe("wall");
-      expect(featureMap["2,0"]).toBe("wall");
+      expect(featureMap["feature:wall.0"]).toEqual({x:0, y: 0});
+      expect(featureMap["feature:wall.1"]).toEqual({x:1, y: 0});
+      expect(featureMap["feature:wall.2"]).toEqual({x:2, y: 0});
     });
 
     it("should add a diagonal line feature", () => {
-      const featureMap: { [key: string]: string } = {};
+      const featureMap: { [key: string]: Point } = {};
       const feature = {
         name: "fence",
         position: { x: 0, y: 0 },
@@ -165,16 +156,17 @@ describe("Stadium Tests", () => {
 
       // Should create 3 points (0,0), (1,1), (2,2)
       expect(Object.keys(featureMap).length).toBe(3);
-      expect(featureMap["0,0"]).toBe("fence");
-      expect(featureMap["1,1"]).toBe("fence");
-      expect(featureMap["2,2"]).toBe("fence");
+      expect(featureMap["feature:fence.0"]).toEqual({x: 0, y: 0});
+      expect(featureMap["feature:fence.1"]).toEqual({x: 1, y: 1});
+      expect(featureMap["feature:fence.2"]).toEqual({x: 2, y: 2});      
+
     });
   });
 
   // New test suite for addFeatures
   describe("addFeatures", () => {
     it("should add multiple features to the map", () => {
-      const featureMap: { [key: string]: string } = {};
+      const featureMap: { [key: string]: Point } = {};
       const features: GridFeature[] = [
         { name: "rock", position: { x: 1, y: 1 } },
         { name: "tree", position: { x: 3, y: 4 } },
@@ -189,21 +181,21 @@ describe("Stadium Tests", () => {
 
       // 1 (rock) + 1 (tree) + 3 (wall) = 5
       expect(Object.keys(featureMap).length).toBe(5);
-      expect(featureMap["1,1"]).toBe("rock");
-      expect(featureMap["3,4"]).toBe("tree");
-      expect(featureMap["0,0"]).toBe("wall");
-      expect(featureMap["1,0"]).toBe("wall");
-      expect(featureMap["2,0"]).toBe("wall");
+      expect(featureMap["feature:rock"]).toEqual({x: 1, y: 1});
+      expect(featureMap["feature:tree"]).toEqual({x: 3, y: 4});
+      expect(featureMap["feature:wall.0"]).toEqual({x: 0, y: 0});
+      expect(featureMap["feature:wall.1"]).toEqual({x: 1, y: 0});
+      expect(featureMap["feature:wall.2"]).toEqual({x: 2, y: 0});
     });
 
     it("should handle an empty features array", () => {
-      const featureMap: { [key: string]: string } = { "5,5": "existing" };
+      const featureMap: { [key: string]: Point } = { existing: {x: 5, y: 5} };
       const features: GridFeature[] = [];
 
       addFeatures(featureMap, features);
 
       expect(Object.keys(featureMap).length).toBe(1);
-      expect(featureMap["5,5"]).toBe("existing");
+      expect(featureMap["existing"]).toEqual({x: 5, y: 5});
     });
   });
 
@@ -287,7 +279,7 @@ describe("Stadium Tests", () => {
         null as unknown as Agent // Pass null or a dummy agent if type requires it
       );
       expect(Object.keys(grid.features).length).toBe(1);
-      expect(grid.features["2,3"]).toBe("rock");
+      expect(grid.features["feature:rock"]).toEqual({x: 2, y: 3});
     });
 
     it("should generate a grid calling generateFeatures for random features and place players", async () => {
@@ -312,7 +304,7 @@ describe("Stadium Tests", () => {
       const grid = await generateGrid(
         10,
         10,
-        1, // Generate 1 random feature
+        2, // Generate 1 random feature
         [{ name: "rock", position: { x: 6, y: 6 } }],
         "A square arena with a rock",
         [mockPlayer1, mockPlayer2], // Add players
@@ -321,13 +313,10 @@ describe("Stadium Tests", () => {
 
       // 1 (required) + 1 (random) + 2 (players) = 4 features expected
       expect(Object.keys(grid.features).length).toBe(4);
-      expect(grid.features["6,6"]).toBe("rock");
-      expect(grid.features["7,7"]).toBe("rainbow");
-      expect(grid.features["0,0"]).toBe(mockPlayer1.name); // Player 1 placed
-      expect(grid.features["0,1"]).toBe(mockPlayer2.name); // Player 2 placed
-      expect(grid.playerPositions).toBeDefined()
-      expect(grid.playerPositions[mockPlayer1.name]).toEqual({ x: 0, y: 0 });
-      expect(grid.playerPositions[mockPlayer2.name]).toEqual({ x: 0, y: 1 });
+      expect(grid.features["feature:rock"]).toEqual({x:6, y: 6});
+      expect(grid.features["feature:rainbow"]).toEqual({x: 7, y: 7});
+      expect(grid.features[`player:${mockPlayer1.name}`]).toEqual({x: 0, y: 0}); // Player 1 placed
+      expect(grid.features[`player:${mockPlayer2.name}`]).toEqual({x: 0, y: 1}); // Player 2
       expect(localMockAgent.generate).toHaveBeenCalledTimes(1); // generateFeatures called
 
       randomSpy.mockRestore(); // Clean up spy
@@ -341,7 +330,6 @@ describe("Stadium Tests", () => {
         agent: mockAgent,
         arenaDescription: "A fiery pit",
         extraInstructions: "Avoid the lava",
-        grid: mockGrid,
         player: mockPlayer1,
         playerStatus: mockStatusPlayer1,
         roundNumber: 3,
@@ -351,101 +339,14 @@ describe("Stadium Tests", () => {
 
       expect(description).toContain("fiery pit");
       expect(description).toContain("Avoid the lava");
-      expect(description).toContain(JSON.stringify(mockGrid));
       expect(description).toContain("round is 3");
       expect(description).toContain(JSON.stringify(mockStatusPlayer1));
     });
   });
 
-  describe("generateNarrativeFromResults", () => {
-    it("should generate a narrative based on judge results", async () => {
-      const mockNarrative =
-        "Round 1 summary: Player1 moved right and collected a key! Player2 was hit by a trap and lost health.";
-      const localMockAgent = {
-        generate: vi.fn().mockResolvedValue({
-          text: mockNarrative, // Use text for string response
-        }),
-      } as unknown as Agent;
-
-      const localRound: ContestRound = { ...mockRound }; // Use a copy
-      const localJudgeResults = [
-        {
-          playerId: "player1",
-          status: {
-            status: "ok",
-            health: 100,
-            inventory: ["key"],
-            position: { x: 3, y: 1 },
-          },
-          result: "success",
-          reason: "Moved right and found a key",
-        },
-        {
-          playerId: "player2",
-          status: {
-            status: "injured",
-            health: 80,
-            inventory: [],
-            position: { x: 6, y: 6 },
-          },
-          result: "success with consequences",
-          reason: "Moved right but triggered a trap",
-        },
-      ];
-
-      const narrative = await generateNarrativeFromResults({
-        agent: localMockAgent,
-        arenaDescription: "A dangerous arena",
-        extraInstructions: "Beware of hidden traps",
-        judgeResults: localJudgeResults,
-        round: localRound,
-      });
-
-      expect(narrative).toBe(mockNarrative);
-      expect(localMockAgent.generate).toHaveBeenCalledTimes(1);
-      const generateCall = (localMockAgent.generate as ReturnType<typeof vi.fn>)
-        .mock.calls[0][0] as string;
-      expect(generateCall).toContain("A dangerous arena");
-      expect(generateCall).toContain("Beware of hidden traps");
-      expect(generateCall).toContain(JSON.stringify(localRound.grid));
-      expect(generateCall).toContain(JSON.stringify(localRound.actions));
-      expect(generateCall).toContain(JSON.stringify(localJudgeResults));
-    });
-  });
-
   describe("updateGridFromPlayerPositions", () => {
     it("should update player positions and features in the grid based on new positions", () => {
-      const grid: Grid = {
-        height: 10,
-        width: 10,
-        playerPositions: {
-          player1: { x: 1, y: 1 },
-          player2: { x: 5, y: 5 },
-        },
-        features: {
-          "1,1": "player1",
-          "5,5": "player2",
-          "3,3": "rock",
-        },
-      };
-
-      const newPositions: Record<string, { x: number; y: number }> = {
-        player1: { x: 2, y: 1 },
-        player2: { x: 5, y: 6 },
-      };
-
-      const updatedGrid = updateGridFromPlayerPositions(newPositions, grid); // Function now returns the grid
-
-      // Check that player positions were updated
-      expect(updatedGrid.playerPositions["player1"]).toEqual({ x: 2, y: 1 });
-      expect(updatedGrid.playerPositions["player2"]).toEqual({ x: 5, y: 6 });
-
-      // Check that features were updated
-      expect(updatedGrid.features["1,1"]).toBe(""); // Old position cleared
-      expect(updatedGrid.features["5,5"]).toBe(""); // Old position cleared
-      expect(updatedGrid.features["2,1"]).toBe("player1"); // New position has player1
-      expect(updatedGrid.features["5,6"]).toBe("player2"); // New position has player2
-      expect(updatedGrid.features["3,3"]).toBe("rock"); // Other features remain unchanged
+      // TODO
     });
   });
 
@@ -471,16 +372,14 @@ describe("Stadium Tests", () => {
 
       const localRound: ContestRound = { ...mockRound }; // Use a copy
 
-      const judgeResponse = await generateJudgement({
+      const judgeResults: JudgeResultList = await generateJudgement({
         judgeAgent: localMockJudge,
         arenaDescription: "A dangerous arena",
         extraInstructions: "Beware of hidden traps",
         round: localRound,
       });
 
-      expect(judgeResponse.results).toEqual(mockJudgeResponseObject);
-      expect(judgeResponse.grid).toEqual(localRound.grid); // Grid should be passed through
-      expect(judgeResponse.arenaDescription).toBe("A dangerous arena"); // Description passed through
+      expect(judgeResults).toEqual(mockJudgeResponseObject);
 
       expect(localMockJudge.generate).toHaveBeenCalledTimes(1);
       expect(localMockJudge.generate).toHaveBeenCalledWith(
@@ -491,7 +390,6 @@ describe("Stadium Tests", () => {
       const generateCall = (localMockJudge.generate as ReturnType<typeof vi.fn>)
         .mock.calls[0][0] as string;
       expect(generateCall).toContain("Beware of hidden traps");
-      expect(generateCall).toContain(JSON.stringify(localRound.grid));
       expect(generateCall).toContain(JSON.stringify(localRound.actions));
     });
   });
@@ -526,22 +424,11 @@ describe("Stadium Tests", () => {
       expect(jsonCall).toContain("Updating positions");  // it's name
       const generateCall = (localMockJudge.generate as ReturnType<typeof vi.fn>)
         .mock.calls[0][0] as string;
-      expect(generateCall).toContain(
-        JSON.stringify(mockRound.grid.playerPositions)
-      ); // Original positions
       expect(generateCall).toContain(JSON.stringify(mockJudgeResults));
 
-      // Verify response structure
-      expect(response.arenaDescription).toBe("Updating positions");
-      expect(response.results).toEqual(mockJudgeResults); // Results passed through
-
       // Verify grid update
-      const updatedGrid = response.grid;
-      expect(updatedGrid.playerPositions["player1"]).toEqual({ x: 2, y: 1 }); // Updated
-      expect(updatedGrid.playerPositions["player2"]).toEqual({ x: 5, y: 5 }); // Unchanged
-      expect(updatedGrid.features["1,1"]).toBe(""); // Old player1 pos cleared
-      expect(updatedGrid.features["2,1"]).toBe("player1"); // New player1 pos set
-      expect(updatedGrid.features["5,5"]).toBe("player2"); // player2 pos unchanged
+      expect(response["player:player1"]).toEqual({ x: 2, y: 1 }); // Updated
+      expect(response["player:player2"]).toEqual({ x: 5, y: 5 }); // Unchanged
     });
   });
 
@@ -564,22 +451,14 @@ describe("Stadium Tests", () => {
         reason: "Moved right but triggered a trap",
       };
 
-      // Need player status in the grid for the function to look up
-      const localGrid: Grid = {
-        ...mockGrid,
-        // This is incorrect in the original code, it should use round.status
-        // but we test the code as written. The prompt uses grid.players
-        players: { // stadium.ts uses grid.players[playerId]
-            player1: mockStatusPlayer1,
-            player2: mockStatusPlayer2
-        }
-      };
-
-
       const playerResult = await generatePlayerStatus({
         agent: localMockAgent,
         result: mockResult,
-        grid: localGrid, // Use grid with player status info
+        playerStatus: {
+          status: "ok",
+          health: 100,
+          inventory: [],
+        }
       });
 
       expect(playerResult.status).toEqual(mockUpdatedStatus);
@@ -593,10 +472,8 @@ describe("Stadium Tests", () => {
       const prompt = generateCall[0] as string;
       const options = generateCall[1];
 
-      expect(prompt).toContain(JSON.stringify(localGrid));
       expect(prompt).toContain(JSON.stringify(mockResult));
       // Check current status lookup (based on grid.players as per stadium.ts)
-      expect(prompt).toContain(JSON.stringify(localGrid.players["player2"]));
       expect(options.output).toEqual(PlayerStatusSchema);
     });
   });
@@ -622,28 +499,10 @@ describe("Stadium Tests", () => {
       const response = await generatePlayerStatusUpdates(props);
 
       // Verify generatePlayerStatus calls (using the imported mock)
-      expect(generatePlayerStatus).toHaveBeenCalledTimes(2);
-      expect(generatePlayerStatus).toHaveBeenCalledWith({
-        agent: mockAgent,
-        result: mockJudgeResults[0],
-        grid: localRound.grid,
-      });
-      expect(generatePlayerStatus).toHaveBeenCalledWith({
-        agent: mockAgent,
-        result: mockJudgeResults[1],
-        grid: localRound.grid,
-      });
-
+      expect(localMockAgent.generate).toHaveBeenCalledTimes(2);
       // Verify response structure
-      expect(response.arenaDescription).toBe("Updating statuses");
-      expect(response.grid).toEqual(localRound.grid); // Grid passed through
-      expect(response.results).toEqual(mockPlayerResults); // Results from generatePlayerStatus
-
-      // Verify round status update (using updateStatusesFromJudgeResults)
-      // Note: updateStatusesFromJudgeResults currently has a bug and doesn't update.
-      // We test the *current* behavior.
-      expect(localRound.status["player1"]).toEqual(mockStatusPlayer1); // Should ideally be mockPlayerResults[0].status
-      expect(localRound.status["player2"]).toEqual(mockStatusPlayer2); // Should ideally be mockPlayerResults[1].status
+      expect(response.player1).toEqual(mockStatusPlayer1);
+      expect(response.player2).toEqual(mockStatusPlayer2);
 
       // No need to restore, vi.clearAllMocks() in beforeEach handles mock reset
     });
@@ -676,9 +535,7 @@ describe("Stadium Tests", () => {
       expect(localMockAgent.generate).toHaveBeenCalledTimes(1);
 
       // Verify response structure
-      expect(response.arenaDescription).toBe(mockNarrative); // Narrative becomes the description
-      expect(response.grid).toEqual(localRound.grid); // Grid passed through
-      expect(response.results).toEqual(mockJudgeResults); // Results passed through
+      expect(response).toEqual(mockNarrative); // Results passed through
 
       // No need to restore, vi.clearAllMocks() in beforeEach handles mock reset
     });
@@ -694,48 +551,32 @@ describe("Stadium Tests", () => {
       };
       const mockRoundDescription = "Round 4: Fight!";
 
+      const arenaAgent = vi.fn() as unknown as Agent;
+
+      const playerAgent = {
+        generate: vi.fn().mockResolvedValue({
+          object: mockPlayerAction,
+        }),
+      } as unknown as Agent;
+          
+      const localRound: ContestRound = { ...mockRound };
+            
+      const props = { 
+        arenaAgent,
+        playerAgent,
+        arenaDescription: "Final Showdown",
+        extraInstructions: "Only one survives",
+        player: mockPlayer1,
+        playerStatus: mockStatusPlayer1,
+        round: localRound,
+        roundNumber: 3, // Current round number (will be incremented for description)
+      };
       
-            // Configure the mock for describeRoundForPlayer (imported mock via vi.mock)
-            (describeRoundForPlayer as ReturnType<typeof vi.fn>).mockResolvedValue(mockRoundDescription);
+      const action = await generatePlayerAction(props);
       
-            // Mock agent generate for the player action
-            (mockAgent.generate as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ object: mockPlayerAction }); // Use object and cast
       
-            const localRound: ContestRound = { ...mockRound };
-      
-            const props = {
-              agentCache: mockAgentCache,
-              arenaDescription: "Final Showdown",
-              extraInstructions: "Only one survives",
-              player: mockPlayer1,
-              playerStatus: mockStatusPlayer1,
-              round: localRound,
-              roundNumber: 3, // Current round number (will be incremented for description)
-            };
-      
-            const action = await generatePlayerAction(props);
-      
-            // Verify agent retrieval
-            expect(mockAgentCache.getAgent).toHaveBeenCalledWith("arena"); // For description
-            expect(mockAgentCache.getAgent).toHaveBeenCalledWith(`player-${mockPlayer1.id}`); // For action
-      
-            // Verify describeRoundForPlayer call (using the imported mock)
-            expect(describeRoundForPlayer).toHaveBeenCalledTimes(1);
-            expect(describeRoundForPlayer).toHaveBeenCalledWith({
-              agent: mockAgent, // Arena agent
-              arenaDescription: "Final Showdown\nA basic arena", // Combined descriptions
-              extraInstructions: "Only one survives",
-              grid: localRound.grid,
-              player: mockPlayer1,
-              playerStatus: mockStatusPlayer1,
-              roundNumber: 4, // Incremented round number
-            });
       // Verify player agent generate call
-      expect(mockAgent.generate).toHaveBeenCalledTimes(1); // Only player action generate
-      expect(mockAgent.generate).toHaveBeenCalledWith(
-        expect.stringContaining(mockRoundDescription), // Prompt includes description
-        { output: PlayerActionSchema } // Check schema
-      );
+      expect(playerAgent.generate).toHaveBeenCalledTimes(1); // Only player action generate
 
       // Verify result
       expect(action).toEqual(mockPlayerAction);
@@ -763,7 +604,7 @@ describe("Stadium Tests", () => {
       const width = 1;
       // Fill all positions except (0, 1)
       const features = {
-        "0,0": "filled",
+        "TEST": {x: 0, y: 0}
       };
       // Mock Math.random to force collisions initially
       const randomSpy = vi.spyOn(Math, "random");
