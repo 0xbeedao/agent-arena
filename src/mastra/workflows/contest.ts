@@ -2,20 +2,16 @@ import { Workflow, Step } from "@mastra/core/workflows";
 import {
   contestWorkflowRoundSchema,
   contestWorkflowSetupSchema,
-  PlayerActionSchema,
 } from "../../types/schemas.d";
 import { contestLogger } from "../../logging";
 import {
   ContestRound,
   ContestWorkflowRound,
   ContestWorkflowSetup,
-  PlayerStatus,
 } from "../../types/types";
 import { Agent } from "@mastra/core/agent";
-import { AgentCache } from "../agents/util/agentcache";
 import { judgeAgent } from "../agents/judge";
 import { arenaAgent } from "../agents/arena";
-import { mastra } from "..";
 import { makePlayerAgent } from "../agents/player";
 import { generateGrid, generateJudgement, generatePlayerAction } from "../core";
 

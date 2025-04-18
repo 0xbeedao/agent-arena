@@ -1,4 +1,5 @@
-export * from "./grid-generator";
-export * from "./judge-system";
-export * from "./player-actions";
-export * from "./status-updater";
+export { generateGrid } from "./grid-generator";
+export { generateJudgement } from "./judge-system";
+export { generatePlayerAction } from "./player-actions";
+
+//export * from "./status-updater";
