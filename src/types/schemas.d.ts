@@ -70,7 +70,7 @@ export const RoundResultSchema = z.object({
 export const ContestRoundSchema = z.object({
   actions: z.record(z.string(), PlayerActionSchema),  // player actions
   arenaDescription: z.string(),                       // changes to arena description
-  positions: z.record(z.string(), PointSchema)         // positions of players and features. Players have a "player:" prefix
+  positions: z.record(z.string(), PointSchema)  ,     // positions of players and features. Players have a "player:" prefix
   results: z.record(z.string(), PlayerResultSchema),  // judge results by player
   status: z.record(z.string(), PlayerStatusSchema),   // player status
                                                       // and features have an "feature:"

@@ -5,7 +5,6 @@ import {
   generateFeatures,
   generateGrid,
   randomPosition,
-  updateGridFromPlayerPositions,
 } from "./grid-generator";
 import type { Point, GridFeature, ContestRound, Participant } from "../../types/types.d";
 

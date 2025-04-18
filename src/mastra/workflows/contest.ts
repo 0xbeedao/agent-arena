@@ -11,6 +11,7 @@ import {
   ContestWorkflowSetup,
   PlayerStatus,
 } from "../../types/types";
+import { Agent } from "@mastra/core/agent";
 import { AgentCache } from "../agents/util/agentcache";
 import { judgeAgent } from "../agents/judge";
 import { arenaAgent } from "../agents/arena";
@@ -59,9 +60,9 @@ const startContestStep = new Step({
       arenaAgent
     );
 
-    const agentCache = new AgentCache();
+    const agentCache: Record<string, Agent> = {};
     for (const player of players) {
-      agentCache.addAgent(player.id, makePlayerAgent(player));
+      agentCache[player.id] = makePlayerAgent(player);
     }
 
     const rv = {
@@ -70,7 +71,10 @@ const startContestStep = new Step({
         {
           arenaDescription: "",
           grid: grid,
-          actions: [],
+          actions: {},
+          status: {},
+          positions: {},
+          results: {},
         },
       ],
       roundNumber: 0,
@@ -125,6 +129,7 @@ const collectPlayerActionsStep = new Step({
 
     // collect actions from each player
     for (const player of players) {
+      const playerAgent = agentCache[player.id]; // Get playerAgent from agentCache
       const playerStatus = {
         health: 100,
         inventory: [],
@@ -135,7 +140,8 @@ const collectPlayerActionsStep = new Step({
         roundNumber === 1 ? `The rules are: ${rules.join("\n")}` : "";
 
       const playerAction = await generatePlayerAction({
-        agentCache,
+        playerAgent: playerAgent, // Pass playerAgent
+        arenaAgent: arenaAgent, // Pass arenaAgent
         arenaDescription,
         extraInstructions,
         player,
@@ -181,18 +187,8 @@ const generateJudgeResponseStep = new Step({
       "Judge response: " + JSON.stringify(judgeResponse, null, 2)
     );
 
-    round.arenaDescription = judgeResponse.arenaDescription;
-    round.grid = judgeResponse.grid;
-    round.status = judgeResponse.results.reduce(
-      (acc, result) => {
-        acc[result.playerId] = result.status;
-        return acc;
-      },
-      {} as Record<string, PlayerStatus>
-    );
-
     return {
-      agentCache,
+      agentCache: context.steps.collectPlayerActions.output.agentCache,
       roundHistory,
       roundNumber,
     };
