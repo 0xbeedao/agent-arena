@@ -77,7 +77,7 @@ const startContestStep = new Step({
 
     const status:{ [key: string]: PlayerStatus } = {};
     for (const player of players) {
-      status[player.id] = {
+      status[player] = {
         status: "Fresh",
         health: 100,
         inventory: [],
@@ -195,8 +195,8 @@ const collectPlayerActionsStep = new Step({
 
     // collect actions from each player
     for (const player of players) {
-      const playerAgent = mastra.getAgent(player.id);
-      const playerStatus = round.status[player.id];
+      const playerAgent = mastra.getAgent(player);
+      const playerStatus = round.status[player];
 
       const playerAction = await generatePlayerAction({
         arenaAgent,
@@ -208,7 +208,7 @@ const collectPlayerActionsStep = new Step({
         round,
         roundNumber,
       });
-      round.actions[player.id] = playerAction;
+      round.actions[player] = playerAction;
     }
     contestLogger.info(
       "New round after players: " + JSON.stringify(round, null, 2)

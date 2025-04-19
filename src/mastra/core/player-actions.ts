@@ -12,7 +12,7 @@
  *  end
  */
 
-import type { PlayerAction, Participant, PlayerStatus, ContestRound } from "../../types/types.d";
+import type { PlayerAction, PlayerStatus, ContestRound } from "../../types/types.d";
 import { PlayerActionSchema } from "../../types/schemas.d";
 import { Agent } from "@mastra/core/agent";
 import { arenaLogger } from "../../logging";
@@ -26,7 +26,7 @@ import { parseResponse } from "../agents/util/parser";
  * @property {Agent} playerAgent - The agent representing the player.
  * @property {string} arenaDescription - Description of the arena.
  * @property {string} extraInstructions - Extra instructions for the player.
- * @property {Participant} player - The player participant.
+ * @property {string} player - The player participant.
  * @property {PlayerStatus} playerStatus - The current status of the player.
  * @property {ContestRound} round - The current contest round.
  * @property {number} roundNumber - The current round number.
@@ -36,7 +36,7 @@ export interface GeneratePlayerActionProps {
   playerAgent: Agent;
   arenaDescription: string;
   extraInstructions: string;
-  player: Participant;
+  player: string;
   playerStatus: PlayerStatus;
   round: ContestRound;
   roundNumber: number;
@@ -80,7 +80,7 @@ export async function generatePlayerAction(
   const response = await playerAgent.generate(prompt, {
     output: PlayerActionSchema,
   });
-  arenaLogger.info("Player action: " + JSON.stringify(response, null, 2));
+  arenaLogger.info("Player " + player + " action: " + JSON.stringify(response, null, 2));
   return parseResponse(response, PlayerActionSchema);
 }
 

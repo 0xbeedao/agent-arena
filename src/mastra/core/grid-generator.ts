@@ -10,7 +10,7 @@
  *   D --> E[Finalize Grid]
  * ```
  */
-import type { GridFeature, Participant, Point } from "../../types/types.d";
+import type { GridFeature, Point } from "../../types/types.d";
 import { GridFeatureListSchema } from "../../types/schemas.d";
 import { Agent } from "@mastra/core/agent";
 import { arenaLogger } from "../../logging";
@@ -107,7 +107,7 @@ export interface Grid {
  * @param maxFeatures Maximum number of features to generate (including required ones)
  * @param requiredFeatures Array of mandatory features to include
  * @param description Human-readable description of the grid
- * @param players Array of participants needing positions
+ * @param players Array of players needing positions
  * @param agent AI agent used for generating optional features
  * @returns Promise resolving to the generated Grid object
  * @throws Error if maxFeatures is less than requiredFeatures.length
@@ -118,20 +118,20 @@ export async function generateGrid(
   maxFeatures: number,
   requiredFeatures: Array<GridFeature>,
   description: string,
-  players: Participant[],
+  players: string[],
   agent: Agent
 ): Promise<Grid> {
   const features: { [key: string]: Point } = {};
 
   arenaLogger.debug("features: " + JSON.stringify(features, null, 2));
-  if (requiredFeatures.length > 0) {
+  if (requiredFeatures && requiredFeatures.length > 0) {
     arenaLogger.info(
       "Adding " + requiredFeatures.length + " required features"
     );
     addFeatures(features, requiredFeatures);
+    maxFeatures -= requiredFeatures.length;
   }
-  maxFeatures -= requiredFeatures.length;
-
+  
   if (maxFeatures > 0) {
     // get features from the agent
     const responseFeatures = await generateFeatures(
@@ -149,9 +149,9 @@ export async function generateGrid(
   arenaLogger.debug("generating player positions");
   for (const player of players) {
     const playerPosition = randomPosition(height, width, features);
-    features[`player:${player.id}`] = playerPosition;
+    features[`player:${player}`] = playerPosition;
     arenaLogger.debug(
-      "Set player " + player.id + " at " + serializePoint(playerPosition)
+      "Set player " + player + " at " + serializePoint(playerPosition)
     );
   }
 

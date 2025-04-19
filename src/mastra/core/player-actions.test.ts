@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { generatePlayerAction, describeRoundForPlayer } from "./player-actions";
-import type { Participant, PlayerStatus, PlayerAction, ContestRound } from "../../types/types.d";
+import type { PlayerStatus, PlayerAction, ContestRound } from "../../types/types.d";
 
-const mockPlayer1: Participant = { id: "p1", name: "player1", model: "test", personality: "test-p1" };
+const mockPlayer1 = 'player1';
 const mockStatusPlayer1: PlayerStatus = {
   status: "ok",
   health: 100,
@@ -27,6 +27,7 @@ const mockRound: ContestRound = {
       inventory: ["stick"],
     },
   },
+  narrative: '',
   results: {},
   positions: {
     "feature:a rock": { x: 4, y: 5 },

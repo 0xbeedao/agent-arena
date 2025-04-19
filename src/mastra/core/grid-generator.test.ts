@@ -6,10 +6,10 @@ import {
   generateGrid,
   randomPosition,
 } from "./grid-generator";
-import type { Point, GridFeature, ContestRound, Participant } from "../../types/types.d";
+import type { Point, GridFeature } from "../../types/types.d";
 
-const mockPlayer1: Participant = { id: "p1", name: "player1", model: "test", personality: "test-p1" };
-const mockPlayer2: Participant = { id: "p2", name: "player2", model: "test", personality: "test-p2" };
+const mockPlayer1 = 'player1';
+const mockPlayer2 = 'player2';
 
 describe("Grid Generator Tests", () => {
   beforeEach(() => {
@@ -202,8 +202,8 @@ describe("Grid Generator Tests", () => {
       expect(Object.keys(grid.features).length).toBe(4);
       expect(grid.features["feature:rock"]).toEqual({x:6, y: 6});
       expect(grid.features["feature:rainbow"]).toEqual({x: 7, y: 7});
-      expect(grid.features[`player:${mockPlayer1.id}`]).toEqual({x: 0, y: 0});
-      expect(grid.features[`player:${mockPlayer2.id}`]).toEqual({x: 0, y: 1});
+      expect(grid.features[`player:${mockPlayer1}`]).toEqual({x: 0, y: 0});
+      expect(grid.features[`player:${mockPlayer2}`]).toEqual({x: 0, y: 1});
       expect(localMockAgent.generate).toHaveBeenCalledTimes(1);
 
       randomSpy.mockRestore();
