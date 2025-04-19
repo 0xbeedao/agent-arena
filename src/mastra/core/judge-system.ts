@@ -138,7 +138,11 @@ export async function generatePositionUpdates(
         z.record(z.string(), z.object({ x: z.number(), y: z.number() }))
     );
 
-    return positionUpdates;
+    judgeLogger.info(`Position updates: ${JSON.stringify(positionUpdates)}`);
+
+    const resolved: { [key: string]: Point } = {...round.positions, ...positionUpdates};
+    judgeLogger.info(`Resolved updates: ${JSON.stringify(resolved)}`);
+    return resolved;
 }
 
 /**

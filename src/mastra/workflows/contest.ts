@@ -126,7 +126,7 @@ const startRoundStep = new Step({
       ?.output as ContestWorkflowRound;
 
     // skip the first round, we already added that
-    if (roundNumber > 0) {
+    if (roundNumber === 0) {
       contestLogger.debug("First round, skipping addround");
       return {
         roundHistory,
@@ -175,6 +175,7 @@ const collectPlayerActionsStep = new Step({
   id: "collectPlayerActions",
   outputSchema: contestWorkflowRoundSchema,
   execute: async ({ context, mastra }) => {
+    contestLogger.info("Starting collectPlayerActions");
 
     if (!mastra) {
       throw new Error("Could not get Mastra Instance");
@@ -198,6 +199,7 @@ const collectPlayerActionsStep = new Step({
       const playerAgent = mastra.getAgent(player);
       const playerStatus = round.status[player];
 
+      contestLogger.info("Getting actions for " + player);
       const playerAction = await generatePlayerAction({
         arenaAgent,
         arenaDescription,
@@ -261,6 +263,8 @@ const generateJudgeResponseStep = new Step({
     const positionCall = generatePositionUpdates(roundProps);
 
     const [playerStatuses, positions] = await Promise.all([statusCall, positionCall]);
+    contestLogger.info(`Player statuses: ${JSON.stringify(playerStatuses, null, 2)}`);
+    contestLogger.info(`positions: ${JSON.stringify(positions, null, 2)}`);
     round.positions = positions;
     round.status = playerStatuses;
 

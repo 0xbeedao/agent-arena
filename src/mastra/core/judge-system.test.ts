@@ -41,6 +41,7 @@ const mockRound: ContestRound = {
     player2: { action: "wait", narration: "Waiting" },
   },
   arenaDescription: "A basic arena",
+  narrative: "",
   status: {
     player1: mockStatusPlayer1,
     player2: mockStatusPlayer2,
