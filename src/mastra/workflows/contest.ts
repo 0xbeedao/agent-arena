@@ -265,8 +265,21 @@ const generateJudgeResponseStep = new Step({
     const [playerStatuses, positions] = await Promise.all([statusCall, positionCall]);
     contestLogger.info(`Player statuses: ${JSON.stringify(playerStatuses, null, 2)}`);
     contestLogger.info(`positions: ${JSON.stringify(positions, null, 2)}`);
+
     round.positions = positions;
     round.status = playerStatuses;
+
+    // calculate final results
+    const results: { [key: string]: PlayerResult} = {};
+    for (const {reason, result, playerId} of judgeResults) {
+      results[playerId] = {
+        reason,
+        result,
+        playerId,
+        status: playerStatuses[playerId],
+      } as PlayerResult;
+    }
+    round.results = results;
 
     const rv = {
       agentCache,

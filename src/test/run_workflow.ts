@@ -14,8 +14,18 @@ try {
       arenaWidth: 10,
       judge: "judge",
       maxFeatures: 5,
+      requiredFeatures: [
+        {
+          name: "hoop",
+          position: {x: 8, y: 5 }
+        },
+        {
+          name: "ball",
+          position: {x: 2, y: 5 }
+        }
+      ],
       players: ["player1", "player2"],
-      rules: "The ball must be thrown into the hoop, maximum distance to throw is 2 squares away",
+      rules: "the ball must be thrown into the hoop, maximum distance to throw is 2 squares away",
     },
   });
   console.log("result");
