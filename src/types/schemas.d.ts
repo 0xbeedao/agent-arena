@@ -70,10 +70,11 @@ export const RoundResultSchema = z.object({
 export const ContestRoundSchema = z.object({
   actions: z.record(z.string(), PlayerActionSchema),  // player actions
   arenaDescription: z.string(),                       // changes to arena description
+  narrative: z.string().default(""),                  // narrative summary of round
   positions: z.record(z.string(), PointSchema)  ,     // positions of players and features. Players have a "player:" prefix
+                                                      // and features have an "feature:"
   results: z.record(z.string(), PlayerResultSchema),  // judge results by player
   status: z.record(z.string(), PlayerStatusSchema),   // player status
-                                                      // and features have an "feature:"
 });
 
 // ---- Workflow Schemas ----
@@ -81,17 +82,16 @@ export const ContestRoundSchema = z.object({
 export const contestWorkflowSetupSchema = z.object({
   arena: z.string().default("arena"), // agent id, default: arena
   judge: z.string().default("judge"), // agent id, default: judge
-  players: z.array(PlayerSchema),
+  players: z.array(z.string()).default(["player1", "player2"]),
   arenaDescription: z.string().default("A square arena"),
   arenaHeight: z.number().positive(),
   arenaWidth: z.number().positive(),
   maxFeatures: z.number().positive(),
   requiredFeatures: GridFeatureListSchema.optional(),
-  rules: z.array(z.string()),
+  rules: z.string(),
 });
 
 export const contestWorkflowRoundSchema = z.object({
-  agentCache: z.record(z.string(), AgentSchema),
   roundHistory: z.array(ContestRoundSchema),
   roundNumber: z.number(),
 });

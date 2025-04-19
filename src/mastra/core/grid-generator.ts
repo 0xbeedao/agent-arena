@@ -15,17 +15,6 @@ import { GridFeatureListSchema } from "../../types/schemas.d";
 import { Agent } from "@mastra/core/agent";
 import { arenaLogger } from "../../logging";
 import { parseResponse } from "../agents/util/parser";
-import { A, D } from "@mobily/ts-belt";
-
-/**
- * Represents a game grid with features and player positions
- * @property description - Human-readable description of the grid
- * @property features - Map of feature names to their positions
- */
-export interface Grid {
-  description: string;
-  features: { [key: string]: Point };
-}
 
 /**
  * Converts a Point object to a string representation
@@ -102,6 +91,16 @@ export function addFeature(
 }
 
 /**
+ * Represents a game grid with features and player positions
+ * @property description - Human-readable description of the grid
+ * @property features - Map of feature names to their positions
+ */
+export interface Grid {
+  description: string;
+  features: { [key: string]: Point };
+}
+
+/**
  * Generates a game grid with specified dimensions and features
  * @param width Grid width in units
  * @param height Grid height in units
@@ -150,9 +149,9 @@ export async function generateGrid(
   arenaLogger.debug("generating player positions");
   for (const player of players) {
     const playerPosition = randomPosition(height, width, features);
-    features[`player:${player.name}`] = playerPosition;
+    features[`player:${player.id}`] = playerPosition;
     arenaLogger.debug(
-      "Set player " + player.name + " at " + serializePoint(playerPosition)
+      "Set player " + player.id + " at " + serializePoint(playerPosition)
     );
   }
 
@@ -226,6 +225,7 @@ export function randomPosition(
       x: Math.floor(Math.random() * width),
       y: Math.floor(Math.random() * height),
     };
-  } while (A.includes(D.values(features), position));
+  } while (Object.values(features).some(featurePosition => featurePosition.x === position.x && featurePosition.y === position.y));
+
   return position;
 }

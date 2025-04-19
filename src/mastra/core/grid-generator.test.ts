@@ -202,8 +202,8 @@ describe("Grid Generator Tests", () => {
       expect(Object.keys(grid.features).length).toBe(4);
       expect(grid.features["feature:rock"]).toEqual({x:6, y: 6});
       expect(grid.features["feature:rainbow"]).toEqual({x: 7, y: 7});
-      expect(grid.features[`player:${mockPlayer1.name}`]).toEqual({x: 0, y: 0});
-      expect(grid.features[`player:${mockPlayer2.name}`]).toEqual({x: 0, y: 1});
+      expect(grid.features[`player:${mockPlayer1.id}`]).toEqual({x: 0, y: 0});
+      expect(grid.features[`player:${mockPlayer2.id}`]).toEqual({x: 0, y: 1});
       expect(localMockAgent.generate).toHaveBeenCalledTimes(1);
 
       randomSpy.mockRestore();

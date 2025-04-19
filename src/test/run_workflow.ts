@@ -15,31 +15,8 @@ const result = await start({
     arenaHeight: 10,
     arenaWidth: 10,
     judge: "judge",
-    players: [
-      {
-        id: "tester1",
-        name: "Testy McGee",
-        instructions: "",
-        model: QUASAR_MODEL,
-        personality: "ready to be creative and help test",
-      },
-    ],
-    arenaDescription: "A square arena with a red ball and a hoop",
-    maxFeatures: 5,
-    requiredFeatures: [
-      {
-        name: "red ball",
-        position: { x: 1, y: 1 },
-      },
-      {
-        name: "hoop",
-        position: { x: 10, y: 8 },
-      },
-    ],
-    rules: [
-      "The ball must be thrown into the hoop",
-      "maximum distance to throw is 2 squares away",
-    ],
+    players: ["player1", "player2"],
+    rules: "The ball must be thrown into the hoop, maximum distance to throw is 2 squares away",
   },
 });
 console.log("result");

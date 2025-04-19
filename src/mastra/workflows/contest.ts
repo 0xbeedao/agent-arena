@@ -8,12 +8,12 @@ import {
   ContestRound,
   ContestWorkflowRound,
   ContestWorkflowSetup,
+  JudgeResult,
+  JudgeResultList,
+  PlayerResult,
+  PlayerStatus,
 } from "../../types/types";
-import { Agent } from "@mastra/core/agent";
-import { judgeAgent } from "../agents/judge";
-import { arenaAgent } from "../agents/arena";
-import { makePlayerAgent } from "../agents/player";
-import { generateGrid, generateJudgement, generatePlayerAction } from "../core";
+import { generateGrid, generateJudgement, generateNarrativeForJudgement, generatePlayerAction, generatePlayerStatusUpdates, generatePositionUpdates} from "../core";
 
 export function makeContestWorkflow() {
   const workflow = new Workflow({
@@ -36,17 +36,36 @@ export function makeContestWorkflow() {
  */
 const startContestStep = new Step({
   id: "startContest",
+  inputSchema: contestWorkflowSetupSchema,
   outputSchema: contestWorkflowRoundSchema,
-  execute: async ({ context }) => {
+  execute: async ({ context, mastra }) => {
+    if (!mastra) {
+      throw new Error("Can't get Mastra Instance");
+    }
     const {
+      arena,
+      judge,
       players,
       arenaDescription,
       arenaHeight,
       arenaWidth,
       maxFeatures,
       requiredFeatures,
+      rules,
     } = context.triggerData as ContestWorkflowSetup;
-    const grid = await generateGrid(
+
+    
+    // test agents to make sure they exist
+    for (const key of [arena, judge, ...players]) {
+      const agent = mastra.getAgent(key);
+      if (!agent) {
+        throw new Error(`Could not load agent: "${key}`);
+      }
+    }
+
+    const arenaAgent = mastra.getAgent(arena);
+
+    const {description, features: positions} = await generateGrid(
       arenaWidth,
       arenaHeight,
       maxFeatures,
@@ -54,57 +73,98 @@ const startContestStep = new Step({
       arenaDescription,
       players,
       arenaAgent
-    );
+    );    
 
-    const agentCache: Record<string, Agent> = {};
+    const status:{ [key: string]: PlayerStatus } = {};
     for (const player of players) {
-      agentCache[player.id] = makePlayerAgent(player);
+      status[player.id] = {
+        status: "Fresh",
+        health: 100,
+        inventory: [],
+      } as PlayerStatus;
     }
 
+    const narrative = `This is the first round, all players are in position. Rules: ${rules}`;
+   
     const rv = {
-      agentCache,
       roundHistory: [
         {
-          arenaDescription: "",
-          grid: grid,
           actions: {},
-          status: {},
-          positions: {},
+          arenaDescription: description,
+          narrative,
+          positions,
           results: {},
-        },
+          status,
+        } as ContestRound,
       ],
       roundNumber: 0,
-    };
+    } as ContestWorkflowRound;
     contestLogger.debug("Setup results: " + JSON.stringify(rv, null, 2));
     return rv;
   },
 });
 
+
+/**
+ * Adds a new ContestRound to history.
+ */
 const startRoundStep = new Step({
   id: "startRound",
+  inputSchema: contestWorkflowRoundSchema,
   outputSchema: contestWorkflowRoundSchema,
-  execute: async ({ context }) => {
-    const { arena, judge, players, arenaDescription, rules } =
-      context.triggerData;
-    if (context.steps.startContest.status !== "success") {
-      throw new Error("Failed to start contest");
+  execute: async ({ context, mastra }) => {
+    
+    if (!mastra) {
+      throw new Error("Can't get Mastra Instance");
     }
-    const { agentCache, roundHistory, roundNumber } = context.steps.startContest
+
+    if (context.steps.startContest.status !== "success") {
+      throw new Error("Failed to start round");
+    }
+
+    const { roundHistory, roundNumber } = context.steps.startContest
       ?.output as ContestWorkflowRound;
 
-    contestLogger.info(
-      "Starting round: " + JSON.stringify(roundHistory, null, 2)
-    );
+    // skip the first round, we already added that
+    if (roundNumber > 0) {
+      contestLogger.debug("First round, skipping addround");
+      return {
+        roundHistory,
+        roundNumber: 1, // 1-based counting for rounds
+      }
+    }
+    
+    const { arena } = context.triggerData;
+    const arenaAgent = mastra.getAgent(arena);
+
+    const lastRound: ContestRound = roundHistory[roundHistory.length - 1];
+    const judgeResults: JudgeResultList = Object.keys(lastRound.results).map(
+      (key) => {
+        const result: PlayerResult = lastRound.results[key];
+        return {
+          playerId: result.playerId,
+          result: result.result,
+          reason: result.reason,
+        } as JudgeResult;
+    })
+    const narrative = await generateNarrativeForJudgement({
+      arenaAgent,
+      arenaDescription: lastRound.arenaDescription,
+      extraInstructions: "",
+      judgeResults,
+      round: lastRound,
+    })
+    
     const round: ContestRound = {
       actions: {},
-      arenaDescription,
-      positions: {},
+      arenaDescription: lastRound.arenaDescription,
+      narrative,
+      positions: lastRound.positions,
       results: {},
-      status: {},
+      status: lastRound.status,
     };
 
     return {
-      agentCache,
       roundHistory: [...roundHistory, round],
       roundNumber: roundNumber + 1,
     };
@@ -114,33 +174,36 @@ const startRoundStep = new Step({
 const collectPlayerActionsStep = new Step({
   id: "collectPlayerActions",
   outputSchema: contestWorkflowRoundSchema,
-  execute: async ({ context }) => {
-    const { players, arenaDescription, rules } = context.triggerData;
+  execute: async ({ context, mastra }) => {
+
+    if (!mastra) {
+      throw new Error("Could not get Mastra Instance");
+    }
+    contestLogger.info(`Keys of context.steps: ${JSON.stringify(Object.keys(context.steps))}`)
+
+    const { arena, players, arenaDescription, rules } = context.triggerData;
     if (context.steps.startRound.status !== "success") {
       throw new Error("Failed to start round");
     }
-    const { agentCache, roundHistory, roundNumber } = context.steps.startRound
+
+    const arenaAgent = mastra.getAgent(arena);
+
+    const { roundHistory, roundNumber } = context.steps.startRound
       ?.output as ContestWorkflowRound;
-    const round = roundHistory[roundHistory.length - 1];
+
+    const round: ContestRound = roundHistory[roundHistory.length - 1];
 
     // collect actions from each player
     for (const player of players) {
-      const playerAgent = agentCache[player.id]; // Get playerAgent from agentCache
-      const playerStatus = {
-        health: 100,
-        inventory: [],
-        status: "fresh",
-      };
-
-      const extraInstructions =
-        roundNumber === 1 ? `The rules are: ${rules.join("\n")}` : "";
+      const playerAgent = mastra.getAgent(player.id);
+      const playerStatus = round.status[player.id];
 
       const playerAction = await generatePlayerAction({
-        playerAgent: playerAgent, // Pass playerAgent
-        arenaAgent: arenaAgent, // Pass arenaAgent
+        arenaAgent,
         arenaDescription,
-        extraInstructions,
+        extraInstructions: round.narrative,
         player,
+        playerAgent,
         playerStatus,
         round,
         roundNumber,
@@ -152,7 +215,6 @@ const collectPlayerActionsStep = new Step({
     );
 
     return {
-      agentCache,
       roundHistory,
       roundNumber,
     };
@@ -162,31 +224,56 @@ const collectPlayerActionsStep = new Step({
 const generateJudgeResponseStep = new Step({
   id: "generateJudgeResponse",
   outputSchema: contestWorkflowRoundSchema,
-  execute: async ({ context }) => {
-    const { arena, judge, players, arenaDescription, rules } =
+  execute: async ({ context, mastra }) => {
+    if (!mastra) {
+      throw new Error("Could not get Mastra Instance");
+    }
+    const { judge, arenaDescription, rules } =
       context.triggerData;
     if (context.steps.collectPlayerActions.status !== "success") {
       throw new Error("Failed to collect player actions");
     }
-    const { roundHistory, roundNumber } = context.steps.collectPlayerActions
+    const { agentCache, roundHistory, roundNumber } = context.steps.collectPlayerActions
       ?.output as ContestWorkflowRound;
-    const round = roundHistory[roundHistory.length - 1];
+    const round: ContestRound = roundHistory[roundHistory.length - 1];
     const extraInstructions =
-      roundNumber === 1 ? `The rules are: ${rules.join("\n")}` : "";
-    const judgeResponse = await generateJudgement({
+      roundNumber === 1 ? `The rules are: ${rules}` : "";
+    const judgeAgent = mastra.getAgent(judge);
+    
+    const judgeResults:JudgeResultList = await generateJudgement({
       judgeAgent,
       arenaDescription,
       extraInstructions,
       round,
     });
     contestLogger.info(
-      "Judge response: " + JSON.stringify(judgeResponse, null, 2)
+      "Judge response: " + JSON.stringify(judgeResults, null, 2)
     );
 
-    return {
-      agentCache: context.steps.collectPlayerActions.output.agentCache,
+    const roundProps = {
+      judgeAgent,
+      arenaDescription,
+      judgeResults,
+      round
+    };
+
+    const statusCall = generatePlayerStatusUpdates(roundProps);
+    const positionCall = generatePositionUpdates(roundProps);
+
+    const [playerStatuses, positions] = await Promise.all([statusCall, positionCall]);
+    round.positions = positions;
+    round.status = playerStatuses;
+
+    const rv = {
+      agentCache,
       roundHistory,
       roundNumber,
     };
+
+    contestLogger.info("Final Judge results: " + JSON.stringify(rv, null, 2));
+
+    return rv;
   },
 });
+
+// will call generateNarrative in start of next round.
