@@ -213,11 +213,61 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  # ####################################
+  # App management
+  # ####################################
+
+  /agent:
+    post:
+      tags: [Agent]
+      summary: Create a new Player and recieve a ULID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentConfig'
+      responses:
+        '200':
+          description: ULID of player
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/BadAuth'
+
+  /agent/{agentId}:
+    get:
+      tags: [Agent]
+      summary: Get an agent configuration by ULID
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: Agent Configuration
+          content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentConfig'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
 components:
   ############################
   #  Common parameters       #
   ############################
   parameters:
+    AgentId:
+      in: path
+      name: announcerId
+      required: true
+      schema:
+        type: string
+      description: Unique identifier for an Agent configuration, returned by post to `/agent`
+
     ArenaId:
       in: path
       name: arenaId
@@ -262,6 +312,12 @@ components:
   #  Common responses        #
   ############################
   responses:
+    BadAuth:
+      description: Invalid access attempt
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     BadRequest:
       description: Invalid input payload
       content:
@@ -413,6 +469,23 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Feature'
+
+    IdResponse:
+      type: object
+      required: [id]
+      properties:
+        id:
+          description: ULID
+          type: string
+
+    AgentConfig:
+      type: object
+      required: [personality]
+      properties:
+        personality:
+          type: string
+        instructions:
+          type: string       
 
     PlayerPositionRequest:
       type: object
