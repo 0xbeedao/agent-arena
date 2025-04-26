@@ -1,0 +1,521 @@
+openapi: 3.1.0
+info:
+  title: Misteragent Arena API
+  description: >-
+    Core endpoints invoked **by the Misteragent Contest service** during game
+    startup and each round. The Contest service may call *internal* adapters
+    running in‑process or *external* URLs (for experimentation or scaling).
+  version: 0.4.0
+
+servers:
+  - url: https://arena.example.com/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local dev
+
+tags:
+  - name: Arena
+    description: Arena initialisation & metadata
+  - name: Rounds
+    description: Per‑round control from the Contest service
+  - name: Players
+    description: Endpoints the Contest service calls on individual players
+  - name: Judges
+    description: Evaluate player actions and apply effects
+  - name: Announcer
+    description: Generate round narration
+
+paths:
+  #########################################
+  #  Arena bootstrap                       #
+  #########################################
+
+  /arena/setup:
+    post:
+      tags: [Arena]
+      summary: Initialise an arena and generate its features
+      operationId: generateFeatures
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArenaSetupRequest'
+      responses:
+        '200':
+          description: Generated features for the arena
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArenaSetupResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /arena/{arenaId}/position-players:
+    post:
+      tags: [Arena]
+      summary: Position players on the board using the latest feature layout
+      operationId: positionPlayers
+      parameters:
+        - $ref: '#/components/parameters/ArenaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerPositionRequest'
+      responses:
+        '200':
+          description: Player positions established
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerPositionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  #########################################
+  #  Round lifecycle                       #
+  #########################################
+
+  /arena/{arenaId}/rounds/next:
+    post:
+      tags: [Rounds]
+      summary: Advance to the next round and receive the updated ArenaState
+      operationId: startNextRound
+      parameters:
+        - $ref: '#/components/parameters/ArenaId'
+      responses:
+        '200':
+          description: Current ArenaState after round advancement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArenaState'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  #########################################
+  #  Player interaction (called by Arena)  #
+  #########################################
+
+  /players/{playerId}/rounds/{roundNo}/act:
+    post:
+      tags: [Players]
+      summary: Deliver a round prompt to a player and receive their chosen action
+      operationId: playerAct
+      parameters:
+        - $ref: '#/components/parameters/PlayerId'
+        - $ref: '#/components/parameters/RoundNo'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoundPrompt'
+      responses:
+        '200':
+          description: The player's action for the round
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerAction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  #########################################
+  #  Judge interaction                     #
+  #########################################
+
+  /judge/{judgeId}/rounds/{roundNo}/evaluate:
+    post:
+      tags: [Judges]
+      summary: Judge evaluates player actions for a round
+      operationId: judgeEvaluate
+      parameters:
+        - $ref: '#/components/parameters/JudgeId'
+        - $ref: '#/components/parameters/RoundNo'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JudgeEvaluationRequest'
+      responses:
+        '200':
+          description: Results of each player action
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JudgeEvaluationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /judge/{judgeId}/rounds/{roundNo}/effects:
+    post:
+      tags: [Judges]
+      summary: Apply judged results and produce updated arena/player status
+      operationId: judgeApplyEffects
+      parameters:
+        - $ref: '#/components/parameters/JudgeId'
+        - $ref: '#/components/parameters/RoundNo'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JudgeEffectsRequest'
+      responses:
+        '200':
+          description: Updated ArenaState after effects are applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArenaState'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  #########################################
+  #  Announcer interaction                 #
+  #########################################
+
+  /announcer/{announcerId}/rounds/{roundNo}/narrate:
+    post:
+      tags: [Announcer]
+      summary: Generate natural‑language narration for a round
+      operationId: announcerNarrate
+      parameters:
+        - $ref: '#/components/parameters/AnnouncerId'
+        - $ref: '#/components/parameters/RoundNo'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncerRequest'
+      responses:
+        '200':
+          description: Narration text describing the round
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  ############################
+  #  Common parameters       #
+  ############################
+  parameters:
+    ArenaId:
+      in: path
+      name: arenaId
+      required: true
+      schema:
+        type: string
+      description: Arena identifier returned by `/arena/setup`
+
+    PlayerId:
+      in: path
+      name: playerId
+      required: true
+      schema:
+        type: string
+      description: Unique identifier for the player agent
+
+    JudgeId:
+      in: path
+      name: judgeId
+      required: true
+      schema:
+        type: string
+      description: Unique identifier for the judge agent
+
+    AnnouncerId:
+      in: path
+      name: announcerId
+      required: true
+      schema:
+        type: string
+      description: Unique identifier for the announcer agent
+
+    RoundNo:
+      in: path
+      name: roundNo
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+
+  ############################
+  #  Common responses        #
+  ############################
+  responses:
+    BadRequest:
+      description: Invalid input payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  ############################
+  #  Schemas                 #
+  ############################
+  schemas:
+    # --- Core domain structures ---
+    Feature:
+      type: object
+      required: [id, name, position]
+      properties:
+        id:
+          type: string
+          format: ulid
+        name:
+          type: string
+        position:
+          description: Grid coordinate as "x,y"
+          type: string
+          pattern: '^-?\\d+,\\-?\\d+$'
+        endPosition:
+          type: string
+          pattern: '^-?\\d+,\\-?\\d+$'
+        state:
+          type: string
+
+    PlayerState:
+      type: object
+      required: [agentId, position, healthState]
+      properties:
+        agentId:
+          type: string
+        position:
+          type: string
+          pattern: '^-?\\d+,\\-?\\d+$'
+        inventory:
+          type: array
+          items:
+            type: string
+        healthState:
+          type: string
+        customState:
+          type: object
+          additionalProperties: true
+
+    PlayerAction:
+      type: object
+      required: [agentId, action]
+      properties:
+        agentId:
+          type: string
+        action:
+          type: string
+        target:
+          type: string
+          pattern: '^-?\\d+,\\-?\\d+$'
+
+    JudgeResult:
+      type: object
+      required: [agentId, result]
+      properties:
+        agentId:
+          type: string
+        result:
+          type: string
+        reason:
+          type: string
+
+    ArenaState:
+      type: object
+      required: [arenaId, roundNo, state, features, timestamp]
+      properties:
+        arenaId:
+          type: string
+        roundNo:
+          type: integer
+        schemaVersion:
+          type: integer
+        state:
+          type: string
+        narrative:
+          type: string
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feature'
+        playerStates:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/PlayerState'
+        playerActions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/PlayerAction'
+        judgeResults:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/JudgeResult'
+        positions:
+          type: object
+          additionalProperties:
+            type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    # --- API payload definitions ---
+    ArenaSetupRequest:
+      type: object
+      required: [arenaId, height, width, rules, maxRandomFeatures]
+      properties:
+        arenaId:
+          type: string
+        height:
+          type: integer
+          minimum: 1
+        width:
+          type: integer
+          minimum: 1
+        rules:
+          type: string
+        maxRandomFeatures:
+          type: integer
+          minimum: 0
+        featureDefs:
+          type: array
+          description: Optional array of pre‑defined features.
+          items:
+            $ref: '#/components/schemas/Feature'
+
+    ArenaSetupResponse:
+      type: object
+      required: [arenaId, features]
+      properties:
+        arenaId:
+          type: string
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feature'
+
+    PlayerPositionRequest:
+      type: object
+      required: [players, features]
+      properties:
+        players:
+          type: array
+          items:
+            type: string
+          description: Ordered list of playerIds to be placed.
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feature'
+          description: Current feature layout (deterministic input).
+
+    PlayerPositionResponse:
+      type: object
+      required: [arenaId, playerStates]
+      properties:
+        arenaId:
+          type: string
+        playerStates:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlayerState'
+
+    RoundPrompt:
+      type: object
+      required: [arenaId, roundNo, prompt, features]
+      properties:
+        arenaId:
+          type: string
+        roundNo:
+          type: integer
+        prompt:
+          type: string
+        narrative:
+          type: string
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feature'
+        playerIds:
+          type: array
+          items:
+            type: string
+        timeLimitSeconds:
+          type: integer
+
+    JudgeEvaluationRequest:
+      type: object
+      required: [arenaId, roundNo, playerActions]
+      properties:
+        arenaId:
+          type: string
+        roundNo:
+          type: integer
+        playerActions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/PlayerAction'
+
+    JudgeEvaluationResponse:
+      type: object
+      required: [judgeResults]
+      properties:
+        judgeResults:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/JudgeResult'
+
+    JudgeEffectsRequest:
+      type: object
+      required: [arenaState, judgeResults]
+      properties:
+        arenaState:
+          $ref: '#/components/schemas/ArenaState'
+        judgeResults:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/JudgeResult'
+
+    AnnouncerRequest:
+      type: object
+      required: [arenaState]
+      properties:
+        arenaState:
+          $ref: '#/components/schemas/ArenaState'
+
+    AnnouncerResponse:
+      type: object
+      required: [narrative]
+      properties:
+        narrative:
+          type: string
+
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
