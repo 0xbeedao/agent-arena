@@ -6,14 +6,18 @@ Handles business logic for agent operations.
 from typing import Optional, Dict, List
 from ulid import ULID
 from agentarena.models.agent import AgentConfig
+from .db_service import DbService
 
+import json
+import structlog
 class AgentService:
     """Service for agent operations."""
     
-    def __init__(self):
+    def __init__(self, dbService: DbService):
         """Initialize the agent service."""
-        # This would be replaced with actual database access
-        self._agents: Dict[str, AgentConfig] = {}
+        self.table = dbService.db['agents']
+        self.dbService = dbService
+        self.log = structlog.get_logger('agentservice').bind(module="agentservice")
     
     async def create_agent(self, agent_config: AgentConfig) -> str:
         """
@@ -25,9 +29,15 @@ class AgentService:
         Returns:
             The ID of the created agent
         """
-        # In a real implementation, this would save to a database
-        agent_id = str(agent_config.id)
-        self._agents[agent_id] = agent_config
+        db_agent = agent_config.model_copy()
+        if not 'id' in agent_config:
+            db_agent['id'] = ULID().hex
+
+        agent_id = db_agent['id']
+
+        self.table.insert(db_agent.model_dump(), pk=1)
+        self.log("Added agent: %s", agent_id)
+        self.dbService.add_audit_log("Added agent: %s" % agent_id)
         return agent_id
     
     async def get_agent(self, agent_id: str) -> Optional[AgentConfig]:
@@ -41,8 +51,10 @@ class AgentService:
             The agent configuration, or None if not found
         """
         # In a real implementation, this would query a database
-        return self._agents.get(agent_id)
-    
+        row = self.table.get(agent_id)
+        self.log.info()
+        return AgentConfig.model_validate(row) if row is not None else None
+            
     async def update_agent(self, agent_id: str, agent_config: AgentConfig) -> bool:
         """
         Update an agent.
@@ -55,10 +67,13 @@ class AgentService:
             True if the agent was updated, False if not found
         """
         # In a real implementation, this would update a database record
-        if agent_id not in self._agents:
+        agent = self.get_agent(agent_id)
+        if agent is None:
+            self.log.warn("No such agent to update: %s", agent_id)
             return False
-        
-        self._agents[agent_id] = agent_config
+        updated = agent_config.model_dump(exclude=["id"])
+        self.table.update(agent_id, updated)
+        self.dbService.add_audit_log("Updated agent %s: %s", agent_id, json.dumps(updated))
         return True
     
     async def delete_agent(self, agent_id: str) -> bool:
@@ -71,11 +86,8 @@ class AgentService:
         Returns:
             True if the agent was deleted, False if not found
         """
-        # In a real implementation, this would delete from a database
-        if agent_id not in self._agents:
-            return False
-        
-        del self._agents[agent_id]
+        self.table.delete(agent_id)
+        self.dbService.add_audit_log("Deleted agent: %s", agent_id)
         return True
     
     async def list_agents(self) -> List[AgentConfig]:
@@ -85,5 +97,5 @@ class AgentService:
         Returns:
             A list of all agent configurations
         """
-        # In a real implementation, this would query a database
-        return list(self._agents.values())
+        return [AgentConfig.model_validate(row) for row in self.table.rows]
+    

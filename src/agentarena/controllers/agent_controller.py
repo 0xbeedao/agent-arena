@@ -3,25 +3,23 @@ Agent controller for the Agent Arena application.
 Handles HTTP requests for agent operations.
 """
 
+from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any
+from typing import Annotated, Dict, List
 from ulid import ULID
 
 from agentarena.models.agent import AgentConfig
 from agentarena.services.agent_service import AgentService
+from agentarena.config.containers import Container
 
 # Create a router for agent endpoints
 router = APIRouter(tags=["Agent"])
 
-# Dependency to get the agent service
-def get_agent_service():
-    """Dependency to get the agent service."""
-    return AgentService()
-
 @router.post("/agent", response_model=Dict[str, str])
+@inject
 async def create_agent(
     agent_config: AgentConfig,
-    agent_service: AgentService = Depends(get_agent_service)
+    agent_service: AgentService = Depends(Provide[Container.agent_service])
 ) -> Dict[str, str]:
     """
     Create a new agent.
@@ -37,9 +35,10 @@ async def create_agent(
     return {"id": agent_id}
 
 @router.get("/agent/{agent_id}", response_model=AgentConfig)
+@inject
 async def get_agent(
     agent_id: str,
-    agent_service: AgentService = Depends(get_agent_service)
+    agent_service: AgentService = Depends(Provide[Container.agent_service])
 ) -> AgentConfig:
     """
     Get an agent by ID.
@@ -59,11 +58,29 @@ async def get_agent(
         raise HTTPException(status_code=404, detail=f"Agent with ID {agent_id} not found")
     return agent
 
+@router.get("/agent", response_model=List[AgentConfig])
+@inject
+async def get_agent_list(
+    agent_service: AgentService = Depends(Provide[Container.agent_service])
+) -> List[AgentConfig]:
+    """
+    Get a list of all agents.
+    
+    Args:
+        agent_service: The agent service
+        
+    Returns:
+        A list of agent configurations
+    """
+    agents = await agent_service.list_agents()
+    return agents
+
 @router.put("/agent/{agent_id}", response_model=Dict[str, bool])
+@inject
 async def update_agent(
     agent_id: str,
     agent_config: AgentConfig,
-    agent_service: AgentService = Depends(get_agent_service)
+    agent_service: AgentService = Depends(Provide[Container.agent_service])
 ) -> Dict[str, bool]:
     """
     Update an agent.

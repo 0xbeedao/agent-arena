@@ -11,6 +11,17 @@ from pathlib import Path
 
 from agentarena.config.containers import Container
 from agentarena.controllers.agent_controller import router as agent_router
+import os
+from pathlib import Path
+
+# Initialize the container
+container = Container()
+parentDir = Path(__file__).parent.parent.parent
+yamlFile = os.path.join(parentDir, "agent-arena-config.yaml")
+if os.path.exists(yamlFile):
+    container.config.from_yaml(yamlFile)
+    container.init_resources()
+    container.wire(modules=["agentarena.controllers.agent_controller"])
 
 # Create the FastAPI application
 app = FastAPI(
@@ -56,18 +67,13 @@ async def health_check():
 
 # Run the server if this file is executed directly
 if __name__ == "__main__":
-    # configure DI
-    parentDir = Path(__file__).parent.parent.parent
-    yamlFile = os.path.join(parentDir, "agent-arena-config.yaml")
+    # Check if config file exists
     if not os.path.exists(yamlFile):
         print(f"Cannot find the config file: {yamlFile}")
         sys.exit(1)
-      
-    container = Container()
-    container.config.from_yaml(yamlFile)
-    container.init_resources()
     log = container.logging().getLogger("server", module="server")
     log.info("path: %s", container.projectroot())
     log.info("Starting app")
+    dbService = container.db_service().add_audit_log("startup")
 
     uvicorn.run("agentarena.server:app", host="0.0.0.0", port=8000, reload=True)

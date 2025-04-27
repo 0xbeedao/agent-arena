@@ -2,6 +2,8 @@ from dependency_injector import containers, providers
 from sqlite_utils.db import Database
 from pathlib import Path
 from .logger import setup_logging
+from agentarena.services.db_service import DbService
+from agentarena.services.agent_service import AgentService
 
 def get_database(filename: str, memory: bool = False) -> Database:
     if memory:
@@ -23,11 +25,24 @@ class Container(containers.DeclarativeContainer):
         get_project_root
     )
 
-    get_database = providers.Callable(
-        get_database
-    )
-
     logging = providers.Resource(
         setup_logging
     )
+
+    get_db = providers.Factory(
+        get_database
+    )
+
+    db_service = providers.Singleton(
+        DbService,
+        projectroot,
+        config.db.filename,
+        get_database
+    )
+
+    agent_service = providers.Singleton(
+        AgentService,
+        db_service
+    )
+
 
