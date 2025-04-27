@@ -1,0 +1,56 @@
+"""
+FastAPI server for the Agent Arena application.
+"""
+
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from agentarena.controllers.agent_controller import router as agent_router
+
+# Create the FastAPI application
+app = FastAPI(
+    title="Agent Arena API",
+    description="API for the Agent Arena application",
+    version="0.1.0",
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, this should be restricted
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(agent_router)
+
+# Add exception handlers
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    """Handle HTTP exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"message": exc.detail},
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    """Handle general exceptions."""
+    return JSONResponse(
+        status_code=500,
+        content={"message": f"Internal server error: {str(exc)}"},
+    )
+
+# Add health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "ok"}
+
+# Run the server if this file is executed directly
+if __name__ == "__main__":
+    uvicorn.run("agentarena.server:app", host="0.0.0.0", port=8000, reload=True)
