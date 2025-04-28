@@ -26,10 +26,16 @@ if os.path.exists(yamlFile):
     container.config.from_yaml(yamlFile)
 # Always initialize resources and wire the container
 container.init_resources()
-container.wire(modules=[
-    "agentarena.controllers.agent_controller",
-    "agentarena.controllers.strategy_controller"
-])
+
+to_wire = ['agentarena.controllers.%s_controller' % module for module in [
+    'agent', 
+    'arena', 
+    'contest',
+    'roundstats',
+    'strategy', 
+]]
+
+container.wire(modules=to_wire)
 
 # Create the FastAPI application
 app = FastAPI(
