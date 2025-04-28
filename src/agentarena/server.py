@@ -15,9 +15,6 @@ from agentarena.controllers.strategy_controller import router as strategy_router
 import os
 from pathlib import Path
 
-from agentarena.models.agent import AgentConfig
-from agentarena.models.strategy import Strategy
-
 # Initialize the container
 container = Container()
 parentDir = Path(__file__).parent.parent.parent
@@ -36,6 +33,7 @@ to_wire = ['agentarena.controllers.%s_controller' % module for module in [
 ]]
 
 container.wire(modules=to_wire)
+
 
 # Create the FastAPI application
 app = FastAPI(
