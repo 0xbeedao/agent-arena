@@ -34,7 +34,9 @@ class AgentService:
         # always make a new ID
         db_agent.id = ULID().hex
         # And set the created_at
-        db_agent.created_at = datetime.now().isoformat()
+        isonow = datetime.now().isoformat()
+        db_agent.created_at = isonow
+        db_agent.updated_at = isonow
 
         agent_id = str(db_agent.id)
  
@@ -75,6 +77,7 @@ class AgentService:
             self.log.warn("No such agent to update: %s", agent_id)
             return False
         updated = agent_config.model_dump(exclude=["id", "created_at"])
+        updated.updated_at = datetime.now().isoformat()
         self.table.update(agent_id, updated)
         self.dbService.add_audit_log("Updated agent %s: %s" % (agent_id, json.dumps(updated)))
         return True

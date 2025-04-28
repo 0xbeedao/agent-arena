@@ -17,6 +17,8 @@ class PlayerState(BaseModel):
     inventory: Optional[List[str]] = Field(default=None, description="Player inventory")
     health_state: str = Field(description="Health state")
     custom_state: Optional[Dict[str, Any]] = Field(default=None, description="Custom state data")
+    created_at: Optional[datetime] = Field(default=None, description="Creation timestamp")
+    updated_at: Optional[datetime] = Field(default=None, description="Creation timestamp")
 
 
 class PlayerAction(BaseModel):

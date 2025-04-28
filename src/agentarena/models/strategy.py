@@ -17,3 +17,4 @@ class Strategy(BaseModel):
     personality: Optional[str] = Field(default="", description="Personality description")
     instructions: Optional[str] = Field(default="", description="Strategy instructions")
     created_at: Optional[datetime] = Field(default=None, description="Creation timestamp")
+    updated_at: Optional[datetime] = Field(default=None, description="Creation timestamp")

@@ -35,7 +35,9 @@ class StrategyService:
         # always make a new ID
         db_strategy.id = ULID().hex
         # And set the created_at
-        db_strategy.created_at = datetime.now().isoformat()
+        isonow = datetime.now().isoformat()
+        db_strategy.created_at = isonow
+        db_strategy.updated_at = isonow
 
         strategy_id = str(db_strategy.id)
  
@@ -74,6 +76,7 @@ class StrategyService:
             self.log.warn("No such strategy to update: %s", strategy_id)
             return False
         updated = strategy.model_dump(exclude=["id", "created_at"])
+        updated.updated_at = datetime.now().isoformat()
         self.table.update(strategy_id, updated)
         self.dbService.add_audit_log("Updated strategy %s: %s" % (strategy_id, json.dumps(updated)))
         return True

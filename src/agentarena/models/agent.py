@@ -19,3 +19,4 @@ class AgentConfig(BaseModel):
     metadata: Optional[str] = Field(default="", description="Additional metadata")
     strategy_id: Optional[str] = Field(default="", description="Reference to Strategy")
     created_at: Optional[datetime] = Field(default=None, description="Creation timestamp")
+    updated_at: Optional[datetime] = Field(default=None, description="Creation timestamp")
