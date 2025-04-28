@@ -50,6 +50,7 @@ class ModelService(Generic[T]):
                 # Simple pluralization - just add 's'
                 table_name = f"{model_name.lower()}s"
         
+        self.table_name = table_name
         self.table = dbService.db[table_name]
         model_name = model_class.__name__
         self.log = structlog.get_logger(f"{model_name.lower()}service").bind(module=f"{model_name.lower()}service")
@@ -113,9 +114,18 @@ class ModelService(Generic[T]):
             return False
         
         updated = obj.model_dump(exclude=["id", "created_at"])
-        updated["updated_at"] = datetime.now().isoformat()
-        self.table.update(obj_id, updated)
-        self.dbService.add_audit_log(f"Updated {model_name.lower()} {obj_id}: {json.dumps(updated)}")
+        existingObj = existing.model_dump(exclude=["updated_at"])
+        cleaned = {}
+      
+        # iterate and add only updates
+        for key in updated:
+            if not(updated[key] is None or str(updated[key]) == ""):
+                if existingObj[key] != updated[key]:
+                    cleaned[key] = updated[key]
+
+        cleaned["updated_at"] = datetime.now().isoformat()
+        self.table.update(obj_id, cleaned)
+        self.dbService.add_audit_log(f"Updated {model_name.lower()} {obj_id}: {json.dumps(cleaned)}")
         return True
     
     async def delete(self, obj_id: str) -> bool:

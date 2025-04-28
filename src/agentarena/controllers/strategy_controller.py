@@ -12,7 +12,8 @@ from agentarena.models.strategy import Strategy
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
-import json
+from . import repository
+
 import structlog
 
 # Create a router for strategy endpoints
@@ -35,9 +36,7 @@ async def create_strategy(
     Returns:
         A dictionary with the ID of the created strategy
     """
-    log.info("Received create strategy request: %s", strategy.model_dump_json())
-    strategy_id = await strategy_service.create(strategy)
-    return {"id": strategy_id}
+    return await repository.create_model(strategy, strategy_service)
 
 @router.get("/strategy/{strategy_id}", response_model=Strategy)
 @inject
@@ -58,10 +57,9 @@ async def get_strategy(
     Raises:
         HTTPException: If the strategy is not found
     """
-    strategy = await strategy_service.get(strategy_id)
-    if strategy is None:
-        raise HTTPException(status_code=404, detail=f"Strategy with ID {strategy_id} not found")
-    return strategy
+    return await repository.get_model(strategy_id, strategy_service)
+
+    )
 
 @router.get("/strategy", response_model=List[Strategy])
 @inject
@@ -77,9 +75,7 @@ async def get_strategy_list(
     Returns:
         A list of strategy configurations
     """
-    strategies = await strategy_service.list()
-    log.debug("listing %i strategies", len(strategies))
-    return strategies
+    return await repository.get_model_list(strategy_service)
 
 @router.put("/strategy/{strategy_id}", response_model=Dict[str, bool])
 @inject
@@ -102,7 +98,4 @@ async def update_strategy(
     Raises:
         HTTPException: If the strategy is not found
     """
-    success = await strategy_service.update(strategy_id, strategy)
-    if not success:
-        raise HTTPException(status_code=404, detail=f"Strategy with ID {strategy_id} not found")
-    return {"success": True}
+    return await repository.update_model(strategy_id, strategy, strategy_service)

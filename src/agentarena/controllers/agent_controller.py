@@ -12,7 +12,7 @@ from agentarena.models.agent import AgentConfig
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
-import json
+from . import repository
 import structlog
 
 # Create a router for agent endpoints
@@ -35,9 +35,7 @@ async def create_agent(
     Returns:
         A dictionary with the ID of the created agent
     """
-    log.info("Received create agent request: %s", agent_config.model_dump_json())
-    agent_id = await agent_service.create(agent_config)
-    return {"id": agent_id}
+    return await repository.create_model(agent_config, agent_service)
 
 @router.get("/agent/{agent_id}", response_model=AgentConfig)
 @inject
@@ -58,10 +56,7 @@ async def get_agent(
     Raises:
         HTTPException: If the agent is not found
     """
-    agent = await agent_service.get(agent_id)
-    if agent is None:
-        raise HTTPException(status_code=404, detail=f"Agent with ID {agent_id} not found")
-    return agent
+    return await repository.get_model(agent_id, agent_service)
 
 @router.get("/agent", response_model=List[AgentConfig])
 @inject
@@ -77,9 +72,7 @@ async def get_agent_list(
     Returns:
         A list of agent configurations
     """
-    agents = await agent_service.list()
-    log.debug("listing %i agents", len(agents))
-    return agents
+    return await repository.get_model_list(agent_service)
 
 @router.put("/agent/{agent_id}", response_model=Dict[str, bool])
 @inject
@@ -102,7 +95,27 @@ async def update_agent(
     Raises:
         HTTPException: If the agent is not found
     """
-    success = await agent_service.update(agent_id, agent_config)
-    if not success:
-        raise HTTPException(status_code=404, detail=f"Agent with ID {agent_id} not found")
-    return {"success": True}
+    return await repository.update_model(agent_id, agent_config, agent_service)
+
+@router.put("/agent/{agent_id}", response_model=Dict[str, bool])
+@inject
+async def delete_agent(
+    agent_id: str,
+    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
+) -> Dict[str, bool]:
+    """
+    Delete an agent.
+    
+    Args:
+        agent_id: The ID of the agent to update
+        agent_config: The new agent configuration
+        agent_service: The agent service
+        
+    Returns:
+        A dictionary indicating success
+        
+    Raises:
+        HTTPException: If the agent is not found
+    """
+    return await repository.delete_model(agent_id, agent_service)
+
