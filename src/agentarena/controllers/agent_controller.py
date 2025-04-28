@@ -12,6 +12,7 @@ from agentarena.models.agent import AgentConfig
 from agentarena.services.agent_service import AgentService
 from agentarena.config.containers import Container
 
+import json
 import structlog
 
 # Create a router for agent endpoints
@@ -34,7 +35,7 @@ async def create_agent(
     Returns:
         A dictionary with the ID of the created agent
     """
-    log.info("Received create agent request", agent_config)
+    log.info("Received create agent request: %s", agent_config.model_dump_json())
     agent_id = await agent_service.create_agent(agent_config)
     return {"id": agent_id}
 

@@ -30,13 +30,13 @@ class AgentService:
             The ID of the created agent
         """
         db_agent = agent_config.model_copy()
-        if not 'id' in agent_config:
-            db_agent['id'] = ULID().hex
+        if db_agent.id is None:
+            db_agent.id = ULID().hex
 
-        agent_id = db_agent['id']
-
-        self.table.insert(db_agent.model_dump(), pk=1)
-        self.log("Added agent: %s", agent_id)
+        agent_id = str(db_agent.id)
+ 
+        self.table.insert(db_agent.model_dump(), pk="id")
+        self.log.info("Added agent: %s", agent_id)
         self.dbService.add_audit_log("Added agent: %s" % agent_id)
         return agent_id
     
@@ -52,7 +52,7 @@ class AgentService:
         """
         # In a real implementation, this would query a database
         row = self.table.get(agent_id)
-        self.log.info()
+        self.log.info("Getting agent: %s", agent_id)
         return AgentConfig.model_validate(row) if row is not None else None
             
     async def update_agent(self, agent_id: str, agent_config: AgentConfig) -> bool:
@@ -67,13 +67,13 @@ class AgentService:
             True if the agent was updated, False if not found
         """
         # In a real implementation, this would update a database record
-        agent = self.get_agent(agent_id)
+        agent = await self.get_agent(agent_id)
         if agent is None:
             self.log.warn("No such agent to update: %s", agent_id)
             return False
         updated = agent_config.model_dump(exclude=["id"])
         self.table.update(agent_id, updated)
-        self.dbService.add_audit_log("Updated agent %s: %s", agent_id, json.dumps(updated))
+        self.dbService.add_audit_log("Updated agent %s: %s" % (agent_id, json.dumps(updated)))
         return True
     
     async def delete_agent(self, agent_id: str) -> bool:
@@ -86,8 +86,15 @@ class AgentService:
         Returns:
             True if the agent was deleted, False if not found
         """
+        # Check if the agent exists before deleting
+        agent = await self.get_agent(agent_id)
+        if agent is None:
+            self.log.warn("No such agent to delete: %s", agent_id)
+            return False
+            
         self.table.delete(agent_id)
-        self.dbService.add_audit_log("Deleted agent: %s", agent_id)
+        self.log.info("Deleted agent: %s", agent_id)
+        self.dbService.add_audit_log("Deleted agent: %s" % agent_id)
         return True
     
     async def list_agents(self) -> List[AgentConfig]:
