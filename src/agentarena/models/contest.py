@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
-from ulid import ULID
+from .dbmodel import DbBase
 
 class ContestStatus(str, Enum):
     """
@@ -16,16 +16,11 @@ class ContestStatus(str, Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
-
-
-class Contest(BaseModel):
+class Contest(DbBase):
     """
     Represents a contest between agents.
     
     Maps to the CONTEST entity in the ER diagram.
     """
-    id: ULID = Field(description="Unique identifier (ULID)")
     arena_config_id: str = Field(description="Reference to ArenaConfig")
-    status: ContestStatus = Field(description="Contest status")
-    started_at: Optional[datetime] = Field(default=None, description="Start timestamp")
-    ended_at: Optional[datetime] = Field(default=None, description="End timestamp")
+    status: ContestStatus = Field(default=ContestStatus.CREATED, description="Contest status")
