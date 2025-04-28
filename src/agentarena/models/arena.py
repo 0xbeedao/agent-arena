@@ -12,7 +12,7 @@ class ArenaConfig(BaseModel):
     
     Maps to the ARENA_CONFIG entity in the ER diagram.
     """
-    id: ULID = Field(description="Unique identifier (ULID)")
+    id: str = Field(description="Unique identifier (ULID)")
     description: str = Field(description="Arena description")
     height: int = Field(description="Arena height", gt=0)
     width: int = Field(description="Arena width", gt=0)
