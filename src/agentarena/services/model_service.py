@@ -144,7 +144,10 @@ class ModelService(Generic[T]):
             self.log.warn(f"No such {model_name.lower()} to delete: %s", obj_id)
             return False
             
-        self.table.delete(obj_id)
+        self.table.update(obj_id, {
+            "deleted_at": datetime.now().isoformat(),
+            "active": False
+        })
         self.log.info(f"Deleted {model_name.lower()}: %s", obj_id)
         self.dbService.add_audit_log(f"Deleted {model_name.lower()}: {obj_id}")
         return True
@@ -156,4 +159,15 @@ class ModelService(Generic[T]):
         Returns:
             A list of all model instances
         """
+        rows = self.table.rows_where("active = ?", [True])
+        return [self.model_class.model_validate(row) for row in rows]
+    
+    async def list_all(self) -> List[T]:
+        """
+        List all model instances, including inactive ones.
+        
+        Returns:
+            A list of all model instances
+        """
         return [self.model_class.model_validate(row) for row in self.table.rows]
+    

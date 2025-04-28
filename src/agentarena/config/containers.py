@@ -2,11 +2,14 @@ from dependency_injector import containers, providers
 from sqlite_utils.db import Database
 from pathlib import Path
 
-from agentarena.services.model_service import ModelService
 from .logger import setup_logging
-from agentarena.services.db_service import DbService
 from agentarena.models.agent import AgentConfig
+from agentarena.models.arena import ArenaConfig
+from agentarena.models.contest import Contest
+from agentarena.models.stats import RoundStats
 from agentarena.models.strategy import Strategy
+from agentarena.services.db_service import DbService
+from agentarena.services.model_service import ModelService
 
 def get_database(filename: str, memory: bool = False) -> Database:
     if memory:
@@ -43,11 +46,34 @@ class Container(containers.DeclarativeContainer):
         get_database
     )
 
+    # model services
+    
     agent_service = providers.Singleton(
         ModelService[AgentConfig],
         model_class=AgentConfig,
         dbService=db_service,
         table_name="agents"
+    )
+
+    arena_service = providers.Singleton(
+        ModelService[ArenaConfig],
+        model_class=ArenaConfig,
+        dbService=db_service,
+        table_name="arenas"
+    )
+
+    contest_service = providers.Singleton(
+        ModelService[Contest],
+        model_class=Contest,
+        dbService=db_service,
+        table_name="contests"
+    )
+
+    roundstats_service = providers.Singleton(
+        ModelService[RoundStats],
+        model_class=RoundStats,
+        dbService=db_service,
+        table_name="roundstats"
     )
 
     strategy_service = providers.Singleton(

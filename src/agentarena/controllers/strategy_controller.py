@@ -59,8 +59,6 @@ async def get_strategy(
     """
     return await repository.get_model(strategy_id, strategy_service)
 
-    )
-
 @router.get("/strategy", response_model=List[Strategy])
 @inject
 async def get_strategy_list(

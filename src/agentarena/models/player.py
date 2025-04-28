@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from .dbmodel import DbBase
 
-class PlayerState(BaseModel):
+class PlayerState(DbBase):
     """
     Represents the state of a player.
     
@@ -30,3 +30,4 @@ class PlayerAction(DbBase):
         description="Target coordinate as 'x,y'",
         pattern=r"^-?\d+,-?\d+$"
     )
+    
