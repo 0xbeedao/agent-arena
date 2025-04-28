@@ -1,7 +1,7 @@
 import { cn } from "cn-func";
 import type { StyledButtonProps } from "./types";
 import { Button } from "@headlessui/react";
-import { ShadowBox } from "./StyledBox";
+import { StyledBox } from "./StyledBox"
 
 const INNER_BUTTON_STYLES =
 	"inline-flex items-center px-4 py-2 bg-[#ffc480] border-[3px] border-gray-900 text-gray-900 rounded group-hover:-translate-y-px group-hover:-translate-x-px transition-transform relative z-10";
@@ -65,7 +65,7 @@ export const StyledButton = ({
 	if (variant === "primary") {
 		return (
 			<div className="relative mt-4 inline-block group">
-				<ShadowBox position="inner" />
+				<StyledBox position="inner" />
 				{inner}
 			</div>
 		);

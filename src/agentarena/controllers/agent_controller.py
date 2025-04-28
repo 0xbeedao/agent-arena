@@ -12,8 +12,11 @@ from agentarena.models.agent import AgentConfig
 from agentarena.services.agent_service import AgentService
 from agentarena.config.containers import Container
 
+import structlog
+
 # Create a router for agent endpoints
 router = APIRouter(tags=["Agent"])
+log = structlog.get_logger("agent_controller").bind(module="agent_controller")
 
 @router.post("/agent", response_model=Dict[str, str])
 @inject
@@ -31,6 +34,7 @@ async def create_agent(
     Returns:
         A dictionary with the ID of the created agent
     """
+    log.info("Received create agent request", agent_config)
     agent_id = await agent_service.create_agent(agent_config)
     return {"id": agent_id}
 
@@ -73,6 +77,7 @@ async def get_agent_list(
         A list of agent configurations
     """
     agents = await agent_service.list_agents()
+    log.debug("listing %i agents", len(agents))
     return agents
 
 @router.put("/agent/{agent_id}", response_model=Dict[str, bool])
