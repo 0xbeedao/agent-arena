@@ -1,6 +1,8 @@
 from dependency_injector import containers, providers
 from sqlite_utils.db import Database
 from pathlib import Path
+
+from agentarena.services.strategy_service import StrategyService
 from .logger import setup_logging
 from agentarena.services.db_service import DbService
 from agentarena.services.agent_service import AgentService
@@ -42,6 +44,11 @@ class Container(containers.DeclarativeContainer):
 
     agent_service = providers.Singleton(
         AgentService,
+        db_service
+    )
+
+    strategy_service = providers.Singleton(
+        StrategyService,
         db_service
     )
 

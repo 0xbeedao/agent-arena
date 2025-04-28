@@ -18,3 +18,4 @@ class AgentConfig(BaseModel):
     api_key: Optional[str] = Field(default="", description="API key for authentication")
     metadata: Optional[str] = Field(default="", description="Additional metadata")
     strategy_id: Optional[str] = Field(default="", description="Reference to Strategy")
+    created_at: Optional[datetime] = Field(default=None, description="Creation timestamp")

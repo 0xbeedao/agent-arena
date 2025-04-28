@@ -2,9 +2,9 @@
 Strategy model for the Agent Arena application.
 """
 
+from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
-from ulid import ULID
 
 class Strategy(BaseModel):
     """
@@ -12,8 +12,8 @@ class Strategy(BaseModel):
     
     Maps to the STRATEGY entity in the ER diagram.
     """
-    id: ULID = Field(description="Unique identifier (ULID)")
-    name: str = Field(description="Strategy name")
-    personality: str = Field(description="Personality description")
-    instructions: str = Field(description="Strategy instructions")
-    created_at: datetime = Field(description="Creation timestamp")
+    id: Optional[str] = Field(default=None, description="Unique identifier (ULID)")
+    name: Optional[str] = Field(default="", description="Strategy name")
+    personality: Optional[str] = Field(default="", description="Personality description")
+    instructions: Optional[str] = Field(default="", description="Strategy instructions")
+    created_at: Optional[datetime] = Field(default=None, description="Creation timestamp")

@@ -6,6 +6,7 @@ Handles business logic for agent operations.
 from typing import Optional, Dict, List
 from ulid import ULID
 from agentarena.models.agent import AgentConfig
+from datetime import datetime
 from .db_service import DbService
 
 import json
@@ -30,8 +31,10 @@ class AgentService:
             The ID of the created agent
         """
         db_agent = agent_config.model_copy()
-        if db_agent.id is None:
-            db_agent.id = ULID().hex
+        # always make a new ID
+        db_agent.id = ULID().hex
+        # And set the created_at
+        db_agent.created_at = datetime.now().isoformat()
 
         agent_id = str(db_agent.id)
  
@@ -71,7 +74,7 @@ class AgentService:
         if agent is None:
             self.log.warn("No such agent to update: %s", agent_id)
             return False
-        updated = agent_config.model_dump(exclude=["id"])
+        updated = agent_config.model_dump(exclude=["id", "created_at"])
         self.table.update(agent_id, updated)
         self.dbService.add_audit_log("Updated agent %s: %s" % (agent_id, json.dumps(updated)))
         return True

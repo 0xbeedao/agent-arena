@@ -11,6 +11,7 @@ from pathlib import Path
 
 from agentarena.config.containers import Container
 from agentarena.controllers.agent_controller import router as agent_router
+from agentarena.controllers.strategy_controller import router as strategy_router
 import os
 from pathlib import Path
 
@@ -21,7 +22,10 @@ yamlFile = os.path.join(parentDir, "agent-arena-config.yaml")
 if os.path.exists(yamlFile):
     container.config.from_yaml(yamlFile)
     container.init_resources()
-    container.wire(modules=["agentarena.controllers.agent_controller"])
+    container.wire(modules=[
+        "agentarena.controllers.agent_controller",
+        "agentarena.controllers.strategy_controller"
+    ])
 
 # Create the FastAPI application
 app = FastAPI(
@@ -41,6 +45,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(agent_router)
+app.include_router(strategy_router)
 
 # Add exception handlers
 @app.exception_handler(HTTPException)
