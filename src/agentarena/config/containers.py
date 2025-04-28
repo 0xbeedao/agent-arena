@@ -2,10 +2,11 @@ from dependency_injector import containers, providers
 from sqlite_utils.db import Database
 from pathlib import Path
 
-from agentarena.services.strategy_service import StrategyService
+from agentarena.services.model_service import ModelService
 from .logger import setup_logging
 from agentarena.services.db_service import DbService
-from agentarena.services.agent_service import AgentService
+from agentarena.models.agent import AgentConfig
+from agentarena.models.strategy import Strategy
 
 def get_database(filename: str, memory: bool = False) -> Database:
     if memory:
@@ -43,13 +44,17 @@ class Container(containers.DeclarativeContainer):
     )
 
     agent_service = providers.Singleton(
-        AgentService,
-        db_service
+        ModelService[AgentConfig],
+        model_class=AgentConfig,
+        dbService=db_service,
+        table_name="agents"
     )
 
     strategy_service = providers.Singleton(
-        StrategyService,
-        db_service
+        ModelService[Strategy],
+        model_class=Strategy,
+        dbService=db_service,
+        table_name="strategies"
     )
 
 

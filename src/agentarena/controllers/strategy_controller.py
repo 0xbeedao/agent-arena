@@ -1,5 +1,5 @@
 """
-strategy controller for the strategy Arena application.
+Strategy controller for the Agent Arena application.
 Handles HTTP requests for strategy operations.
 """
 
@@ -8,22 +8,22 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, List
 from ulid import ULID
 
-from agentarena.models.strategy import strategyConfig
-from agentarena.services.strategy_service import StrategyService
+from agentarena.models.strategy import Strategy
+from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
 import json
 import structlog
 
 # Create a router for strategy endpoints
-router = APIRouter(tags=["strategy"])
+router = APIRouter(tags=["Strategy"])
 log = structlog.get_logger("strategy_controller").bind(module="strategy_controller")
 
 @router.post("/strategy", response_model=Dict[str, str])
 @inject
 async def create_strategy(
-    strategy: strategyConfig,
-    strategy_service: StrategyService = Depends(Provide[Container.strategy_service])
+    strategy: Strategy,
+    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
 ) -> Dict[str, str]:
     """
     Create a new strategy.
@@ -36,17 +36,17 @@ async def create_strategy(
         A dictionary with the ID of the created strategy
     """
     log.info("Received create strategy request: %s", strategy.model_dump_json())
-    strategy_id = await strategy_service.create_strategy(strategy)
+    strategy_id = await strategy_service.create(strategy)
     return {"id": strategy_id}
 
-@router.get("/strategy/{strategy_id}", response_model=strategyConfig)
+@router.get("/strategy/{strategy_id}", response_model=Strategy)
 @inject
 async def get_strategy(
     strategy_id: str,
-    strategy_service: StrategyService = Depends(Provide[Container.strategy_service])
-) -> strategyConfig:
+    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
+) -> Strategy:
     """
-    Get an strategy by ID.
+    Get a strategy by ID.
     
     Args:
         strategy_id: The ID of the strategy to get
@@ -58,18 +58,18 @@ async def get_strategy(
     Raises:
         HTTPException: If the strategy is not found
     """
-    strategy = await strategy_service.get_strategy(strategy_id)
+    strategy = await strategy_service.get(strategy_id)
     if strategy is None:
-        raise HTTPException(status_code=404, detail=f"strategy with ID {strategy_id} not found")
+        raise HTTPException(status_code=404, detail=f"Strategy with ID {strategy_id} not found")
     return strategy
 
-@router.get("/strategy", response_model=List[strategyConfig])
+@router.get("/strategy", response_model=List[Strategy])
 @inject
 async def get_strategy_list(
-    strategy_service: StrategyService = Depends(Provide[Container.strategy_service])
-) -> List[strategyConfig]:
+    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
+) -> List[Strategy]:
     """
-    Get a list of all strategys.
+    Get a list of all strategies.
     
     Args:
         strategy_service: The strategy service
@@ -77,19 +77,19 @@ async def get_strategy_list(
     Returns:
         A list of strategy configurations
     """
-    strategys = await strategy_service.list_strategys()
-    log.debug("listing %i strategys", len(strategys))
-    return strategys
+    strategies = await strategy_service.list()
+    log.debug("listing %i strategies", len(strategies))
+    return strategies
 
 @router.put("/strategy/{strategy_id}", response_model=Dict[str, bool])
 @inject
 async def update_strategy(
     strategy_id: str,
-    strategy: strategyConfig,
-    strategy_service: StrategyService = Depends(Provide[Container.strategy_service])
+    strategy: Strategy,
+    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
 ) -> Dict[str, bool]:
     """
-    Update an strategy.
+    Update a strategy.
     
     Args:
         strategy_id: The ID of the strategy to update
@@ -102,7 +102,7 @@ async def update_strategy(
     Raises:
         HTTPException: If the strategy is not found
     """
-    success = await strategy_service.update_strategy(strategy_id, strategy)
+    success = await strategy_service.update(strategy_id, strategy)
     if not success:
-        raise HTTPException(status_code=404, detail=f"strategy with ID {strategy_id} not found")
+        raise HTTPException(status_code=404, detail=f"Strategy with ID {strategy_id} not found")
     return {"success": True}

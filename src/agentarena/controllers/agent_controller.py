@@ -9,7 +9,7 @@ from typing import Annotated, Dict, List
 from ulid import ULID
 
 from agentarena.models.agent import AgentConfig
-from agentarena.services.agent_service import AgentService
+from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
 import json
@@ -23,7 +23,7 @@ log = structlog.get_logger("agent_controller").bind(module="agent_controller")
 @inject
 async def create_agent(
     agent_config: AgentConfig,
-    agent_service: AgentService = Depends(Provide[Container.agent_service])
+    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
 ) -> Dict[str, str]:
     """
     Create a new agent.
@@ -36,14 +36,14 @@ async def create_agent(
         A dictionary with the ID of the created agent
     """
     log.info("Received create agent request: %s", agent_config.model_dump_json())
-    agent_id = await agent_service.create_agent(agent_config)
+    agent_id = await agent_service.create(agent_config)
     return {"id": agent_id}
 
 @router.get("/agent/{agent_id}", response_model=AgentConfig)
 @inject
 async def get_agent(
     agent_id: str,
-    agent_service: AgentService = Depends(Provide[Container.agent_service])
+    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
 ) -> AgentConfig:
     """
     Get an agent by ID.
@@ -58,7 +58,7 @@ async def get_agent(
     Raises:
         HTTPException: If the agent is not found
     """
-    agent = await agent_service.get_agent(agent_id)
+    agent = await agent_service.get(agent_id)
     if agent is None:
         raise HTTPException(status_code=404, detail=f"Agent with ID {agent_id} not found")
     return agent
@@ -66,7 +66,7 @@ async def get_agent(
 @router.get("/agent", response_model=List[AgentConfig])
 @inject
 async def get_agent_list(
-    agent_service: AgentService = Depends(Provide[Container.agent_service])
+    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
 ) -> List[AgentConfig]:
     """
     Get a list of all agents.
@@ -77,7 +77,7 @@ async def get_agent_list(
     Returns:
         A list of agent configurations
     """
-    agents = await agent_service.list_agents()
+    agents = await agent_service.list()
     log.debug("listing %i agents", len(agents))
     return agents
 
@@ -86,7 +86,7 @@ async def get_agent_list(
 async def update_agent(
     agent_id: str,
     agent_config: AgentConfig,
-    agent_service: AgentService = Depends(Provide[Container.agent_service])
+    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
 ) -> Dict[str, bool]:
     """
     Update an agent.
@@ -102,7 +102,7 @@ async def update_agent(
     Raises:
         HTTPException: If the agent is not found
     """
-    success = await agent_service.update_agent(agent_id, agent_config)
+    success = await agent_service.update(agent_id, agent_config)
     if not success:
         raise HTTPException(status_code=404, detail=f"Agent with ID {agent_id} not found")
     return {"success": True}

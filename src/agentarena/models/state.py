@@ -10,21 +10,19 @@ from ulid import ULID
 from .feature import Feature
 from .player import PlayerState, PlayerAction
 from .judge import JudgeResult
+from .dbmodel import DbBase
 
-
-class ArenaState(BaseModel):
+class ArenaState(DbBase):
     """
     Represents the state of the arena at a specific point in time.
     
     Maps to the ARENA_STATE entity in the ER diagram.
     """
-    id: ULID = Field(description="Unique identifier (ULID)")
     contest_id: str = Field(description="Reference to Contest")
     round_no: int = Field(description="Round number", ge=0)
     schema_version: int = Field(description="Schema version")
     narrative: Optional[str] = Field(default=None, description="Round narrative")
     state: str = Field(description="Arena state")
-    timestamp: datetime = Field(description="Timestamp")
     
     # These fields are from the OpenAPI schema but not in the ER diagram
     features: List[Feature] = Field(default_factory=list, description="Arena features")
