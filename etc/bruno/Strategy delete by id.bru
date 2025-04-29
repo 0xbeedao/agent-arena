@@ -1,0 +1,10 @@
+meta {
+  name: Strategy delete by id
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{host}}/strategy/{{strategy_id}}
+  auth: inherit
+}

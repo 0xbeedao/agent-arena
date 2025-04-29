@@ -1,0 +1,19 @@
+meta {
+  name: Arena Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{host}}/arena/{{arena_id}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Updated Arena",
+    "location": "Updated Location",
+    "capacity": 200
+  }
+}

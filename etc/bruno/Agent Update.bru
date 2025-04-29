@@ -1,0 +1,17 @@
+meta {
+  name: Agent Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {host}/agent/01967de98f4ec911443fd064d0ba5e08
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "endpoint":"/agent/01967de98f4ec911443fd064d0ba5e08"
+  }
+}

@@ -1,0 +1,19 @@
+meta {
+  name: RoundStats Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{host}}/roundstats/{{roundstats_id}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "contest_id": "updated_contest_id",
+    "round": 2,
+    "stats": {"score": 100}
+  }
+}

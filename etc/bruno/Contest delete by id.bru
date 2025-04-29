@@ -1,0 +1,10 @@
+meta {
+  name: Contest delete by id
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{host}}/contest/{{contest_id}}
+  auth: inherit
+}

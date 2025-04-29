@@ -18,5 +18,4 @@ class ArenaConfig(BaseModel):
     width: int = Field(description="Arena width", gt=0)
     rules: str = Field(description="Game rules")
     max_random_features: int = Field(description="Maximum number of random features", ge=0)
-    judge_id: str = Field(description="Reference to Judge agent")
     created_at: datetime = Field(description="Creation timestamp")

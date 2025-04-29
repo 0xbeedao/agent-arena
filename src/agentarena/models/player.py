@@ -17,6 +17,7 @@ class PlayerState(DbBase):
     inventory: Optional[List[str]] = Field(default=None, description="Player inventory")
     health_state: str = Field(description="Health state")
     custom_state: Optional[Dict[str, Any]] = Field(default=None, description="Custom state data")
+    
 class PlayerAction(DbBase):
     """
     Represents an action taken by a player.
@@ -30,4 +31,3 @@ class PlayerAction(DbBase):
         description="Target coordinate as 'x,y'",
         pattern=r"^-?\d+,-?\d+$"
     )
-    

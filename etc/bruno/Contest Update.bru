@@ -1,0 +1,19 @@
+meta {
+  name: Contest Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{host}}/contest/{{contest_id}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Updated Contest",
+    "arena_id": "updated_arena_id",
+    "start_time": "2025-01-02T00:00:00Z"
+  }
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Strategy Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{host}}/strategy/{{strategy_id}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Updated Strategy",
+    "description": "Updated description",
+    "parameters": {}
+  }
+}

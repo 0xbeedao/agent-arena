@@ -1,0 +1,21 @@
+meta {
+  name: Agent Add
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{host}}/agent
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test Agent",
+    "endpoint": "http://localhost:8000/agent/agent-123",
+    "api_key": "test-api-key-123",
+    "metadata": "{\"role\": \"explorer\", \"version\": 1}",
+    "strategy_id": "strategy-abc123"
+  }
+}

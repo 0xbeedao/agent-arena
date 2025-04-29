@@ -1,0 +1,10 @@
+meta {
+  name: RoundStats delete by id
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{host}}/roundstats/{{roundstats_id}}
+  auth: inherit
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Contest Add
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host}}/contest
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "arena_config_id": "arena-config-xyz",
+    "judge_id": "judge-123",
+    "arena_id": "arena-abc",
+    "player_ids": ["player-1", "player-2"],
+    "start_time": "2025-01-01T00:00:00Z"
+  }
+}

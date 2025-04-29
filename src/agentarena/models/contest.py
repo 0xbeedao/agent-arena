@@ -24,3 +24,8 @@ class Contest(DbBase):
     """
     arena_config_id: str = Field(description="Reference to ArenaConfig")
     status: ContestStatus = Field(default=ContestStatus.CREATED, description="Contest status")
+    judge_id: str = Field(description="Reference to Judge agent")
+    arena_id: str = Field(description="Reference to Arena")
+    player_ids: list[str] = Field(description="List of player identifiers")
+    start_time: Optional[datetime] = Field(default=None, description="Contest start time")
+    end_time: Optional[datetime] = Field(default=None, description="Contest end time")

@@ -1,0 +1,21 @@
+meta {
+  name: Strategy Add
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host}}/strategy
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Aggressive Player",
+    "personality": "Aggressive",
+    "instructions": "Always attack when possible.",
+    "description": "A strategy for aggressive play style.",
+    "group": "player"
+  }
+}

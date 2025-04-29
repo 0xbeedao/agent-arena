@@ -1,0 +1,23 @@
+meta {
+  name: RoundStats Add
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host}}/roundstats
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "arena_state_id": "arena-state-xyz",
+    "actions_count": 42,
+    "duration_ms": 1500,
+    "metrics_json": {
+      "score": 100,
+      "errors": 0
+    }
+  }
+}
