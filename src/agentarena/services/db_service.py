@@ -13,8 +13,7 @@ class DbService:
         get_database):
 
         filename = dbfile.replace("<projectroot>", str(projectroot))
-        self.log = structlog.getLogger("dbservice").bind(module="dbservice")
-        self.log.bind(db=os.path.basename(filename))
+        self.log = structlog.getLogger("dbservice").bind(module="dbservice", db=os.path.basename(filename))
         self.log.info("Setting up DB at %s", filename)
         self.db: Database = get_database(filename)
         self.db.ensure_autocommit_off()

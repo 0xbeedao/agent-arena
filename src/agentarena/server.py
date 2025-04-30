@@ -10,8 +10,7 @@ from fastapi.responses import JSONResponse
 from pathlib import Path
 
 from agentarena.config.containers import Container
-from agentarena.controllers.agent_controller import router as agent_router
-from agentarena.controllers.strategy_controller import router as strategy_router
+from agentarena.controllers import routers
 import os
 from pathlib import Path
 
@@ -52,8 +51,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(agent_router)
-app.include_router(strategy_router)
+[app.include_router(router) for router in routers]
 
 # Add exception handlers
 @app.exception_handler(HTTPException)

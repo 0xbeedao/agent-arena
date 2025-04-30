@@ -7,7 +7,7 @@ from agentarena.models.feature import Feature
 
 from .logger import setup_logging
 from agentarena.models.agent import AgentConfig
-from agentarena.models.arena import ArenaConfig
+from agentarena.models.arena import ArenaConfig, ArenaFeature, ArenaAgent
 from agentarena.models.contest import Contest
 from agentarena.models.stats import RoundStats
 from agentarena.models.strategy import Strategy
@@ -63,6 +63,20 @@ class Container(containers.DeclarativeContainer):
         model_class=ArenaConfig,
         dbService=db_service,
         table_name="arenas"
+    )
+
+    arenaagent_service = providers.Singleton(
+        ModelService[ArenaAgent],
+        model_class=ArenaAgent,
+        dbService=db_service,
+        table_name="arenaagents"
+    )
+
+    arenafeature_service = providers.Singleton(
+        ModelService[ArenaFeature],
+        model_class=ArenaFeature,
+        dbService=db_service,
+        table_name="arenafeatures"
     )
 
     contest_service = providers.Singleton(
