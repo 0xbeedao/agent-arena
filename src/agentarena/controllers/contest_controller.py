@@ -12,7 +12,6 @@ from agentarena.models.contest import Contest
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
-from . import repository
 import structlog
 
 # Create a router for contest endpoints
@@ -35,7 +34,10 @@ async def create_contest(
     Returns:
         A dictionary with the ID of the created contest
     """
-    return await repository.create_model(contest, contest_service)
+    [id, response] = await contest_service.create(contest)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"id": id}
 
 @router.get("/contest/{contest_id}", response_model=Contest)
 @inject
@@ -56,7 +58,10 @@ async def get_contest(
     Raises:
         HTTPException: If the contest is not found
     """
-    return await repository.get_model(contest_id, contest_service)
+    [contest_obj, response] = await contest_service.get(contest_id)
+    if not response.success:
+        raise HTTPException(status_code=404, detail=response.error)
+    return contest_obj
 
 @router.get("/contest", response_model=List[Contest])
 @inject
@@ -72,7 +77,7 @@ async def get_contest_list(
     Returns:
         A list of contest configurations
     """
-    return await repository.get_model_list(contest_service)
+    return await contest_service.list()
 
 @router.put("/contest/{contest_id}", response_model=Dict[str, bool])
 @inject
@@ -95,7 +100,10 @@ async def update_contest(
     Raises:
         HTTPException: If the contest is not found
     """
-    return await repository.update_model(contest_id, contest, contest_service)
+    response = await contest_service.update(contest_id, contest)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}
 
 @router.delete("/contest/{contest_id}", response_model=Dict[str, bool])
 @inject
@@ -116,4 +124,7 @@ async def delete_contest(
     Raises:
         HTTPException: If the contest is not found
     """
-    return await repository.delete_model(contest_id, contest_service)
+    response = await contest_service.delete(contest_id)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}

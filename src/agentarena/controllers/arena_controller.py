@@ -12,7 +12,6 @@ from agentarena.models.arena import ArenaConfig
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
-from . import repository
 import structlog
 
 # Create a router for arena endpoints
@@ -35,7 +34,10 @@ async def create_arena(
     Returns:
         A dictionary with the ID of the created arena
     """
-    return await repository.create_model(arena_config, arena_service)
+    [id, response] = await arena_service.create(arena_config)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"id": id}
 
 @router.get("/arena/{arena_id}", response_model=ArenaConfig)
 @inject
@@ -56,7 +58,10 @@ async def get_arena(
     Raises:
         HTTPException: If the arena is not found
     """
-    return await repository.get_model(arena_id, arena_service)
+    [arena, response] = await arena_service.get(arena_id)
+    if not response.success:
+        raise HTTPException(status_code=404, detail=response.error)
+    return arena
 
 @router.get("/arena", response_model=List[ArenaConfig])
 @inject
@@ -72,7 +77,7 @@ async def get_arena_list(
     Returns:
         A list of arena configurations
     """
-    return await repository.get_model_list(arena_service)
+    return await arena_service.list()
 
 @router.put("/arena/{arena_id}", response_model=Dict[str, bool])
 @inject
@@ -95,7 +100,10 @@ async def update_arena(
     Raises:
         HTTPException: If the arena is not found
     """
-    return await repository.update_model(arena_id, arena_config, arena_service)
+    response = await arena_service.update(arena_id, arena_config)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}
 
 @router.delete("/arena/{arena_id}", response_model=Dict[str, bool])
 @inject
@@ -116,4 +124,7 @@ async def delete_arena(
     Raises:
         HTTPException: If the arena is not found
     """
-    return await repository.delete_model(arena_id, arena_service)
+    response = await arena_service.delete(arena_id)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}

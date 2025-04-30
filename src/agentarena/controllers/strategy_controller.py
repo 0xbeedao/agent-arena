@@ -12,8 +12,6 @@ from agentarena.models.strategy import Strategy
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
-from . import repository
-
 import structlog
 
 # Create a router for strategy endpoints
@@ -28,15 +26,18 @@ async def create_strategy(
 ) -> Dict[str, str]:
     """
     Create a new strategy.
-    
+
     Args:
         strategy: The strategy configuration
         strategy_service: The strategy service
-        
+
     Returns:
         A dictionary with the ID of the created strategy
     """
-    return await repository.create_model(strategy, strategy_service)
+    [id, response] = await strategy_service.create(strategy)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"id": id}
 
 @router.get("/strategy/{strategy_id}", response_model=Strategy)
 @inject
@@ -46,18 +47,21 @@ async def get_strategy(
 ) -> Strategy:
     """
     Get a strategy by ID.
-    
+
     Args:
         strategy_id: The ID of the strategy to get
         strategy_service: The strategy service
-        
+
     Returns:
         The strategy configuration
-        
+
     Raises:
         HTTPException: If the strategy is not found
     """
-    return await repository.get_model(strategy_id, strategy_service)
+    [strategy_obj, response] = await strategy_service.get(strategy_id)
+    if not response.success:
+        raise HTTPException(status_code=404, detail=response.error)
+    return strategy_obj
 
 @router.get("/strategy", response_model=List[Strategy])
 @inject
@@ -66,14 +70,14 @@ async def get_strategy_list(
 ) -> List[Strategy]:
     """
     Get a list of all strategies.
-    
+
     Args:
         strategy_service: The strategy service
-        
+
     Returns:
         A list of strategy configurations
     """
-    return await repository.get_model_list(strategy_service)
+    return await strategy_service.list()
 
 @router.put("/strategy/{strategy_id}", response_model=Dict[str, bool])
 @inject
@@ -84,16 +88,43 @@ async def update_strategy(
 ) -> Dict[str, bool]:
     """
     Update a strategy.
-    
+
     Args:
         strategy_id: The ID of the strategy to update
         strategy: The new strategy configuration
         strategy_service: The strategy service
-        
+
     Returns:
         A dictionary indicating success
-        
+
     Raises:
         HTTPException: If the strategy is not found
     """
-    return await repository.update_model(strategy_id, strategy, strategy_service)
+    response = await strategy_service.update(strategy_id, strategy)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}
+
+@router.delete("/strategy/{strategy_id}", response_model=Dict[str, bool])
+@inject
+async def delete_strategy(
+    strategy_id: str,
+    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
+) -> Dict[str, bool]:
+    """
+    Delete a strategy.
+
+    Args:
+        strategy_id: The ID of the strategy to delete
+        strategy_service: The strategy service
+
+    Returns:
+        A dictionary indicating success
+
+    Raises:
+        HTTPException: If the strategy is not found
+    """
+    response = await strategy_service.delete(strategy_id)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}

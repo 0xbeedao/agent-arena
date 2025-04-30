@@ -12,7 +12,6 @@ from agentarena.models.stats import RoundStats
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
-from . import repository
 import structlog
 
 # Create a router for roundstats endpoints
@@ -35,7 +34,10 @@ async def create_roundstats(
     Returns:
         A dictionary with the ID of the created roundstats
     """
-    return await repository.create_model(roundstats, roundstats_service)
+    [id, response] = await roundstats_service.create(roundstats)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"id": id}
 
 @router.get("/roundstats/{roundstats_id}", response_model=RoundStats)
 @inject
@@ -56,7 +58,10 @@ async def get_roundstats(
     Raises:
         HTTPException: If the roundstats is not found
     """
-    return await repository.get_model(roundstats_id, roundstats_service)
+    [roundstats_obj, response] = await roundstats_service.get(roundstats_id)
+    if not response.success:
+        raise HTTPException(status_code=404, detail=response.error)
+    return roundstats_obj
 
 @router.get("/roundstats", response_model=List[RoundStats])
 @inject
@@ -72,7 +77,7 @@ async def get_roundstats_list(
     Returns:
         A list of roundstats configurations
     """
-    return await repository.get_model_list(roundstats_service)
+    return await roundstats_service.list()
 
 @router.put("/roundstats/{roundstats_id}", response_model=Dict[str, bool])
 @inject
@@ -95,7 +100,10 @@ async def update_roundstats(
     Raises:
         HTTPException: If the roundstats is not found
     """
-    return await repository.update_model(roundstats_id, roundstats, roundstats_service)
+    response = await roundstats_service.update(roundstats_id, roundstats)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}
 
 @router.delete("/roundstats/{roundstats_id}", response_model=Dict[str, bool])
 @inject
@@ -116,4 +124,7 @@ async def delete_roundstats(
     Raises:
         HTTPException: If the roundstats is not found
     """
-    return await repository.delete_model(roundstats_id, roundstats_service)
+    response = await roundstats_service.delete(roundstats_id)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}
