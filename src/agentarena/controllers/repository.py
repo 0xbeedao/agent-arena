@@ -3,10 +3,9 @@ Generic model controller for the Agent Arena application.
 Provides a reusable controller for CRUD operations on any model that inherits from DbBase.
 """
 
-from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Annotated, Dict, List, TypeVar, Generic, Type
-from pydantic import BaseModel
+import sqlite3
+from fastapi import HTTPException
+from typing import Dict, List, TypeVar
 
 from agentarena.models.dbmodel import DbBase
 from agentarena.services.model_service import ModelService

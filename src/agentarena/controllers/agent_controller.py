@@ -9,7 +9,7 @@ from typing import Annotated, Dict, List
 from ulid import ULID
 
 from agentarena.models.agent import AgentConfig
-from agentarena.services.model_service import ModelService
+from agentarena.services.model_service import ModelResponse, ModelService
 from agentarena.config.containers import Container
 
 from . import repository
@@ -35,7 +35,10 @@ async def create_agent(
     Returns:
         A dictionary with the ID of the created agent
     """
-    return await repository.create_model(agent_config, agent_service)
+    [id, response] = await agent_service.create(agent_config)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"id": id}
 
 @router.get("/agent/{agent_id}", response_model=AgentConfig)
 @inject
@@ -56,7 +59,10 @@ async def get_agent(
     Raises:
         HTTPException: If the agent is not found
     """
-    return await repository.get_model(agent_id, agent_service)
+    [agent, response] = await agent_service.get(agent_id)
+    if not response.success:
+        raise HTTPException(status_code=404, detail=response.error)
+    return agent
 
 @router.get("/agent", response_model=List[AgentConfig])
 @inject
@@ -95,9 +101,12 @@ async def update_agent(
     Raises:
         HTTPException: If the agent is not found
     """
-    return await repository.update_model(agent_id, agent_config, agent_service)
+    response = await agent_service.update(agent_id, agent_config)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}
 
-@router.put("/agent/{agent_id}", response_model=Dict[str, bool])
+@router.delete("/agent/{agent_id}", response_model=Dict[str, bool])
 @inject
 async def delete_agent(
     agent_id: str,
@@ -117,5 +126,9 @@ async def delete_agent(
     Raises:
         HTTPException: If the agent is not found
     """
-    return await repository.delete_model(agent_id, agent_service)
+    response = await repository.delete_model(agent_id, agent_service)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    return {"success": response.success}
+
 

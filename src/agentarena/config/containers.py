@@ -2,6 +2,7 @@ from dependency_injector import containers, providers
 from sqlite_utils.db import Database
 from pathlib import Path
 
+
 from .logger import setup_logging
 from agentarena.models.agent import AgentConfig
 from agentarena.models.arena import ArenaConfig

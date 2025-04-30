@@ -18,13 +18,14 @@ class DbService:
         self.log.info("Setting up DB at %s", filename)
         self.db: Database = get_database(filename)
         self.db.ensure_autocommit_off()
+        self.db.execute("PRAGMA foreign_keys=ON")
 
     def add_audit_log(self, message):
         auditTable = self.db['audit']
         self.log.info("Audit message: %s", message)
         auditTable.insert({
             "id": ULID().hex,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(),
             "message": message
         })
 

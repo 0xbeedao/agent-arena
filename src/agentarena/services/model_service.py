@@ -3,19 +3,29 @@ Generic model service for the Agent Arena application.
 Provides a reusable service for CRUD operations on any model that inherits from DbBase.
 """
 
-from typing import Optional, List, Type, TypeVar, Generic, Any, Dict
+import sqlite3
+from typing import Optional, List, Type, TypeVar, Generic, Tuple
+from pydantic import BaseModel
 from ulid import ULID
 from datetime import datetime
 import json
 import structlog
-import re
-from pydantic import BaseModel
 
 from agentarena.models.dbmodel import DbBase
+from agentarena.models.validation import ValidationResponse
 from .db_service import DbService
 
-T = TypeVar('T', bound=DbBase)
+class ModelResponse(BaseModel):
+    """
+    Response model for creating a new instance.
+    
+    This model is used to return the ID of the created instance.
+    """
+    success: bool
+    validation: Optional[ValidationResponse]
+    error: Optional[str] = None
 
+T = TypeVar('T', bound=DbBase)
 class ModelService(Generic[T]):
     """
     Generic service for model operations.
@@ -24,7 +34,7 @@ class ModelService(Generic[T]):
     It can be used directly or as a base class for more specialized services.
     """
     
-    def __init__(self, model_class: Type[T], dbService: DbService, table_name: Optional[str] = None):
+    def __init__(self, model_class: Type[T], dbService: DbService, table_name: str):
         """
         Initialize the model service.
         
@@ -38,24 +48,12 @@ class ModelService(Generic[T]):
         
         self.model_class = model_class
         self.dbService = dbService
-        
-        # Infer table name if not provided
-        if table_name is None:
-            # Convert CamelCase to snake_case and pluralize
-            model_name = model_class.__name__
-            # Handle special case for "Strategy" -> "strategies"
-            if model_name.lower() == "strategy":
-                table_name = "strategies"
-            else:
-                # Simple pluralization - just add 's'
-                table_name = f"{model_name.lower()}s"
-        
         self.table_name = table_name
         self.table = dbService.db[table_name]
         model_name = model_class.__name__
         self.log = structlog.get_logger(f"{model_name.lower()}service").bind(module=f"{model_name.lower()}service")
     
-    async def create(self, obj: T) -> str:
+    async def create(self, obj: T) -> Tuple[str, ModelResponse]:
         """
         Create a new model instance.
         
@@ -69,19 +67,28 @@ class ModelService(Generic[T]):
         # Always make a new ID
         db_obj.id = ULID().hex
         # And set the timestamps
-        isonow = datetime.now().isoformat()
+        isonow = datetime.now()
         db_obj.created_at = isonow
         db_obj.updated_at = isonow
 
         obj_id = str(db_obj.id)
-        
-        self.table.insert(db_obj.model_dump(), pk="id")
+
+        validation = obj.validate()
+        if not validation.valid:
+            self.log.error(f"Validation failed for {self.model_class.__name__}: %s", validation.data)
+            return obj_id, ModelResponse(success=False, validation=validation)
+        try:
+            self.table.insert(db_obj.model_dump(), pk="id", foreign_keys=obj.get_foreign_keys())
+        except sqlite3.IntegrityError as e:
+            self.log.error(f"Integrity error while inserting {self.model_class.__name__}: %s", e)
+            invalidation = ValidationResponse(valid=False, message="Integrity error")
+            return obj_id, ModelResponse(success=False, validation=invalidation)
         model_name = self.model_class.__name__
         self.log.info(f"Added {model_name.lower()}: %s", obj_id)
         self.dbService.add_audit_log(f"Added {model_name.lower()}: {obj_id}")
-        return obj_id
+        return obj_id, ModelResponse(success=True, validation=validation)
     
-    async def get(self, obj_id: str) -> Optional[T]:
+    async def get(self, obj_id: str) -> Tuple[Optional[T], ModelResponse]:
         """
         Get a model instance by ID.
         
@@ -94,9 +101,13 @@ class ModelService(Generic[T]):
         row = self.table.get(str(obj_id))
         model_name = self.model_class.__name__
         self.log.info(f"Getting {model_name.lower()}: %s", obj_id)
-        return self.model_class.model_validate(row) if row is not None else None
+        obj = self.model_class.model_validate(row) if row is not None else None
+        if obj is None:
+            self.log.warn(f"No such {model_name.lower()}: %s", obj_id)
+            return None, ModelResponse(success=False, error=f"{model_name} with ID {obj_id} not found")
+        return obj, ModelResponse(success=True)
             
-    async def update(self, obj_id: str, obj: T) -> bool:
+    async def update(self, obj_id: str, obj: T) -> ModelResponse:
         """
         Update a model instance.
         
@@ -111,7 +122,7 @@ class ModelService(Generic[T]):
         model_name = self.model_class.__name__
         if existing is None:
             self.log.warn(f"No such {model_name.lower()} to update: %s", obj_id)
-            return False
+            return ModelResponse(success=False, error=f"{model_name} with ID {obj_id} not found")
         
         updated = obj.model_dump(exclude=["id", "created_at"])
         existingObj = existing.model_dump(exclude=["updated_at"])
@@ -123,12 +134,12 @@ class ModelService(Generic[T]):
                 if existingObj[key] != updated[key]:
                     cleaned[key] = updated[key]
 
-        cleaned["updated_at"] = datetime.now().isoformat()
+        cleaned["updated_at"] = datetime.now()
         self.table.update(obj_id, cleaned)
         self.dbService.add_audit_log(f"Updated {model_name.lower()} {obj_id}: {json.dumps(cleaned)}")
-        return True
+        return ModelResponse(success=True)
     
-    async def delete(self, obj_id: str) -> bool:
+    async def delete(self, obj_id: str) -> ModelResponse:
         """
         Delete a model instance.
         
@@ -142,15 +153,15 @@ class ModelService(Generic[T]):
         model_name = self.model_class.__name__
         if existing is None:
             self.log.warn(f"No such {model_name.lower()} to delete: %s", obj_id)
-            return False
+            return ModelResponse(success=False, error=f"{model_name} with ID {obj_id} not found")
             
         self.table.update(obj_id, {
-            "deleted_at": datetime.now().isoformat(),
+            "deleted_at": datetime.now(),
             "active": False
         })
         self.log.info(f"Deleted {model_name.lower()}: %s", obj_id)
         self.dbService.add_audit_log(f"Deleted {model_name.lower()}: {obj_id}")
-        return True
+        return ModelResponse(success=True)
     
     async def list(self) -> List[T]:
         """

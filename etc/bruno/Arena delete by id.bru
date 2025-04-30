@@ -1,10 +1,11 @@
 meta {
   name: Arena delete by id
   type: http
-  seq: 5
+  seq: 21
 }
 
 delete {
   url: {{host}}/arena/{{arena_id}}
+  body: none
   auth: inherit
 }

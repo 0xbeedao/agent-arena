@@ -1,6 +1,10 @@
+[working-directory: "frontend"]
 web:
-    cd frontend && pnpm run dev
+    pnpm run dev
 
-server:
-    cd src && python -m agentarena.server
+[working-directory: "src"]
+server: checkvenv
+    python -m agentarena.server
 
+checkvenv:
+    echo "If this fails, activate venv: $VIRTUAL_ENV"

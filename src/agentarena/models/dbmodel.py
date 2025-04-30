@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional,  List, Tuple
 from pydantic import BaseModel, Field
-
+from .validation import ValidationResponse
 class DbBase(BaseModel):
     """
     Base model for DB-persisted objects
@@ -13,4 +13,19 @@ class DbBase(BaseModel):
     updated_at: datetime = Field(default=None, description="Creation timestamp")
     deleted_at: Optional[datetime] = Field(default=None, description="Deletion timestamp")
 
+    def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
+        return []
+    
+    def validate(self) -> ValidationResponse:
+        """
+        Validate the model.
+                    
+        Returns:
+            ValidationResponse: The validation response.
+        """
+        return ValidationResponse(
+            valid=True,
+            message="Validation successful.",
+            data={},
+        )
     

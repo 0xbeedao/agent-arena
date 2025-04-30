@@ -1,10 +1,11 @@
 meta {
   name: Strategy delete by id
   type: http
-  seq: 5
+  seq: 20
 }
 
 delete {
   url: {{host}}/strategy/{{strategy_id}}
+  body: none
   auth: inherit
 }

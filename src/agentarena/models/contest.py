@@ -4,10 +4,18 @@ Contest model for the Agent Arena application.
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import List, Optional, Tuple
 from pydantic import BaseModel, Field
 from .dbmodel import DbBase
 
+class ContestRole(str, Enum):
+    """
+    Roles for agents in contests
+    """
+    PLAYER = "player"
+    ARENA = "arena"
+    JUDGE = "judge"
+    ANNOUNCER = "announcer"
 class ContestStatus(str, Enum):
     """
     Status of a contest.
@@ -24,8 +32,31 @@ class Contest(DbBase):
     """
     arena_config_id: str = Field(description="Reference to ArenaConfig")
     status: ContestStatus = Field(default=ContestStatus.CREATED, description="Contest status")
-    judge_id: str = Field(description="Reference to Judge agent")
-    arena_id: str = Field(description="Reference to Arena")
-    player_ids: list[str] = Field(description="List of player identifiers")
     start_time: Optional[datetime] = Field(default=None, description="Contest start time")
     end_time: Optional[datetime] = Field(default=None, description="Contest end time")
+
+    def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
+        """
+        Returns the foreign keys for this model.
+        """
+        return [
+            ("arena_id", "arenas", "id")
+        ]
+class ContestAgent(DbBase):
+    """
+    Maps agents to contests
+    """
+
+    role: ContestRole = Field(description="Role in contest")
+    contest_id: str = Field(description="Reference to a Contest")
+    agent_id: str = Field(description="Reference to the Agent playing this role")
+
+    # Not a Pydantic Field, this is used by the DB to set up FKs
+    def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
+        """
+        Returns the foreign keys for this model.
+        """
+        return [
+            ("contest_id", "contests", "id"),
+            ("agent_id", "agents", "id")
+        ]

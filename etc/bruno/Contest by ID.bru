@@ -1,10 +1,11 @@
 meta {
   name: Contest by ID
   type: http
-  seq: 3
+  seq: 12
 }
 
 get {
   url: {{host}}/contest/{{contest_id}}
+  body: none
   auth: inherit
 }

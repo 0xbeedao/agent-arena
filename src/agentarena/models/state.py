@@ -2,9 +2,8 @@
 Arena state model for the Agent Arena application.
 """
 
-from datetime import datetime
-from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import Dict, List, Optional, Tuple
+from pydantic import Field
 
 from .feature import Feature
 from .player import PlayerState, PlayerAction
@@ -25,3 +24,11 @@ class ArenaState(DbBase):
     player_states: Dict[str, PlayerState] = Field(default_factory=dict, description="Player states")
     player_actions: Dict[str, PlayerAction] = Field(default_factory=dict, description="Player actions")
     judge_results: Dict[str, JudgeResult] = Field(default_factory=dict, description="Judge results")
+
+    def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
+        """
+        Returns the foreign keys for this model.
+        """
+        return [
+            ("contest_id", "contests", "id")
+        ]
