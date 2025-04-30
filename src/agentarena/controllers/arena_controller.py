@@ -8,7 +8,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Annotated, Dict, List
 from ulid import ULID
 
-from agentarena.models.arena import ArenaConfig
+from agentarena.models.arena import ArenaConfig, Arena
+from agentarena.models.feature import Feature
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
@@ -21,8 +22,9 @@ log = structlog.get_logger("arena_controller").bind(module="arena_controller")
 @router.post("/arena", response_model=Dict[str, str])
 @inject
 async def create_arena(
-    arena_config: ArenaConfig,
-    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service])
+    arena: Arena,
+    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
+    feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service])
 ) -> Dict[str, str]:
     """
     Create a new arena.
@@ -34,6 +36,29 @@ async def create_arena(
     Returns:
         A dictionary with the ID of the created arena
     """
+    arena_config = ArenaConfig(
+        name=arena.name,
+        description=arena.description,
+        height=arena.height,
+        width=arena.width,
+        rules=arena.rules,
+        max_random_features=arena.max_random_features)
+    
+    # create the new arena
+    [arena_id, response] = await arena_service.create(arena_config)
+    if not response.success:
+        raise HTTPException(status_code=422, detail=response.validation)
+    
+    # check for features and make them
+    # TODO: I think this should be a list of ids - I'll need a different model for the submission for that
+    if arena.features:
+        responses = await feature_service.create_many(arena.features)
+        for feature_id, response in responses:
+            # finish - check for success and give a detailed response somehow
+            pass
+
+    # repeat for agents, although those should be by id. hmm, should I allow features by ID too? How to distinguish?
+
     [id, response] = await arena_service.create(arena_config)
     if not response.success:
         raise HTTPException(status_code=422, detail=response.validation)

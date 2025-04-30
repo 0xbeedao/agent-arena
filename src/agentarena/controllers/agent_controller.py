@@ -12,7 +12,6 @@ from agentarena.models.agent import AgentConfig
 from agentarena.services.model_service import ModelResponse, ModelService
 from agentarena.config.containers import Container
 
-from . import repository
 import structlog
 
 # Create a router for agent endpoints
@@ -78,7 +77,7 @@ async def get_agent_list(
     Returns:
         A list of agent configurations
     """
-    return await repository.get_model_list(agent_service)
+    return await agent_service.list()
 
 @router.put("/agent/{agent_id}", response_model=Dict[str, bool])
 @inject
@@ -126,7 +125,7 @@ async def delete_agent(
     Raises:
         HTTPException: If the agent is not found
     """
-    response = await repository.delete_model(agent_id, agent_service)
+    response = await agent_service.delete_model(agent_id, agent_service)
     if not response.success:
         raise HTTPException(status_code=422, detail=response.validation)
     return {"success": response.success}

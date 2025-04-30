@@ -2,6 +2,8 @@ from dependency_injector import containers, providers
 from sqlite_utils.db import Database
 from pathlib import Path
 
+from agentarena.models.feature import Feature
+
 
 from .logger import setup_logging
 from agentarena.models.agent import AgentConfig
@@ -68,6 +70,13 @@ class Container(containers.DeclarativeContainer):
         model_class=Contest,
         dbService=db_service,
         table_name="contests"
+    )
+
+    feature_service = providers.Singleton(
+        ModelService[Feature],
+        model_class=Feature,
+        dbService=db_service,
+        table_name="features"
     )
 
     roundstats_service = providers.Singleton(
