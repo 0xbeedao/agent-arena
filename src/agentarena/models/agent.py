@@ -12,6 +12,7 @@ class AgentConfig(DbBase):
     Maps to the AGENT_CONFIG entity in the ER diagram.
     """
     name: Optional[str] = Field(default="", description="Agent name")
+    description: Optional[str] = Field(default="", description="Agent description")
     endpoint: Optional[str] = Field(default="", description="API endpoint for the agent")
     api_key: Optional[str] = Field(default="", description="API key for authentication")
     metadata: Optional[str] = Field(default="", description="Additional metadata")

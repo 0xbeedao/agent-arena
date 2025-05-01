@@ -1,3 +1,4 @@
+import { describe } from 'vitest';
 /**
  * Agent API module for interacting with the agent controller endpoints.
  */
@@ -12,6 +13,7 @@ const API_BASE_URL = 'http://localhost:8000';
 export interface AgentConfig {
   id: string;
   name: string;
+  description?: string;
   endpoint: string;
   api_key: string;
   metadata: string;
@@ -23,6 +25,7 @@ export interface AgentConfig {
  */
 export interface CreateAgentRequest {
   name: string;
+  description: string;
   endpoint: string;
   api_key: string;
   metadata: string;

@@ -24,6 +24,7 @@ class ContestStatus(str, Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    
 class Contest(DbBase):
     """
     Represents a contest between agents.
@@ -42,6 +43,7 @@ class Contest(DbBase):
         return [
             ("arena_id", "arenas", "id")
         ]
+    
 class ContestAgent(DbBase):
     """
     Maps agents to contests

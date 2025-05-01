@@ -4,7 +4,7 @@ Provides a reusable service for CRUD operations on any model that inherits from 
 """
 
 import sqlite3
-from typing import Optional, List, Type, TypeVar, Generic, Tuple, Any
+from typing import Dict, Optional, List, Type, TypeVar, Generic, Tuple, Any
 from pydantic import BaseModel
 from ulid import ULID
 from datetime import datetime
@@ -80,7 +80,8 @@ class ModelService(Generic[T]):
             self.log.error(f"Validation failed: %s", validation.data)
             return "", ModelResponse(success=False, data=obj, validation=validation)
         try:
-            self.table.insert(db_obj.model_dump(), pk="id", foreign_keys=obj.get_foreign_keys())
+            # TODO: turn off alter=true for production
+            self.table.insert(db_obj.model_dump(), pk="id", foreign_keys=obj.get_foreign_keys(), alter=True)
         except sqlite3.IntegrityError as e:
             self.log.error(f"Integrity error while inserting", e)
             invalidation = ValidationResponse(success=False, data=obj, message="Integrity error")
@@ -225,6 +226,21 @@ class ModelService(Generic[T]):
             else:
                 responses.append(obj)
         return responses, problems
+    
+    async def get_where(self, where: str, params: Dict) -> List[T]:
+        """
+        Get model instances by a WHERE clause.
+        
+        Args:
+            where: The WHERE clause
+            params: The parameters for the WHERE clause
+            
+        Returns:
+            A list of model instances
+        """
+        rows = self.table.rows_where(where, params)
+        return [self.model_class.model_validate(row) for row in rows]
+
 
     async def list(self) -> List[T]:
         """

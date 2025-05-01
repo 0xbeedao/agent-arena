@@ -58,6 +58,15 @@ class ArenaAgentRequest(BaseModel):
     agent_id: str = Field(description="Reference to Agent")
     role: AgentRole = Field(description="Role in arena")
 
+class ArenaAgentResponse(BaseModel):
+    """
+    Response model for creating an arena agent
+    """
+    agent_id: str = Field(description="Reference to Agent")
+    role: AgentRole = Field(description="Role in arena")
+    name: str = Field(description="Agent name")
+    description: str = Field(description="Agent description")
+    
 class ArenaCreateRequest(BaseModel):
     name: str = Field(description="Arena name")
     description: str = Field(description="Arena description")
@@ -73,7 +82,6 @@ class ArenaCreateRequest(BaseModel):
         default=None, 
         description="Agents associated with the arena"
     )
-
 class Arena(BaseModel):
     """
     Represents an arena configuration.
@@ -81,17 +89,18 @@ class Arena(BaseModel):
     This is a convenience class, and is not saved to DB as such, but used by the [arena_controller] to
     create the various parts of the arena setup
     """
+    id: str = Field(description="Arena ID")
     name: str = Field(description="Arena name")
     description: str = Field(description="Arena description")
     height: int = Field(description="Arena height", gt=0)
     width: int = Field(description="Arena width", gt=0)
     rules: str = Field(description="Game rules")
     max_random_features: int = Field(description="Maximum number of random features", ge=0)
-    features: Optional[Feature] = Field(
+    features: List[Feature] = Field(
         default=None, 
         description="Features associated with the arena"
     )
-    agents: Optional[ArenaAgent] = Field(
+    agents: List[ArenaAgentResponse] = Field(
         default=None, 
         description="Agents associated with the arena"
     )

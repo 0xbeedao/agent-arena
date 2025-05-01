@@ -8,7 +8,7 @@ from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, List, Tuple
 
-from agentarena.models.arena import ArenaConfig, ArenaCreateRequest, ArenaAgent
+from agentarena.models.arena import Arena, ArenaAgentResponse, ArenaConfig, ArenaCreateRequest, ArenaAgent
 from agentarena.models.feature import Feature
 from agentarena.models.agent import AgentConfig
 from agentarena.models.validation import ValidationResponse
@@ -26,9 +26,7 @@ log = structlog.get_logger("arena_controller").bind(module="arena_controller")
 async def create_arena(
     createRequest: ArenaCreateRequest,
     arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
-    feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service]),
     agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service]),
-    arenaagent_service: ModelService[ArenaAgent] = Depends(Provide[Container.arenaagent_service])
 ) -> Dict[str, str]:
     """
     Create a new arena.
@@ -76,9 +74,7 @@ async def create_arena(
     if (len(features) + len(agents)) > 0:
         response = await add_features_and_agents(
             arena_id, 
-            createRequest, 
-            feature_service, 
-            arenaagent_service)
+            createRequest)
         if not response.success:
             log.info("Failed to map features and agents: %s", response.validation.model_dump_json())
             raise HTTPException(status_code=422, detail=response.validation.model_dump_json())
@@ -87,11 +83,11 @@ async def create_arena(
     # If we get here, the arena was created successfully
     return {"id": arena_id}
 
-@router.get("/arena/{arena_id}", response_model=ArenaConfig)
+@router.get("/arena/{arena_id}", response_model=Arena)
 @inject
 async def get_arena(
     arena_id: str,
-    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service])
+    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
 ) -> ArenaConfig:
     """
     Get an arena by ID.
@@ -106,10 +102,11 @@ async def get_arena(
     Raises:
         HTTPException: If the arena is not found
     """
-    [arena, response] = await arena_service.get(arena_id)
+    [arena_config, response] = await arena_service.get(arena_id)
     if not response.success:
         raise HTTPException(status_code=404, detail=response.error)
-    return arena
+    
+    return await make_arena(arena_config)
 
 @router.get("/arena", response_model=List[ArenaConfig])
 @inject
@@ -134,8 +131,6 @@ async def update_arena(
     updateRequest: ArenaCreateRequest,
     agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service]),
     arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
-    arenaagent_service: ModelService[ArenaAgent] = Depends(Provide[Container.arenaagent_service]),
-    feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service]),
 ) -> Dict[str, bool]:
     """
     Update an arena.
@@ -181,13 +176,9 @@ async def update_arena(
     if not response.success:
         log.info("Failed to update arena: %s", response.validation.model_dump_json())
         raise HTTPException(status_code=422, detail=response.validation)
-    
-    # delete old mappings
-    arena_service.table.execute("DELETE FROM features WHERE arena_config_id = ?", [arena_id])
-    arenaagent_service.table.execute("DELETE FROM arena_agents WHERE arena_config_id = ?", [arena_id])
-    
+        
     # Add new mappings
-    response = await add_features_and_agents(arena_id, updateRequest, features, agents, feature_service, arenaagent_service)
+    response = await add_features_and_agents(arena_id, updateRequest, features, agents, clean=True)
     if not response.success:
         log.info("Failed to map features and agents: %s", response.validation.model_dump_json())
         raise HTTPException(status_code=422, detail=response.validation)
@@ -219,11 +210,13 @@ async def delete_arena(
         raise HTTPException(status_code=422, detail=response.validation)
     return {"success": response.success}
 
+@inject
 async def add_features_and_agents(
     arena_id: str,
     createRequest: ArenaCreateRequest,
-    feature_service: ModelService[Feature],
-    arenaagent_service: ModelService[ArenaAgent],
+    clean: bool = False,
+    feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service]),
+    arenaagent_service: ModelService[ArenaAgent] = Depends(Provide[Container.arenaagent_service]),
 ) -> ModelResponse:
     """
     Add features and agents to the arena.
@@ -233,6 +226,11 @@ async def add_features_and_agents(
         features: The list of features to add
         agents: The list of agents to add
     """
+    # If clean is true, delete the existing features and agents
+    if clean:
+        feature_service.table.delete_where("arena_config_id = :id", {"id": arena_id})
+        arenaagent_service.table.delete_where("arena_config_id = :id", {"id": arena_id})
+
     features = createRequest.features
     agents = createRequest.agents
     db = feature_service.dbService.db
@@ -293,4 +291,52 @@ def get_invalid_features(
     
     validations = [(feature, feature.validate()) for feature in features]
     return [(feature, validation) for feature, validation in validations if not validation.success]
+
+@inject
+async def make_arena(
+    arena_config: ArenaConfig,
+    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service]),
+    arenaagent_service: ModelService[ArenaAgent] = Depends(Provide[Container.arenaagent_service]),
+    feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service])
+) -> Arena:
+    """
+    Create an arena object from the arena configuration.
+
+    Args:
+        arena_config: The arena configuration
+        agentarena_service: The agentarena service
+
+    Returns:
+        The arena object
+    """
+    # Get the features and agents for the arena
+    features: List[Feature] = await feature_service.get_where("arena_config_id = :id", {"id": arena_config.id})
+    arenaagents: List[ArenaAgent] = await arenaagent_service.get_where("arena_config_id = :id", {"id": arena_config.id})
+
+    agent_ids = [arenaagent.agent_id for arenaagent in arenaagents]
+    agents, _ = await agent_service.get_by_ids(agent_ids)
+
+    agentMap = {aa.agent_id: aa for aa in arenaagents}
+
+    agentResponses: List[ArenaAgentResponse] = [
+        ArenaAgentResponse(
+            agent_id=agent.id,
+            role=agentMap[agent.id].role,
+            name=agent.name,
+            description=agent.description,
+            # probably want strategy
+        ) for agent in agents
+    ]
+
+    return Arena(
+        id=arena_config.id,
+        name=arena_config.name,
+        description=arena_config.description,
+        height=arena_config.height,
+        width=arena_config.width,
+        rules=arena_config.rules,
+        max_random_features=arena_config.max_random_features,
+        features=features,
+        agents=agentResponses
+    )
     
