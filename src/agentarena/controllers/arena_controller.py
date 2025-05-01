@@ -151,18 +151,23 @@ async def update_arena(
     Raises:
         HTTPException: If the arena is not found
     """
+    features = updateRequest.features
+    agents = updateRequest.agents
+
     # get and validate the features
-    invalid_features = get_invalid_features(updateRequest.features)
+    invalid_features = get_invalid_features(features)
     if invalid_features:
         for feature, invalidation in invalid_features:
             log.info("Invalid feature: %s\nvalidation: %s", feature.model_dump_json(), invalidation.model_dump_json())
         raise HTTPException(status_code=422, detail=invalid_features[0].validation.model_dump_json())
 
     # repeat for agents
-    agents, invalid_agents = await get_agents(updateRequest.agents, agent_service)
-    if invalid_agents:
-        log.info("Invalid agents: %s", invalid_agents.validation.model_dump_json())
-        raise HTTPException(status_code=422, detail=invalid_agents.validation.model_dump_json())
+    agent_ids = [agent.agent_id for agent in agents]
+    _, problems = await agent_service.get_by_ids(agent_ids)
+    if problems:
+        for problem in problems:
+            log.info("Invalid agent: %s", problem.model_dump_json())
+        raise HTTPException(status_code=422, detail=problems[0].model_dump_json())
     
     arena_config = ArenaConfig(
         name=updateRequest.name,
@@ -178,18 +183,16 @@ async def update_arena(
         raise HTTPException(status_code=422, detail=response.validation)
     
     # delete old mappings
-    db.begin_transaction()
     arena_service.table.execute("DELETE FROM features WHERE arena_config_id = ?", [arena_id])
     arenaagent_service.table.execute("DELETE FROM arena_agents WHERE arena_config_id = ?", [arena_id])
     
     # Add new mappings
     response = await add_features_and_agents(arena_id, updateRequest, features, agents, feature_service, arenaagent_service)
     if not response.success:
-        db.rollback()
         log.info("Failed to map features and agents: %s", response.validation.model_dump_json())
         raise HTTPException(status_code=422, detail=response.validation)
-    db.commit_transaction()
 
+    log.info("Updated arena: %s", arena_id)
     return {"success": response.success}
 
 @router.delete("/arena/{arena_id}", response_model=Dict[str, bool])
