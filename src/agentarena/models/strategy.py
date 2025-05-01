@@ -41,7 +41,7 @@ class Strategy(DbBase):
         upstream = super().validate()
         messages = []
 
-        if not upstream.valid:
+        if not upstream.success:
             # If the upstream validation fails, we need to collect the messages
             messages.extend(upstream.data.get("messages", []))
         
@@ -54,15 +54,15 @@ class Strategy(DbBase):
         if not self.group in [StrategyType.JUDGE, StrategyType.ARENA, StrategyType.PLAYER]:
             messages.append("Group must be one of 'judge', 'arena', or 'player'.")
         
-        if messages or not upstream.valid:
+        if messages or not upstream.success:
             return ValidationResponse(
-                valid=False,
+                success=False,
                 message="Validation failed.",
                 data={"messages": messages}
             )
         
         return ValidationResponse(
-            valid=True, 
+            success=True, 
             message="Validation successful.", 
             data={}
         )

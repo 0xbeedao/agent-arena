@@ -47,7 +47,7 @@ class ContestAgent(DbBase):
     Maps agents to contests
     """
 
-    role: ContestRole = Field(description="Role in contest")
+    role: str = Field(description="Role in contest")
     contest_id: str = Field(description="Reference to a Contest")
     agent_id: str = Field(description="Reference to the Agent playing this role")
 
@@ -60,3 +60,10 @@ class ContestAgent(DbBase):
             ("contest_id", "contests", "id"),
             ("agent_id", "agents", "id")
         ]
+
+class ContestAgentRequest(BaseModel):
+    """
+    Request model for creating a contest agent
+    """
+    role: ContestRole = Field(description="Role in contest")
+    agent_id: str = Field(description="Reference to the Agent playing this role")

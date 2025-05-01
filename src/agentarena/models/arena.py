@@ -6,6 +6,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, List
 from pydantic import BaseModel, Field
+
+from agentarena.models.feature import Feature, FeatureRequest
 from .dbmodel import DbBase
 
 
@@ -31,28 +33,6 @@ class ArenaConfig(DbBase):
     width: int = Field(description="Arena width", gt=0)
     rules: str = Field(description="Game rules")
     max_random_features: int = Field(description="Maximum number of random features", ge=0)
-
-class ArenaFeature(DbBase):
-    """
-    Maps features to arenas
-    """
-    arena_config_id: str = Field(description="Reference to ArenaConfig")
-    feature_id: str = Field(description="Reference to Feature")
-    position: str = Field(description="Grid coordinate as 'x,y'", pattern=r"^-?\d+,-?\d+$")
-    end_position: str = Optional[Field(
-        default=None, 
-        description="End coordinate for features with area",
-        pattern=r"^-?\d+,-?\d+$"
-    )]
-
-    def get_foreign_keys(self) -> list[tuple[str, str, str]]:
-        """
-        Returns the foreign keys for this model.
-        """
-        return [
-            ("arena_config_id", "arenas", "id"),
-            ("feature_id", "features", "id")
-        ]
     
 class ArenaAgent(DbBase):
     """
@@ -60,7 +40,7 @@ class ArenaAgent(DbBase):
     """
     arena_config_id: str = Field(description="Reference to ArenaConfig")
     agent_id: str = Field(description="Reference to Agent")
-    role: AgentRole = Field(description="Role in arena")
+    role: str = Field(description="Role in arena") # note, str - enum is not supported in sqlite3
 
     def get_foreign_keys(self) -> list[tuple[str, str, str]]:
         """
@@ -70,24 +50,13 @@ class ArenaAgent(DbBase):
             ("arena_config_id", "arenas", "id"),
             ("agent_id", "agents", "id")
         ]
+    
 class ArenaAgentRequest(BaseModel):
     """
     Request model for creating an arena agent
     """
     agent_id: str = Field(description="Reference to Agent")
     role: AgentRole = Field(description="Role in arena")
-
-class ArenaFeatureRequest(BaseModel):
-    """
-    Request model for creating an arena feature
-    """
-    feature_id: str = Field(description="Reference to Feature")
-    position: str = Field(description="Grid coordinate as 'x,y'", pattern=r"^-?\d+,-?\d+$")
-    end_position: Optional[str] = Field(
-        default=None, 
-        description="End coordinate for features with area",
-        pattern=r"^-?\d+,-?\d+$"
-    )
 
 class ArenaCreateRequest(BaseModel):
     name: str = Field(description="Arena name")
@@ -96,7 +65,7 @@ class ArenaCreateRequest(BaseModel):
     width: int = Field(description="Arena width", gt=0)
     rules: str = Field(description="Game rules")
     max_random_features: int = Field(description="Maximum number of random features", ge=0)
-    features: Optional[List[ArenaFeatureRequest]] = Field(
+    features: Optional[List[FeatureRequest]] = Field(
         default=None, 
         description="Features associated with the arena"
     )
@@ -118,7 +87,7 @@ class Arena(BaseModel):
     width: int = Field(description="Arena width", gt=0)
     rules: str = Field(description="Game rules")
     max_random_features: int = Field(description="Maximum number of random features", ge=0)
-    features: Optional[ArenaFeature] = Field(
+    features: Optional[Feature] = Field(
         default=None, 
         description="Features associated with the arena"
     )

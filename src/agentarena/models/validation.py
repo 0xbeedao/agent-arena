@@ -6,7 +6,7 @@ class ValidationResponse(BaseModel):
     
     This model is used to validate models.
     """
-    valid: bool = Field(description="Is the data valid?")
+    success: bool = Field(description="Is the data valid?")
     message: str = Field(description="Validation message")
     data: dict = Field(default_factory=dict, description="Additional data related to validation")
 

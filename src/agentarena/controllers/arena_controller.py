@@ -8,7 +8,7 @@ from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, List, Tuple
 
-from agentarena.models.arena import ArenaConfig, ArenaCreateRequest, ArenaFeature, ArenaAgent
+from agentarena.models.arena import ArenaConfig, ArenaCreateRequest, ArenaAgent
 from agentarena.models.feature import Feature
 from agentarena.models.agent import AgentConfig
 from agentarena.models.validation import ValidationResponse
@@ -28,7 +28,6 @@ async def create_arena(
     arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
     feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service]),
     agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service]),
-    arenafeature_service: ModelService[ArenaFeature] = Depends(Provide[Container.arenafeature_service]),
     arenaagent_service: ModelService[ArenaAgent] = Depends(Provide[Container.arenaagent_service])
 ) -> Dict[str, str]:
     """
@@ -49,34 +48,42 @@ async def create_arena(
         rules=createRequest.rules,
         max_random_features=createRequest.max_random_features)
     
-    features = []
-    agents = []
+    features = createRequest.features
+    agents = createRequest.agents
 
     # get and validate the features
-    features, feature_response = await get_features(createRequest.features, feature_service)
-    if not feature_response.success:
-        log.info("Invalid features: %s", feature_response.model_dump_json())
-        raise HTTPException(status_code=422, detail=feature_response.model_dump_json())
+    invalid_features = get_invalid_features(features)
+    if invalid_features:
+        for feature, invalidation in invalid_features:
+            log.info("Invalid feature: %s\nvalidation: %s", feature.model_dump_json(), invalidation.model_dump_json())
+        raise HTTPException(status_code=422, detail=invalid_features[0].validation.model_dump_json())
 
     # repeat for agents
-    agents, agent_response = await get_agents(createRequest.agents, agent_service)
-    if not agent_response.success:
-        log.info("Invalid agents: %s", agent_response.model_dump_json())
-        raise HTTPException(status_code=422, detail=agent_response.model_dump_json)
+    agent_ids = [agent.agent_id for agent in agents]
+    _, problems = await agent_service.get_by_ids(agent_ids)
+    if problems:
+        for problem in problems:
+            log.info("Invalid agent: %s", problem.model_dump_json())
+        raise HTTPException(status_code=422, detail=problems[0].model_dump_json())
      
     # create the new arena
     [arena_id, response] = await arena_service.create(arena_config)
     if not response.success:
         log.info("Failed to create arena: %s", response.validation.model_dump_json())
-        raise HTTPException(status_code=422, detail=response.validation.model_dump_json)
+        raise HTTPException(status_code=422, detail=response.validation.model_dump_json())
     
     # Map the features to the arena
     if (len(features) + len(agents)) > 0:
-        response = await add_features_and_agents(createRequest, features, agents, arenafeature_service, arenaagent_service)
+        response = await add_features_and_agents(
+            arena_id, 
+            createRequest, 
+            feature_service, 
+            arenaagent_service)
         if not response.success:
             log.info("Failed to map features and agents: %s", response.validation.model_dump_json())
             raise HTTPException(status_code=422, detail=response.validation.model_dump_json())
-        
+    
+    log.info("Created arena: %s", arena_id)
     # If we get here, the arena was created successfully
     return {"id": arena_id}
 
@@ -125,11 +132,10 @@ async def get_arena_list(
 async def update_arena(
     arena_id: str,
     updateRequest: ArenaCreateRequest,
-    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
-    feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service]),
     agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service]),
+    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
     arenaagent_service: ModelService[ArenaAgent] = Depends(Provide[Container.arenaagent_service]),
-    arenafeature_service: ModelService[ArenaFeature] = Depends(Provide[Container.arenafeature_service]),
+    feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service]),
 ) -> Dict[str, bool]:
     """
     Update an arena.
@@ -146,16 +152,17 @@ async def update_arena(
         HTTPException: If the arena is not found
     """
     # get and validate the features
-    features, invalid_features = await get_features(updateRequest.features, feature_service)
+    invalid_features = get_invalid_features(updateRequest.features)
     if invalid_features:
-        log.info("Invalid features: %s", invalid_features.validation.model_dump_json())
-        raise HTTPException(status_code=422, detail=invalid_features.validation)
+        for feature, invalidation in invalid_features:
+            log.info("Invalid feature: %s\nvalidation: %s", feature.model_dump_json(), invalidation.model_dump_json())
+        raise HTTPException(status_code=422, detail=invalid_features[0].validation.model_dump_json())
 
     # repeat for agents
     agents, invalid_agents = await get_agents(updateRequest.agents, agent_service)
     if invalid_agents:
         log.info("Invalid agents: %s", invalid_agents.validation.model_dump_json())
-        raise HTTPException(status_code=422, detail=invalid_agents.validation)
+        raise HTTPException(status_code=422, detail=invalid_agents.validation.model_dump_json())
     
     arena_config = ArenaConfig(
         name=updateRequest.name,
@@ -172,11 +179,11 @@ async def update_arena(
     
     # delete old mappings
     db.begin_transaction()
-    db = arena_service.table.execute("DELETE FROM arena_features WHERE arena_config_id = ?", [arena_id])
-    db = arenaagent_service.table.execute("DELETE FROM arena_agents WHERE arena_config_id = ?", [arena_id])
+    arena_service.table.execute("DELETE FROM features WHERE arena_config_id = ?", [arena_id])
+    arenaagent_service.table.execute("DELETE FROM arena_agents WHERE arena_config_id = ?", [arena_id])
     
     # Add new mappings
-    response = await add_features_and_agents(arena_id, updateRequest, features, agents, arenafeature_service, arenaagent_service)
+    response = await add_features_and_agents(arena_id, updateRequest, features, agents, feature_service, arenaagent_service)
     if not response.success:
         db.rollback()
         log.info("Failed to map features and agents: %s", response.validation.model_dump_json())
@@ -212,9 +219,7 @@ async def delete_arena(
 async def add_features_and_agents(
     arena_id: str,
     createRequest: ArenaCreateRequest,
-    features: List[Feature],
-    agents: List[AgentConfig],
-    arenafeature_service: ModelService[ArenaFeature],
+    feature_service: ModelService[Feature],
     arenaagent_service: ModelService[ArenaAgent],
 ) -> ModelResponse:
     """
@@ -225,97 +230,64 @@ async def add_features_and_agents(
         features: The list of features to add
         agents: The list of agents to add
     """
-    db = arenafeature_service.dbService.db
-    db .begin_transaction()
-    boundlog = log.bind(transaction=True, featureCt=len(features), agentCt=len(agents))
+    features = createRequest.features
+    agents = createRequest.agents
+    db = feature_service.dbService.db
+    # db.execute("BEGIN TRANSACTION")
+    boundlog = log.bind(featureCt=len(features), agentCt=len(agents))
     boundlog.info("Mapping features and agents to arena")
     if len(features) > 0:
-        featureMap = {feature.id: feature for feature in features}
-        for featureReq in createRequest.features:
-            feature = featureMap[featureReq.feature_id]
 
-            arena_feature = ArenaFeature(
-                arena_config_id=arena_id,
-                feature_id=feature.id,
+        feature_objects = [
+            Feature(
+                name=featureReq.name,
+                description=featureReq.description,
                 position=featureReq.position,
-                end_position=featureReq.end_position
-            )
-            [_, response] = await arenafeature_service.create(arena_feature)
-            if not response.success:
-                boundlog.error("Failed to map feature %s to arena %s, rolling-back", feature.id, arena_id)
-                db.rollback()
-                return ModelResponse(success=False, validation=response.validation)
+                end_position=featureReq.end_position,
+                arena_config_id=arena_id
+            ) for featureReq in createRequest.features
+        ]
+
+        _, problems = await feature_service.create_many(feature_objects)
+        if problems:
+            boundlog.error("Failed to map features to arena %s, rolling-back", arena_id)
+            # db.execute("ROLLBACK")
+            return problems[0]
+    
+    log.debug("Mapped %i features to arena %s", len(features), arena_id)
 
     # Map the agents to the arena
-    if (len(agents) > 0):
-        agentMap = {agent.id: agent for agent in agents}
-        for agentReq in createRequest.agents:
-            agent = agentMap[agentReq.agent_id]
+    if len(agents) > 0:
+        for agentReq in agents:
             arena_agent = ArenaAgent(
                 arena_config_id=arena_id,
-                agent_id=agent.id,
+                agent_id=agentReq.agent_id,
                 role=agentReq.role,
             )
             [_, response] = await arenaagent_service.create(arena_agent)
             if not response.success:
                 boundlog.error("Failed to map agent %s to arena %s, rolling-back", agent.id, arena_id)
-                db.rollback()
+                # db.execute("ROLLBACK")
                 return ModelResponse(success=False, validation=response.validation)
+    log.debug("Mapped %i agents to arena %s", len(agents), arena_id)
 
-    db.commit_transaction()
+    # db.execute("COMMIT")
     return ModelResponse(success=True)
 
-async def get_features(
-    features: List[ArenaFeature],
-    feature_service: ModelService[Feature]
-) -> Tuple[List[ArenaFeature], ModelResponse]:
+def get_invalid_features(
+    features: List[Feature]
+) -> List[Tuple[Feature, ModelResponse]]:
     """
-    Get the features by ID.
-
+    Validate the features.
     Args:
         features: The list of features to get
-        arenafeature_service: The arena feature service
 
     Returns:
-        A list of features
+        A list of invalid validations
     """
     if features is None:
-        return [], ModelResponse(success=True)
+        return []
     
-    # get the features by ID
-    feature_ids = [feature.feature_id for feature in features]
-
-    responses = await feature_service.get_by_ids(feature_ids)
-    features, validations = zip(*responses)
-    invalids = [feature_id for [feature_id, response] in validations if not response.success]
-    if invalids:
-        return features, ModelResponse(success=False, validation=ValidationResponse(valid=False, message="Invalid feature IDs: " + ", ".join(invalids)))
-    return features, ModelResponse(success=True)
+    validations = [(feature, feature.validate()) for feature in features]
+    return [(feature, validation) for feature, validation in validations if not validation.success]
     
-async def get_agents(
-    agents: List[ArenaAgent],
-    agent_service: ModelService[AgentConfig]
-) -> Tuple[List[ArenaAgent], ModelResponse]:
-    """
-    Get the agents by ID.
-
-    Args:
-        agents: The list of agents to get
-        arenaagent_service: The arena agent service
-
-    Returns:
-        A list of agents
-    """
-    if agents is None:
-        return [], ModelResponse(success=True)
-    
-    # get the agents by ID
-    agent_ids = [agent.agent_id for agent in agents]
-
-    responses = await agent_service.get_by_ids(agent_ids)
-    agents, validations = zip(*responses)
-    invalids = [agent_id for [agent_id, response] in validations if not response.success]
-    if invalids:
-        return agents, ModelResponse(success=False, validation=ValidationResponse(valid=False, message="Invalid agent IDs: " + ", ".join(invalids)))
-    
-    return agents, ModelResponse(success=True)

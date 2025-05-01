@@ -24,7 +24,7 @@ class DbBase(BaseModel):
             ValidationResponse: The validation response.
         """
         return ValidationResponse(
-            valid=True,
+            success=True,
             message="Validation successful.",
             data={},
         )

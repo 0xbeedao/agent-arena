@@ -27,6 +27,7 @@ to_wire = ['agentarena.controllers.%s_controller' % module for module in [
     'agent', 
     'arena', 
     'contest',
+    'feature',
     'roundstats',
     'strategy', 
 ]]

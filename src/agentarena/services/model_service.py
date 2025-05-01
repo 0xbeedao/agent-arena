@@ -4,7 +4,7 @@ Provides a reusable service for CRUD operations on any model that inherits from 
 """
 
 import sqlite3
-from typing import Optional, List, Type, TypeVar, Generic, Tuple
+from typing import Optional, List, Type, TypeVar, Generic, Tuple, Any
 from pydantic import BaseModel
 from ulid import ULID
 from datetime import datetime
@@ -22,8 +22,10 @@ class ModelResponse(BaseModel):
     This model is used to return the ID of the created instance.
     """
     success: bool
+    id: Optional[str] = None
     validation: Optional[ValidationResponse] = None
     error: Optional[str] = None
+    data: Optional[Any] = None
 
 T = TypeVar('T', bound=DbBase)
 class ModelService(Generic[T]):
@@ -74,20 +76,20 @@ class ModelService(Generic[T]):
         obj_id = str(db_obj.id)
 
         validation = obj.validate()
-        if not validation.valid:
+        if not validation.success:
             self.log.error(f"Validation failed: %s", validation.data)
-            return "", ModelResponse(success=False, validation=validation)
+            return "", ModelResponse(success=False, data=obj, validation=validation)
         try:
             self.table.insert(db_obj.model_dump(), pk="id", foreign_keys=obj.get_foreign_keys())
         except sqlite3.IntegrityError as e:
             self.log.error(f"Integrity error while inserting", e)
-            invalidation = ValidationResponse(valid=False, message="Integrity error")
+            invalidation = ValidationResponse(success=False, data=obj, message="Integrity error")
             return "", ModelResponse(success=False, validation=invalidation)
         self.log.info(f"Added #{obj_id}")
         self.dbService.add_audit_log(f"Added {self.model_name}: {obj_id}")
-        return obj_id, ModelResponse(success=True, validation=validation)
+        return obj_id, ModelResponse(success=True, id=obj_id, validation=validation)
     
-    async def create_many(self, obj_list: List[T]) -> List[Tuple[str, ModelResponse]]:
+    async def create_many(self, obj_list: List[T]) -> Tuple[List[str], List[ModelResponse]]:
         """
         Create multiple model instances.
         
@@ -95,23 +97,25 @@ class ModelService(Generic[T]):
             obj_list: The list of model instances to create
             
         Returns:
-            A list of ModelResponse objects indicating success or failure
+            Two lists: the IDs of the created instances and a list of ModelResponse objects for errors
         """
-        responses = []
+        responses: List[str] = []
+        problems: List[ModelResponse] = []
         for obj in obj_list:
             validation = obj.validate()
-            if not validation.valid:
+            if not validation.success:
                 self.log.error(f"Validation failed: %s", validation.data)
-                responses.append(("", ModelResponse(success=False, validation=validation)))
+                problems.append(ModelResponse(success=False, data=obj, validation=validation))
             else :
                 [id, response] = await self.create(obj)
                 if not response.success:
                     self.log.error(f"Failed to create: %s", response.error)
-                    responses.append(("", ModelResponse(success=False, error=response.error)))
+                    problems.append(ModelResponse(success=False, data=obj, error=response.error))
                 else:
-                    responses.append((id, ModelResponse(success=True)))
+                    responses.append(id)
+                    self.log.info(f"Created: %s", id)
 
-        return responses                   
+        return responses, problems
     
     async def get(self, obj_id: str) -> Tuple[Optional[T], ModelResponse]:
         """
@@ -129,8 +133,8 @@ class ModelService(Generic[T]):
         obj = self.model_class.model_validate(row) if row is not None else None
         if obj is None:
             self.log.warn(f"Not found #%s", obj_id)
-            return None, ModelResponse(success=False, error=f"{model_name} with ID {obj_id} not found")
-        return obj, ModelResponse(success=True)
+            return None, ModelResponse(success=False, id=obj_id, error=f"{model_name} with ID {obj_id} not found")
+        return obj, ModelResponse(success=True, id=obj_id)
           
     async def update(self, obj_id: str, obj: T) -> ModelResponse:
         """
@@ -144,14 +148,14 @@ class ModelService(Generic[T]):
             True if the instance was updated, False if not found
         """
         validation = obj.validate()
-        if not validation.valid:
+        if not validation.success:
             self.log.error(f"Validation failed: %s", validation.data)
-            return ModelResponse(success=False, validation=validation)
+            return ModelResponse(success=False, data=obj, validation=validation)
             
         # Check if the object exists to update
         [existing, response] = await self.get(obj_id)
         if not response.success:
-            return ModelResponse(success=False, error=response.error)
+            return ModelResponse(success=False, id=obj_id, error=response.error)
         
         # sanity checks done, now we can update
         model_name = self.model_class.__name__        
@@ -172,11 +176,11 @@ class ModelService(Generic[T]):
             self.table.update(obj_id, cleaned)
         except sqlite3.IntegrityError:
             self.log.error(f"Integrity error while updating: %s", cleaned)
-            invalidation = ValidationResponse(valid=False, message="Integrity error")
-            return ModelResponse(success=False, validation=invalidation)
+            invalidation = ValidationResponse(success=False, message="Integrity error")
+            return ModelResponse(success=False, id=obj_id, validation=invalidation)
         
         self.dbService.add_audit_log(f"Updated {self.model_name}, #{obj_id} with {json.dumps(updates)}")
-        return ModelResponse(success=True)
+        return ModelResponse(success=True, id=obj_id, data=cleaned)
     
     async def delete(self, obj_id: str) -> ModelResponse:
         """
@@ -191,7 +195,7 @@ class ModelService(Generic[T]):
         existing = await self.get(obj_id)
         if existing is None:
             self.log.warn(f"No such id #%s", obj_id)
-            return ModelResponse(success=False, error=f"{self.model_name} with ID {obj_id} not found")
+            return ModelResponse(success=False, id=obj_id, error=f"{self.model_name} with ID {obj_id} not found")
             
         self.table.update(obj_id, {
             "deleted_at": datetime.now(),
@@ -199,9 +203,9 @@ class ModelService(Generic[T]):
         })
         self.log.info(f"Deleted #%s", obj_id)
         self.dbService.add_audit_log(f"Deleted {self.model_name}: {obj_id}")
-        return ModelResponse(success=True)
+        return ModelResponse(success=True, id=obj_id, data=existing)
 
-    async def get_by_ids(self, obj_ids: List[str]) -> List[Tuple[Optional[T], ModelResponse]]:
+    async def get_by_ids(self, obj_ids: List[str]) -> Tuple[List[T], List[ModelResponse]]:
         """
         Get multiple model instances by their IDs.
         
@@ -209,17 +213,18 @@ class ModelService(Generic[T]):
             obj_ids: The list of IDs to get
             
         Returns:
-            A list of model instances, or None if not found
+            A list of model instances and a list of ModelResponse objects for errors
         """
         responses = []
+        problems = []
         for obj_id in obj_ids:
             [obj, response] = await self.get(obj_id)
             if not response.success:
                 self.log.error(f"Failed to get: %s", response.error)
-                responses.append((None, response))
+                problems.append(response)
             else:
-                responses.append((obj, ModelResponse(success=True)))
-        return responses
+                responses.append(obj)
+        return responses, problems
 
     async def list(self) -> List[T]:
         """
