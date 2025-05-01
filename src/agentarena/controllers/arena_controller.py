@@ -3,15 +3,17 @@ Arena controller for the Agent Arena application.
 Handles HTTP requests for arena operations.
 """
 
-from sqlite_utils import Database
 from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, List, Tuple
 
-from agentarena.models.arena import Arena, ArenaAgentResponse, ArenaConfig, ArenaCreateRequest, ArenaAgent
-from agentarena.models.feature import Feature
-from agentarena.models.agent import AgentConfig
-from agentarena.models.validation import ValidationResponse
+from agentarena.models.arena import Arena, ArenaDTO, ArenaCreateRequest, ArenaAgent
+from agentarena.models.arenaagent import ArenaAgentDTO
+from agentarena.models.dbmodel import DbBase
+from agentarena.models.feature import FeatureDTO
+from agentarena.models.agent import AgentDTO
+from agentarena.models.strategy import StrategyDTO
+from agentarena.services.builder_service import make_arena
 from agentarena.services.model_service import ModelResponse, ModelService
 from agentarena.config.containers import Container
 
@@ -25,8 +27,8 @@ log = structlog.get_logger("arena_controller").bind(module="arena_controller")
 @inject
 async def create_arena(
     createRequest: ArenaCreateRequest,
-    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
-    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service]),
+    arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
+    agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service]),
 ) -> Dict[str, str]:
     """
     Create a new arena.
@@ -38,7 +40,7 @@ async def create_arena(
     Returns:
         A dictionary with the ID of the created arena
     """
-    arena_config = ArenaConfig(
+    arena_config = ArenaDTO(
         name=createRequest.name,
         description=createRequest.description,
         height=createRequest.height,
@@ -52,8 +54,8 @@ async def create_arena(
     # get and validate the features
     invalid_features = get_invalid_features(features)
     if invalid_features:
-        for feature, invalidation in invalid_features:
-            log.info("Invalid feature: %s\nvalidation: %s", feature.model_dump_json(), invalidation.model_dump_json())
+        for invalidation in invalid_features:
+            log.info("Invalid: %s", invalidation.model_dump_json())
         raise HTTPException(status_code=422, detail=invalid_features[0].validation.model_dump_json())
 
     # repeat for agents
@@ -87,8 +89,8 @@ async def create_arena(
 @inject
 async def get_arena(
     arena_id: str,
-    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
-) -> ArenaConfig:
+    arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
+) -> Arena:
     """
     Get an arena by ID.
 
@@ -108,11 +110,11 @@ async def get_arena(
     
     return await make_arena(arena_config)
 
-@router.get("/arena", response_model=List[ArenaConfig])
+@router.get("/arena", response_model=List[ArenaDTO])
 @inject
 async def get_arena_list(
-    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service])
-) -> List[ArenaConfig]:
+    arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service])
+) -> List[ArenaDTO]:
     """
     Get a list of all arenas.
 
@@ -129,8 +131,8 @@ async def get_arena_list(
 async def update_arena(
     arena_id: str,
     updateRequest: ArenaCreateRequest,
-    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service]),
-    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service]),
+    agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service]),
+    arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
 ) -> Dict[str, bool]:
     """
     Update an arena.
@@ -152,8 +154,8 @@ async def update_arena(
     # get and validate the features
     invalid_features = get_invalid_features(features)
     if invalid_features:
-        for feature, invalidation in invalid_features:
-            log.info("Invalid feature: %s\nvalidation: %s", feature.model_dump_json(), invalidation.model_dump_json())
+        for invalidation in invalid_features:
+            log.info("Invalid: %s", invalidation.model_dump_json())
         raise HTTPException(status_code=422, detail=invalid_features[0].validation.model_dump_json())
 
     # repeat for agents
@@ -164,7 +166,7 @@ async def update_arena(
             log.info("Invalid agent: %s", problem.model_dump_json())
         raise HTTPException(status_code=422, detail=problems[0].model_dump_json())
     
-    arena_config = ArenaConfig(
+    arena_config = ArenaDTO(
         name=updateRequest.name,
         description=updateRequest.description,
         height=updateRequest.height,
@@ -190,7 +192,7 @@ async def update_arena(
 @inject
 async def delete_arena(
     arena_id: str,
-    arena_service: ModelService[ArenaConfig] = Depends(Provide[Container.arena_service])
+    arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service])
 ) -> Dict[str, bool]:
     """
     Delete an arena.
@@ -215,8 +217,8 @@ async def add_features_and_agents(
     arena_id: str,
     createRequest: ArenaCreateRequest,
     clean: bool = False,
-    feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service]),
-    arenaagent_service: ModelService[ArenaAgent] = Depends(Provide[Container.arenaagent_service]),
+    feature_service: ModelService[FeatureDTO] = Depends(Provide[Container.feature_service]),
+    arenaagent_service: ModelService[ArenaAgentDTO] = Depends(Provide[Container.arenaagent_service]),
 ) -> ModelResponse:
     """
     Add features and agents to the arena.
@@ -240,7 +242,7 @@ async def add_features_and_agents(
     if len(features) > 0:
 
         feature_objects = [
-            Feature(
+            FeatureDTO(
                 name=featureReq.name,
                 description=featureReq.description,
                 position=featureReq.position,
@@ -260,7 +262,7 @@ async def add_features_and_agents(
     # Map the agents to the arena
     if len(agents) > 0:
         for agentReq in agents:
-            arena_agent = ArenaAgent(
+            arena_agent = ArenaAgentDTO(
                 arena_config_id=arena_id,
                 agent_id=agentReq.agent_id,
                 role=agentReq.role,
@@ -276,8 +278,8 @@ async def add_features_and_agents(
     return ModelResponse(success=True)
 
 def get_invalid_features(
-    features: List[Feature]
-) -> List[Tuple[Feature, ModelResponse]]:
+    features: List[FeatureDTO]
+) -> List[Tuple[FeatureDTO, ModelResponse]]:
     """
     Validate the features.
     Args:
@@ -289,54 +291,6 @@ def get_invalid_features(
     if features is None:
         return []
     
-    validations = [(feature, feature.validate()) for feature in features]
-    return [(feature, validation) for feature, validation in validations if not validation.success]
+    return DbBase.validate_list(features)
 
-@inject
-async def make_arena(
-    arena_config: ArenaConfig,
-    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service]),
-    arenaagent_service: ModelService[ArenaAgent] = Depends(Provide[Container.arenaagent_service]),
-    feature_service: ModelService[Feature] = Depends(Provide[Container.feature_service])
-) -> Arena:
-    """
-    Create an arena object from the arena configuration.
-
-    Args:
-        arena_config: The arena configuration
-        agentarena_service: The agentarena service
-
-    Returns:
-        The arena object
-    """
-    # Get the features and agents for the arena
-    features: List[Feature] = await feature_service.get_where("arena_config_id = :id", {"id": arena_config.id})
-    arenaagents: List[ArenaAgent] = await arenaagent_service.get_where("arena_config_id = :id", {"id": arena_config.id})
-
-    agent_ids = [arenaagent.agent_id for arenaagent in arenaagents]
-    agents, _ = await agent_service.get_by_ids(agent_ids)
-
-    agentMap = {aa.agent_id: aa for aa in arenaagents}
-
-    agentResponses: List[ArenaAgentResponse] = [
-        ArenaAgentResponse(
-            agent_id=agent.id,
-            role=agentMap[agent.id].role,
-            name=agent.name,
-            description=agent.description,
-            # probably want strategy
-        ) for agent in agents
-    ]
-
-    return Arena(
-        id=arena_config.id,
-        name=arena_config.name,
-        description=arena_config.description,
-        height=arena_config.height,
-        width=arena_config.width,
-        rules=arena_config.rules,
-        max_random_features=arena_config.max_random_features,
-        features=features,
-        agents=agentResponses
-    )
     

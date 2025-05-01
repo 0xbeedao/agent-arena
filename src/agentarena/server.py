@@ -31,9 +31,10 @@ to_wire = ['agentarena.controllers.%s_controller' % module for module in [
     'roundstats',
     'strategy', 
 ]]
+# wire up the service class
+to_wire.append('agentarena.services.builder_service') 
 
 container.wire(modules=to_wire)
-
 
 # Create the FastAPI application
 app = FastAPI(

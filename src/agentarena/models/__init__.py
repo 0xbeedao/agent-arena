@@ -2,25 +2,26 @@
 Pydantic models for the Agent Arena application.
 """
 
-from .strategy import Strategy
-from .agent import AgentConfig
-from .arena import ArenaConfig
-from .contest import Contest
-from .state import ArenaState
-from .player import PlayerState, PlayerAction
-from .judge import JudgeResult
-from .feature import Feature
-from .stats import RoundStats
+from .strategy import StrategyDTO
+from .agent import AgentDTO
+from .arena import ArenaDTO
+from .contest import ContestDTO
+from .state import ArenaStateDTO
+from .player import PlayerStateDTO, PlayerAction
+from .judge import JudgeResultDTO
+from .feature import FeatureDTO
+from .stats import RoundStatsDTO
 
 __all__ = [
-    "Strategy",
-    "AgentConfig",
-    "ArenaConfig",
-    "Contest",
-    "ArenaState",
-    "PlayerState",
+    "StrategyDTO",
+    "AgentDTO",
+    "ArenaDTO",
+    "ContestDTO",
+    "ArenaStateDTO",
+    "PlayerStateDTO",
     "PlayerAction",
     "JudgeResult",
-    "Feature",
-    "RoundStats",
+    "FeatureDTO",
+    "FeatureDTO",
+    "RoundStatsDTO",
 ]

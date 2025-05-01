@@ -2,15 +2,16 @@ from dependency_injector import containers, providers
 from sqlite_utils.db import Database
 from pathlib import Path
 
-from agentarena.models.feature import Feature
+from agentarena.models.feature import FeatureDTO
 
 
 from .logger import setup_logging
-from agentarena.models.agent import AgentConfig
-from agentarena.models.arena import ArenaConfig, ArenaAgent
-from agentarena.models.contest import Contest
-from agentarena.models.stats import RoundStats
-from agentarena.models.strategy import Strategy
+from agentarena.models.agent import AgentDTO
+from agentarena.models.arena import ArenaDTO
+from agentarena.models.arenaagent import ArenaAgentDTO
+from agentarena.models.contest import ContestDTO
+from agentarena.models.stats import RoundStatsDTO
+from agentarena.models.strategy import StrategyDTO
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
 
@@ -52,50 +53,50 @@ class Container(containers.DeclarativeContainer):
     # model services
     
     agent_service = providers.Singleton(
-        ModelService[AgentConfig],
-        model_class=AgentConfig,
+        ModelService[AgentDTO],
+        model_class=AgentDTO,
         dbService=db_service,
         table_name="agents"
     )
 
     arena_service = providers.Singleton(
-        ModelService[ArenaConfig],
-        model_class=ArenaConfig,
+        ModelService[ArenaDTO],
+        model_class=ArenaDTO,
         dbService=db_service,
         table_name="arenas"
     )
 
     arenaagent_service = providers.Singleton(
-        ModelService[ArenaAgent],
-        model_class=ArenaAgent,
+        ModelService[ArenaAgentDTO],
+        model_class=ArenaAgentDTO,
         dbService=db_service,
         table_name="arena_agents"
     )
 
     contest_service = providers.Singleton(
-        ModelService[Contest],
-        model_class=Contest,
+        ModelService[ContestDTO],
+        model_class=ContestDTO,
         dbService=db_service,
         table_name="contests"
     )
 
     feature_service = providers.Singleton(
-        ModelService[Feature],
-        model_class=Feature,
+        ModelService[FeatureDTO],
+        model_class=FeatureDTO,
         dbService=db_service,
         table_name="features"
     )
 
     roundstats_service = providers.Singleton(
-        ModelService[RoundStats],
-        model_class=RoundStats,
+        ModelService[RoundStatsDTO],
+        model_class=RoundStatsDTO,
         dbService=db_service,
         table_name="roundstats"
     )
 
     strategy_service = providers.Singleton(
-        ModelService[Strategy],
-        model_class=Strategy,
+        ModelService[StrategyDTO],
+        model_class=StrategyDTO,
         dbService=db_service,
         table_name="strategies"
     )

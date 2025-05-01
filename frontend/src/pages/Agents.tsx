@@ -11,7 +11,7 @@ import {
   useCreateAgent,
   useUpdateAgent
 } from "../api/hooks/useAgents";
-import type { AgentConfig, CreateAgentRequest } from "../api/agent";
+import type { AgentDTO, CreateAgentRequest } from "../api/agent";
 
 export const Agents = (): FunctionComponent => {
   // State for managing the UI
@@ -76,7 +76,7 @@ export const Agents = (): FunctionComponent => {
     try {
       await updateAgentMutation.mutateAsync({
         agentId: selectedAgentId,
-        agent: { ...formData, id: selectedAgentId } as AgentConfig
+        agent: { ...formData, id: selectedAgentId } as AgentDTO
       });
       resetForm();
     } catch (error) {
@@ -85,7 +85,7 @@ export const Agents = (): FunctionComponent => {
   };
 
   // Handle edit button click
-  const handleEditClick = (agent: AgentConfig): void => {
+  const handleEditClick = (agent: AgentDTO): void => {
     setSelectedAgentId(agent.id);
     setFormData({
       name: agent.name,

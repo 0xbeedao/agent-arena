@@ -6,7 +6,7 @@ from typing import Dict, Any, Tuple, List
 from pydantic import Field
 from .dbmodel import DbBase
 
-class RoundStats(DbBase):
+class RoundStatsDTO(DbBase):
     """
     Statistics for a round.
     

@@ -34,7 +34,7 @@ sequenceDiagram
     Arena --> Arena: Generate Player Positions
     Arena ->>+ Announcer: Generate Description
     Announcer ->>- Arena: Description
-    Arena ->>- Observer: ArenaState
+    Arena ->>- Observer: ArenaStateDTO
 ```
 
 ### One round of the contest

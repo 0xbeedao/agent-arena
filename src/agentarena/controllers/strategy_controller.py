@@ -1,5 +1,5 @@
 """
-Strategy controller for the Agent Arena application.
+StrategyDTO controller for the Agent Arena application.
 Handles HTTP requests for strategy operations.
 """
 
@@ -8,21 +8,21 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, List
 from ulid import ULID
 
-from agentarena.models.strategy import Strategy
+from agentarena.models.strategy import StrategyDTO
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
 import structlog
 
 # Create a router for strategy endpoints
-router = APIRouter(tags=["Strategy"])
+router = APIRouter(tags=["StrategyDTO"])
 log = structlog.get_logger("strategy_controller").bind(module="strategy_controller")
 
 @router.post("/strategy", response_model=Dict[str, str])
 @inject
 async def create_strategy(
-    strategy: Strategy,
-    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
+    strategy: StrategyDTO,
+    strategy_service: ModelService[StrategyDTO] = Depends(Provide[Container.strategy_service])
 ) -> Dict[str, str]:
     """
     Create a new strategy.
@@ -39,12 +39,12 @@ async def create_strategy(
         raise HTTPException(status_code=422, detail=response.validation)
     return {"id": id}
 
-@router.get("/strategy/{strategy_id}", response_model=Strategy)
+@router.get("/strategy/{strategy_id}", response_model=StrategyDTO)
 @inject
 async def get_strategy(
     strategy_id: str,
-    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
-) -> Strategy:
+    strategy_service: ModelService[StrategyDTO] = Depends(Provide[Container.strategy_service])
+) -> StrategyDTO:
     """
     Get a strategy by ID.
 
@@ -63,11 +63,11 @@ async def get_strategy(
         raise HTTPException(status_code=404, detail=response.error)
     return strategy_obj
 
-@router.get("/strategy", response_model=List[Strategy])
+@router.get("/strategy", response_model=List[StrategyDTO])
 @inject
 async def get_strategy_list(
-    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
-) -> List[Strategy]:
+    strategy_service: ModelService[StrategyDTO] = Depends(Provide[Container.strategy_service])
+) -> List[StrategyDTO]:
     """
     Get a list of all strategies.
 
@@ -83,8 +83,8 @@ async def get_strategy_list(
 @inject
 async def update_strategy(
     strategy_id: str,
-    strategy: Strategy,
-    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
+    strategy: StrategyDTO,
+    strategy_service: ModelService[StrategyDTO] = Depends(Provide[Container.strategy_service])
 ) -> Dict[str, bool]:
     """
     Update a strategy.
@@ -109,7 +109,7 @@ async def update_strategy(
 @inject
 async def delete_strategy(
     strategy_id: str,
-    strategy_service: ModelService[Strategy] = Depends(Provide[Container.strategy_service])
+    strategy_service: ModelService[StrategyDTO] = Depends(Provide[Container.strategy_service])
 ) -> Dict[str, bool]:
     """
     Delete a strategy.

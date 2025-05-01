@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional,  List, Tuple
 from pydantic import BaseModel, Field
 from .validation import ValidationResponse
+
 class DbBase(BaseModel):
     """
     Base model for DB-persisted objects
@@ -16,7 +17,7 @@ class DbBase(BaseModel):
     def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
         return []
     
-    def validate(self) -> ValidationResponse:
+    def validateDTO(self) -> ValidationResponse:
         """
         Validate the model.
                     
@@ -28,4 +29,24 @@ class DbBase(BaseModel):
             message="Validation successful.",
             data={},
         )
+    
+    @staticmethod
+    def validate_list(obj_list: List[BaseModel]) -> List[ValidationResponse]:
+        """
+        Validate a list of models.
+        
+        Args:
+            obj_list: The list of models to validate.
+            
+        Returns:
+            ValidationResponse: The validation response for errors.
+        """
+        messages = []
+        for obj in obj_list:
+            validation = obj.validateDTO()
+            if not validation.success:
+                messages.extend(validation)
+
+        return messages
+        
     

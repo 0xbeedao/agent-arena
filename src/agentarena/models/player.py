@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from pydantic import Field
 from .dbmodel import DbBase
 
-class PlayerState(DbBase):
+class PlayerStateDTO(DbBase):
     """
     Represents the state of a player.
     

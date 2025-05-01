@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Annotated, Dict, List
 from ulid import ULID
 
-from agentarena.models.agent import AgentConfig
+from agentarena.models.agent import AgentDTO
 from agentarena.services.model_service import ModelResponse, ModelService
 from agentarena.config.containers import Container
 
@@ -21,8 +21,8 @@ log = structlog.get_logger("agent_controller").bind(module="agent_controller")
 @router.post("/agent", response_model=Dict[str, str])
 @inject
 async def create_agent(
-    agent_config: AgentConfig,
-    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
+    agent_config: AgentDTO,
+    agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service])
 ) -> Dict[str, str]:
     """
     Create a new agent.
@@ -39,12 +39,12 @@ async def create_agent(
         raise HTTPException(status_code=422, detail=response.validation)
     return {"id": id}
 
-@router.get("/agent/{agent_id}", response_model=AgentConfig)
+@router.get("/agent/{agent_id}", response_model=AgentDTO)
 @inject
 async def get_agent(
     agent_id: str,
-    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
-) -> AgentConfig:
+    agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service])
+) -> AgentDTO:
     """
     Get an agent by ID.
     
@@ -63,11 +63,11 @@ async def get_agent(
         raise HTTPException(status_code=404, detail=response.error)
     return agent
 
-@router.get("/agent", response_model=List[AgentConfig])
+@router.get("/agent", response_model=List[AgentDTO])
 @inject
 async def get_agent_list(
-    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
-) -> List[AgentConfig]:
+    agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service])
+) -> List[AgentDTO]:
     """
     Get a list of all agents.
     
@@ -83,8 +83,8 @@ async def get_agent_list(
 @inject
 async def update_agent(
     agent_id: str,
-    agent_config: AgentConfig,
-    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
+    agent_config: AgentDTO,
+    agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service])
 ) -> Dict[str, bool]:
     """
     Update an agent.
@@ -109,7 +109,7 @@ async def update_agent(
 @inject
 async def delete_agent(
     agent_id: str,
-    agent_service: ModelService[AgentConfig] = Depends(Provide[Container.agent_service])
+    agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service])
 ) -> Dict[str, bool]:
     """
     Delete an agent.

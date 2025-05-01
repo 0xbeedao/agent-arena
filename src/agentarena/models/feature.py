@@ -3,15 +3,15 @@ Feature model for the Agent Arena application.
 """
 
 from typing import Optional
-from pydantic import Field
+from pydantic import BaseModel, Field
 from .dbmodel import DbBase
-class Feature(DbBase):
+class FeatureDTO(DbBase):
     """
-    Represents a feature in the arena.
+    Represents a feature in the arena DB.
     
     Maps to the FEATURE entity in the ER diagram.
     """
-    arena_config_id: str = Field(description="Reference to ArenaConfig")
+    arena_config_id: str = Field(description="Reference to ArenaDTO")
     name: str = Field(description="Feature name")
     description: str = Field(description="Feature description")
     position: str = Field(description="Grid coordinate as 'x,y'", pattern=r"^-?\d+,-?\d+$")
@@ -42,3 +42,33 @@ class FeatureRequest(DbBase):
         description="End coordinate for features with area",
         pattern=r"^-?\d+,-?\d+$"
     )
+
+class Feature(BaseModel):
+    """
+    Feature model for the Agent Arena application.
+    
+    Maps to the FEATURE entity in the ER diagram.
+    """
+    id: str = Field(description="Feature identifier")
+    name: str = Field(description="Feature name")
+    description: str = Field(description="Feature description")
+    position: str = Field(description="Grid coordinate as 'x,y'", pattern=r"^-?\d+,-?\d+$")
+    end_position: Optional[str] = Field(
+        default=None, 
+        description="End coordinate for features with area",
+        pattern=r"^-?\d+,-?\d+$"
+    )
+
+    @staticmethod
+    def from_dto(dto: FeatureDTO):
+        """
+        Converts a FeatureDTO to a Feature.
+        """
+        return Feature(
+            id=dto.id,
+            name=dto.name,
+            description=dto.description,
+            position=dto.position,
+            end_position=dto.end_position
+        )
+    

@@ -8,9 +8,9 @@ const API_BASE_URL = 'http://localhost:8000';
 
 /**
  * Interface representing an Agent configuration
- * Based on the AgentConfig model in the backend
+ * Based on the AgentDTO model in the backend
  */
-export interface AgentConfig {
+export interface AgentDTO {
   id: string;
   name: string;
   description?: string;
@@ -72,7 +72,7 @@ export async function createAgent(agent: CreateAgentRequest): Promise<CreateAgen
  * @param agentId The ID of the agent to get
  * @returns A promise that resolves to the agent configuration
  */
-export async function getAgent(agentId: string): Promise<AgentConfig> {
+export async function getAgent(agentId: string): Promise<AgentDTO> {
   const response = await fetch(`${API_BASE_URL}/agent/${agentId}`, {
     method: 'GET',
     headers: {
@@ -84,14 +84,14 @@ export async function getAgent(agentId: string): Promise<AgentConfig> {
     throw new Error(`Failed to get agent: ${response.statusText}`);
   }
 
-  return response.json() as Promise<AgentConfig>;
+  return response.json() as Promise<AgentDTO>;
 }
 
 /**
  * Gets a list of all agents
  * @returns A promise that resolves to an array of agent configurations
  */
-export async function getAgentList(): Promise<Array<AgentConfig>> {
+export async function getAgentList(): Promise<Array<AgentDTO>> {
   const response = await fetch(`${API_BASE_URL}/agent`, {
     method: 'GET',
     headers: {
@@ -103,7 +103,7 @@ export async function getAgentList(): Promise<Array<AgentConfig>> {
     throw new Error(`Failed to get agent list: ${response.statusText}`);
   }
 
-  return response.json() as Promise<Array<AgentConfig>>;
+  return response.json() as Promise<Array<AgentDTO>>;
 }
 
 /**
@@ -112,7 +112,7 @@ export async function getAgentList(): Promise<Array<AgentConfig>> {
  * @param agent The updated agent configuration
  * @returns A promise that resolves to a success indicator
  */
-export async function updateAgent(agentId: string, agent: AgentConfig): Promise<UpdateAgentResponse> {
+export async function updateAgent(agentId: string, agent: AgentDTO): Promise<UpdateAgentResponse> {
   const response = await fetch(`${API_BASE_URL}/agent/${agentId}`, {
     method: 'PUT',
     headers: {

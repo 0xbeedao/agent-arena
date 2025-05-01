@@ -5,12 +5,12 @@ Arena state model for the Agent Arena application.
 from typing import Dict, List, Optional, Tuple
 from pydantic import Field
 
-from .feature import Feature
-from .player import PlayerState, PlayerAction
-from .judge import JudgeResult
+from .feature import FeatureDTO
+from .player import PlayerStateDTO, PlayerAction
+from .judge import JudgeResultDTO
 from .dbmodel import DbBase
 
-class ArenaState(DbBase):
+class ArenaStateDTO(DbBase):
     """
     Represents the state of the arena at a specific point in time.
     
@@ -20,10 +20,10 @@ class ArenaState(DbBase):
     round_no: int = Field(description="Round number", ge=0)
     narrative: Optional[str] = Field(default=None, description="Round narrative")
     state: str = Field(description="Arena state")   
-    features: List[Feature] = Field(default_factory=list, description="Arena features")
-    player_states: Dict[str, PlayerState] = Field(default_factory=dict, description="Player states")
+    features: List[FeatureDTO] = Field(default_factory=list, description="Arena features")
+    player_states: Dict[str, PlayerStateDTO] = Field(default_factory=dict, description="Player states")
     player_actions: Dict[str, PlayerAction] = Field(default_factory=dict, description="Player actions")
-    judge_results: Dict[str, JudgeResult] = Field(default_factory=dict, description="Judge results")
+    judge_results: Dict[str, JudgeResultDTO] = Field(default_factory=dict, description="Judge results")
 
     def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
         """

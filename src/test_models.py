@@ -3,32 +3,32 @@ Test script to verify that all models can be imported correctly.
 """
 
 from agentarena.models import (
-    Strategy,
-    AgentConfig,
-    ArenaConfig,
-    Contest,
-    ArenaState,
-    PlayerState,
+    StrategyDTO,
+    AgentDTO,
+    ArenaDTO,
+    ContestDTO,
+    ArenaStateDTO,
+    PlayerStateDTO,
     PlayerAction,
     JudgeResult,
-    Feature,
-    RoundStats,
+    FeatureDTO,
+    RoundStatsDTO,
 )
 
 
 def main():
     """Print all model classes to verify they can be imported."""
     models = [
-        Strategy,
-        AgentConfig,
-        ArenaConfig,
-        Contest,
-        ArenaState,
-        PlayerState,
+        StrategyDTO,
+        AgentDTO,
+        ArenaDTO,
+        ContestDTO,
+        ArenaStateDTO,
+        PlayerStateDTO,
         PlayerAction,
         JudgeResult,
-        Feature,
-        RoundStats,
+        FeatureDTO,
+        RoundStatsDTO,
     ]
     
     print("Successfully imported the following models:")

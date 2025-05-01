@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-query';
 
 import { 
-  type AgentConfig, 
+  type AgentDTO, 
   type CreateAgentRequest, 
   type CreateAgentResponse, 
   type UpdateAgentResponse,
@@ -32,7 +32,7 @@ export const agentKeys = {
 /**
  * Hook to fetch a list of all agents
  */
-export function useAgentList(): UseQueryResult<Array<AgentConfig>, Error> {
+export function useAgentList(): UseQueryResult<Array<AgentDTO>, Error> {
   return useQuery({
     queryKey: agentKeys.lists(),
     queryFn: () => getAgentList(),
@@ -42,7 +42,7 @@ export function useAgentList(): UseQueryResult<Array<AgentConfig>, Error> {
 /**
  * Hook to fetch a single agent by ID
  */
-export function useAgent(agentId: string): UseQueryResult<AgentConfig, Error> {
+export function useAgent(agentId: string): UseQueryResult<AgentDTO, Error> {
   return useQuery({
     queryKey: agentKeys.detail(agentId),
     queryFn: () => getAgent(agentId),
@@ -68,11 +68,11 @@ export function useCreateAgent(): UseMutationResult<CreateAgentResponse, Error, 
 /**
  * Hook to update an existing agent
  */
-export function useUpdateAgent(): UseMutationResult<UpdateAgentResponse, Error, { agentId: string; agent: AgentConfig }, unknown> {
+export function useUpdateAgent(): UseMutationResult<UpdateAgentResponse, Error, { agentId: string; agent: AgentDTO }, unknown> {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ agentId, agent }: { agentId: string; agent: AgentConfig }) => 
+    mutationFn: ({ agentId, agent }: { agentId: string; agent: AgentDTO }) => 
       updateAgent(agentId, agent),
     onSuccess: (_, variables) => {
       // Invalidate the specific agent query and the agent list

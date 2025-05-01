@@ -5,7 +5,7 @@ Agent configuration model for the Agent Arena application.
 from typing import List, Optional, Tuple
 from pydantic import Field
 from .dbmodel import DbBase
-class AgentConfig(DbBase):
+class AgentDTO(DbBase):
     """
     Configuration for an agent.
     
@@ -16,7 +16,7 @@ class AgentConfig(DbBase):
     endpoint: Optional[str] = Field(default="", description="API endpoint for the agent")
     api_key: Optional[str] = Field(default="", description="API key for authentication")
     metadata: Optional[str] = Field(default="", description="Additional metadata")
-    strategy_id: Optional[str] = Field(default="", description="Reference to Strategy")
+    strategy_id: Optional[str] = Field(default="", description="Reference to StrategyDTO")
 
     def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
         """

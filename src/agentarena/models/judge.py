@@ -5,7 +5,7 @@ Judge models for the Agent Arena application.
 from typing import List, Optional, Tuple
 from pydantic import Field
 from .dbmodel import DbBase
-class JudgeResult(DbBase):
+class JudgeResultDTO(DbBase):
     """
     Represents the result of a judge's evaluation.
     

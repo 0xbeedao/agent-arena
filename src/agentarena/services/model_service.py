@@ -75,7 +75,7 @@ class ModelService(Generic[T]):
 
         obj_id = str(db_obj.id)
 
-        validation = obj.validate()
+        validation = obj.validateDTO()
         if not validation.success:
             self.log.error(f"Validation failed: %s", validation.data)
             return "", ModelResponse(success=False, data=obj, validation=validation)
@@ -103,7 +103,7 @@ class ModelService(Generic[T]):
         responses: List[str] = []
         problems: List[ModelResponse] = []
         for obj in obj_list:
-            validation = obj.validate()
+            validation = obj.validateDTO()
             if not validation.success:
                 self.log.error(f"Validation failed: %s", validation.data)
                 problems.append(ModelResponse(success=False, data=obj, validation=validation))
@@ -148,7 +148,7 @@ class ModelService(Generic[T]):
         Returns:
             True if the instance was updated, False if not found
         """
-        validation = obj.validate()
+        validation = obj.validateDTO()
         if not validation.success:
             self.log.error(f"Validation failed: %s", validation.data)
             return ModelResponse(success=False, data=obj, validation=validation)

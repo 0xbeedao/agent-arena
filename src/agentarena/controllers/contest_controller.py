@@ -1,5 +1,5 @@
 """
-Contest controller for the Agent Arena application.
+ContestDTO controller for the Agent Arena application.
 Handles HTTP requests for contest operations.
 """
 
@@ -8,21 +8,21 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Annotated, Dict, List
 from ulid import ULID
 
-from agentarena.models.contest import Contest
+from agentarena.models.contest import ContestDTO
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
 import structlog
 
 # Create a router for contest endpoints
-router = APIRouter(tags=["Contest"])
+router = APIRouter(tags=["ContestDTO"])
 log = structlog.get_logger("contest_controller").bind(module="contest_controller")
 
 @router.post("/contest", response_model=Dict[str, str])
 @inject
 async def create_contest(
-    contest: Contest,
-    contest_service: ModelService[Contest] = Depends(Provide[Container.contest_service])
+    contest: ContestDTO,
+    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
 ) -> Dict[str, str]:
     """
     Create a new contest.
@@ -39,12 +39,12 @@ async def create_contest(
         raise HTTPException(status_code=422, detail=response.validation)
     return {"id": id}
 
-@router.get("/contest/{contest_id}", response_model=Contest)
+@router.get("/contest/{contest_id}", response_model=ContestDTO)
 @inject
 async def get_contest(
     contest_id: str,
-    contest_service: ModelService[Contest] = Depends(Provide[Container.contest_service])
-) -> Contest:
+    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
+) -> ContestDTO:
     """
     Get a contest by ID.
 
@@ -63,11 +63,11 @@ async def get_contest(
         raise HTTPException(status_code=404, detail=response.error)
     return contest_obj
 
-@router.get("/contest", response_model=List[Contest])
+@router.get("/contest", response_model=List[ContestDTO])
 @inject
 async def get_contest_list(
-    contest_service: ModelService[Contest] = Depends(Provide[Container.contest_service])
-) -> List[Contest]:
+    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
+) -> List[ContestDTO]:
     """
     Get a list of all contests.
 
@@ -83,8 +83,8 @@ async def get_contest_list(
 @inject
 async def update_contest(
     contest_id: str,
-    contest: Contest,
-    contest_service: ModelService[Contest] = Depends(Provide[Container.contest_service])
+    contest: ContestDTO,
+    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
 ) -> Dict[str, bool]:
     """
     Update a contest.
@@ -109,7 +109,7 @@ async def update_contest(
 @inject
 async def delete_contest(
     contest_id: str,
-    contest_service: ModelService[Contest] = Depends(Provide[Container.contest_service])
+    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
 ) -> Dict[str, bool]:
     """
     Delete a contest.

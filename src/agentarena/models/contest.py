@@ -25,13 +25,13 @@ class ContestStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     
-class Contest(DbBase):
+class ContestDTO(DbBase):
     """
     Represents a contest between agents.
     
     Maps to the CONTEST entity in the ER diagram.
     """
-    arena_config_id: str = Field(description="Reference to ArenaConfig")
+    arena_config_id: str = Field(description="Reference to ArenaDTO")
     status: ContestStatus = Field(default=ContestStatus.CREATED, description="Contest status")
     start_time: Optional[datetime] = Field(default=None, description="Contest start time")
     end_time: Optional[datetime] = Field(default=None, description="Contest end time")
@@ -44,7 +44,7 @@ class Contest(DbBase):
             ("arena_id", "arenas", "id")
         ]
     
-class ContestAgent(DbBase):
+class ContestAgentDTO(DbBase):
     """
     Maps agents to contests
     """
