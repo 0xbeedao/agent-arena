@@ -87,7 +87,7 @@ class ContestRequest(BaseModel):
     """
     arena_config_id: str = Field(description="Reference to ArenaDTO")
     current_round: Optional[int] = Field(default=1, description="Current round")
-    player_positions: str = Field(description="Positions to use for players, must be at least as long as the number of players, semicolon delimited")
+    player_positions: List[str] = Field(description="Positions to use for players, must be at least as long as the number of players")
     
 class Contest(BaseModel):
     """
@@ -98,7 +98,7 @@ class Contest(BaseModel):
     id: str = Field(description="Contest identifier")
     arena: Arena = Field(description="Arena")
     current_round: int = Field(description="Current round number")
-    player_positions: str = Field(description="A list of positions of players at start, semicolon delimited")
+    player_positions: List[str] = Field(description="A list of positions of players at start")
     status: ContestStatus = Field(description="Contest status")
     start_time: Optional[datetime] = Field(default=None, description="Contest start time")
     end_time: Optional[datetime] = Field(default=None, description="Contest end time")

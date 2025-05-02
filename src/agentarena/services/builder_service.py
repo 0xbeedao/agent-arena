@@ -125,7 +125,7 @@ async def make_contest(
         aa, _ = await arenaagent_service.get(contestDTO.winner)
         winner, _ = await make_arenaagent(aa, logger=boundlog)
 
-    positions: List[str] = contestDTO.player_positions
+    positions: List[str] = contestDTO.player_positions.split(';')
     boundlog.info(f"positions: {positions}")
 
     return Contest(

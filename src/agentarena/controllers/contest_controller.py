@@ -52,7 +52,7 @@ async def create_contest(
 
     return {"id": contest_id}    
 
-@router.get("/contest/{contest_id}", response_model=ContestDTO)
+@router.get("/contest/{contest_id}", response_model=Contest)
 @inject
 async def get_contest(
     contest_id: str,
