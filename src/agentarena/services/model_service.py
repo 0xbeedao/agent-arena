@@ -83,7 +83,7 @@ class ModelService(Generic[T]):
             # TODO: turn off alter=true for production
             self.table.insert(db_obj.model_dump(), pk="id", foreign_keys=obj.get_foreign_keys(), alter=True)
         except sqlite3.IntegrityError as e:
-            self.log.error(f"Integrity error while inserting", e)
+            self.log.error(f"Integrity error while inserting: %s", e)
             invalidation = ValidationResponse(success=False, data=obj, message="Integrity error")
             return "", ModelResponse(success=False, validation=invalidation)
         self.log.info(f"Added #{obj_id}")

@@ -15,6 +15,7 @@ class StrategyType(str, Enum):
     JUDGE = "judge"
     ARENA = "arena"
     PLAYER = "player"
+    ANNOUNCER = "announcer"
 
 class StrategyDTO(DbBase):
     """
@@ -26,7 +27,7 @@ class StrategyDTO(DbBase):
     personality: Optional[str] = Field(default="", description="Personality description")
     instructions: Optional[str] = Field(default="", description="Strategy instructions")
     description: Optional[str] = Field(default="", description="Detailed description of the strategy")
-    group: str = Field(default=StrategyType.PLAYER.value, description="Type of strategy")
+    role: str = Field(default=StrategyType.PLAYER.value, description="Type of strategy")
 
     def validateDTO(self) -> ValidationResponse:
         """
@@ -51,14 +52,17 @@ class StrategyDTO(DbBase):
         if not self.instructions:
             messages.append("Instructions are required.")
         
-        if not self.group in [StrategyType.JUDGE, StrategyType.ARENA, StrategyType.PLAYER]:
-            messages.append("Group must be one of 'judge', 'arena', or 'player'.")
+        try:
+            _ = StrategyType(self.role)
+        except ValueError:
+            messages.append("Role must be a valid role")
         
         if messages or not upstream.success:
             return ValidationResponse(
                 success=False,
                 message="Validation failed.",
-                data={"messages": messages}
+                data={"messages": messages,
+                      "object": self.model_dump_json()}
             )
         
         return ValidationResponse(
@@ -76,7 +80,7 @@ class Strategy(BaseModel):
     personality: str = Field(description="Personality description")
     instructions: str = Field(description="Strategy instructions")
     description: str = Field(description="Detailed description of the strategy")
-    group: StrategyType = Field(default=StrategyType.PLAYER, description="Type of strategy")
+    role: StrategyType = Field(default=StrategyType.PLAYER, description="Type of strategy")
 
 
     @staticmethod
@@ -93,5 +97,5 @@ class Strategy(BaseModel):
             personality=dto.personality,
             instructions=dto.instructions,
             description=dto.description,
-            group=dto.group
+            role=dto.role
         )
