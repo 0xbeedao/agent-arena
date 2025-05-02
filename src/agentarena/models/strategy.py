@@ -26,7 +26,7 @@ class StrategyDTO(DbBase):
     personality: Optional[str] = Field(default="", description="Personality description")
     instructions: Optional[str] = Field(default="", description="Strategy instructions")
     description: Optional[str] = Field(default="", description="Detailed description of the strategy")
-    group: str = Field(default=StrategyType.PLAYER, description="Type of strategy")
+    group: str = Field(default=StrategyType.PLAYER.value, description="Type of strategy")
 
     def validateDTO(self) -> ValidationResponse:
         """

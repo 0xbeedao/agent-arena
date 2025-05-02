@@ -4,11 +4,11 @@ Arena configuration model for the Agent Arena application.
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List
+from typing import Dict, Optional, List
 from pydantic import BaseModel, Field
 
 from .feature import FeatureRequest, Feature
-from .arenaagent import ArenaAgentRequest, ArenaAgent
+from .arenaagent import AgentRole, ArenaAgentRequest, ArenaAgent
 from .dbmodel import DbBase
 
 class ArenaDTO(DbBase):
@@ -61,3 +61,21 @@ class Arena(BaseModel):
         default=None, 
         description="Agents associated with the arena"
     )
+
+    def agents_by_role(self) -> Dict[AgentRole, ArenaAgent]:
+        """
+        Returns a list of agents by their role.
+        """
+            # collect the agents by role
+        agents_by_role = {
+            AgentRole.ANNOUNCER: [],
+            AgentRole.ARENA: [],
+            AgentRole.JUDGE: [],
+            AgentRole.PLAYER: []
+        }
+        for agent in self.agents:
+            if agent.role not in agents_by_role:
+                raise f"Unknown agent role: {agent.role}"
+            agents_by_role[agent.role].append(agent)
+        return agents_by_role
+

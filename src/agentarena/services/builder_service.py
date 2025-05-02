@@ -6,6 +6,7 @@ from agentarena.config.containers import Container
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import Arena, ArenaDTO
 from agentarena.models.arenaagent import ArenaAgent, ArenaAgentDTO
+from agentarena.models.contest import Contest, ContestDTO
 from agentarena.models.feature import Feature, FeatureDTO
 from agentarena.models.strategy import Strategy, StrategyDTO
 from agentarena.services.model_service import ModelService
@@ -82,3 +83,32 @@ async def make_arenaagent(
         description=agentDTO.description,
         strategy=strategy
     )
+
+@inject
+async def make_contest(
+    contestDTO: ContestDTO,
+    arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
+) -> Contest:
+    """
+    Create a contest object from the contest configuration.
+
+    Args:
+        contest_id: The contest ID
+        contest_service: The contest service
+
+    Returns:
+        The contest object
+    """
+    [arenaDTO, response] = await arena_service.get(contestDTO.arena_config_id)
+    if not response.success:
+        raise ValueError(f"Arena with ID {contestDTO.arena_config_id} not found")
+    
+    arena = await make_arena(arenaDTO)
+    return Contest(
+        id=contestDTO.id,
+        arena=arena,
+        status=contestDTO.status,
+        start_time=contestDTO.start_time,
+        end_time=contestDTO.end_time
+    )
+    

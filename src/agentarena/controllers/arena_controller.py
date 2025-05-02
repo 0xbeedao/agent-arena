@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 from agentarena.models.arena import Arena, ArenaDTO, ArenaCreateRequest, ArenaAgent
 from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.dbmodel import DbBase
-from agentarena.models.feature import FeatureDTO
+from agentarena.models.feature import FeatureDTO, FeatureOriginType
 from agentarena.models.agent import AgentDTO
 from agentarena.models.strategy import StrategyDTO
 from agentarena.services.builder_service import make_arena
@@ -247,7 +247,8 @@ async def add_features_and_agents(
                 description=featureReq.description,
                 position=featureReq.position,
                 end_position=featureReq.end_position,
-                arena_config_id=arena_id
+                arena_config_id=arena_id,
+                origin=FeatureOriginType.REQUIRED.value,
             ) for featureReq in createRequest.features
         ]
 

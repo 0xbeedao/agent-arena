@@ -3,12 +3,15 @@ ContestDTO controller for the Agent Arena application.
 Handles HTTP requests for contest operations.
 """
 
+from datetime import datetime
 from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Annotated, Dict, List
 from ulid import ULID
 
-from agentarena.models.contest import ContestDTO
+from agentarena.models.arenaagent import AgentRole
+from agentarena.models.contest import Contest, ContestDTO, ContestRequest, ContestStatus
+from agentarena.services.builder_service import make_contest
 from agentarena.services.model_service import ModelService
 from agentarena.config.containers import Container
 
@@ -21,7 +24,7 @@ log = structlog.get_logger("contest_controller").bind(module="contest_controller
 @router.post("/contest", response_model=Dict[str, str])
 @inject
 async def create_contest(
-    contest: ContestDTO,
+    createRequest: ContestRequest,
     contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
 ) -> Dict[str, str]:
     """
@@ -34,10 +37,16 @@ async def create_contest(
     Returns:
         A dictionary with the ID of the created contest
     """
-    [id, response] = await contest_service.create(contest)
+    contestDTO = ContestDTO(
+        arena_config_id=createRequest.arena_config_id,
+        status=ContestStatus.CREATED.value,
+        start_time=None,
+        end_time=None
+    )
+    [contest_id, response] = await contest_service.create(contestDTO)
     if not response.success:
         raise HTTPException(status_code=422, detail=response.validation)
-    return {"id": id}
+    return {"id": contest_id}    
 
 @router.get("/contest/{contest_id}", response_model=ContestDTO)
 @inject
@@ -102,7 +111,7 @@ async def update_contest(
     """
     response = await contest_service.update(contest_id, contest)
     if not response.success:
-        raise HTTPException(status_code=422, detail=response.validation)
+        raise HTTPException(status_code=404, detail=response.validation)
     return {"success": response.success}
 
 @router.delete("/contest/{contest_id}", response_model=Dict[str, bool])
@@ -126,5 +135,65 @@ async def delete_contest(
     """
     response = await contest_service.delete(contest_id)
     if not response.success:
-        raise HTTPException(status_code=422, detail=response.validation)
+        raise HTTPException(status_code=404, detail=response.validation)
     return {"success": response.success}
+
+@router.post("/contest/{contest_id}/start", response_model=Dict[str, str])
+@inject
+async def start_contest(
+    contest_id: str,
+    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
+) -> Dict[str, str]:
+    """
+    Start a contest, and returns the ID of the started contest, with everything set up for first round.
+
+    Args:
+        contest_id: The ID of the contest to start
+        contest_service: The contest service
+
+    Returns:
+        A dictionary with the ID of the started contest
+    """
+    boundlog = log.bind(contest_id=contest_id)
+    boundlog.info("starting contest")
+    [contestDTO, response] = await contest_service.get(contest_id)
+    if not response.success:
+        boundlog.error("failed to get contest")
+        raise HTTPException(status_code=404, detail=response.validation)
+    
+    if contestDTO.status != ContestStatus.CREATED:
+        boundlog.error("contest is not in CREATED state, was: %s", contestDTO.status)
+        raise HTTPException(status_code=422, detail="Contest is not in CREATED state")
+    
+    # sanity check, we need at least one player, announcer, judge, and arena agent
+    contest = await make_contest(contestDTO)
+    arena = contest.arena
+
+    if arena.agents is None or len(arena.agents) < 4:
+        boundlog.error("No agents in arena, raising error")
+        raise HTTPException(status_code=422, detail="Arena needs at least 4 agents: player, announcer, judge, and arena agent")
+    
+    agent_roles = arena.agents_by_role()
+
+    for role in AgentRole:
+        if agent_roles[role] is None or len(agent_roles[role]) == 0:
+            boundlog.error("No agents in arena for role %s, raising error", role)
+            raise HTTPException(status_code=422, detail=f"Arena needs at least one {role} agent") 
+
+    # Set contest status to STARTING
+    # and update start time
+    # contestDTO.status = ContestStatus.STARTING
+    # contestDTO.start_time = datetime.now()
+    # contest_service.update(contest_id, contestDTO)
+
+
+    # Populate the features if needed
+    # if arena.max_random_features > 0:
+    #     random_features = []
+
+    return {"id": contest_id}
+    
+
+
+    
+    
