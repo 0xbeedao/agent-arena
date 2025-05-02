@@ -129,6 +129,28 @@ def load_arena_fixture(fname: str, players = 2, agents = {}):
         typer.echo(f"Request error: {e} processing {fname}", err=True)
         return None
     
+def load_contest_fixture(fname: str, arena_id: str):
+    fixture_data = load_fixture_file(fname) 
+    contest_req = {
+        "player_positions": fixture_data['player_positions'],
+        "arena_config_id": arena_id,
+    }
+        
+    fixture_json = json.dumps(contest_req)
+
+    try:
+        response = httpx.post(f"{BASE_URL}/contest", json=contest_req)
+        if response.status_code == 200:
+            obj_id = json.loads(response.content)['id']
+            typer.echo(f"Successfully created contest from {fname}: #{obj_id}")
+            return obj_id
+        else:
+            print ("error with json:\n", fixture_json)
+            typer.echo(f"Error loading fixtures: {response.status_code} - {response.text}", err=True)   
+    except httpx.RequestError as e:
+        typer.echo(f"Request error: {e} processing {fname}", err=True)
+        return None
+
 @app.command()
 def load_fixtures(
     fixture_dir: Path = typer.Argument(..., help="Path to the fixture dir")
@@ -170,10 +192,21 @@ def load_fixtures(
     # first lets just print what we've got
     typer.echo("Agents created")
 
-    arena_files = glob(os.path.join(fixture_dir, '*arena-*.json'))
+    arena_files = glob(os.path.join(fixture_dir, 'arena-*.json'))
+    arenas = []
     for arena_fixture in arena_files:
         arena_id = load_arena_fixture(Path(arena_fixture), players=2, agents=agents)
         typer.echo(f"created arena: #{arena_id}")
+        arenas.append(arena_id)
+
+    contest_files = glob(os.path.join(fixture_dir, 'contest-*.json'))
+    contests = []
+    for contest_fixture in contest_files:
+        for arena_id in arenas:
+            contest_id = load_contest_fixture(Path(contest_fixture), arena_id)
+            typer.echo(f"Created contest: #{contest_id}")
+
+    
 
 if __name__ == "__main__":
     app()

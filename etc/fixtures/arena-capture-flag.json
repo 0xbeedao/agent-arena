@@ -3,8 +3,9 @@
     "description": "A capture the flag game set in a castle courtyard, with viewers cheering on from the walls lining the courtyard",
     "height": 10,
     "width": 10,
-    "rules": "Capture the flag. No fighting. First player to bring the flag to the base wins. Players move up to 2 spaces, if running, but may trip or be vulnerable when doing so. Players may only grab the flag or place it on the base from one space away.",
+    "rules": "Capture the flag. No fighting. Players move up to 2 spaces, if running, but may trip or be vulnerable when doing so. Players may only grab the flag or place it on the base from one space away.",
     "max_random_features": 5,
+    "winning_condition": "First player to bring the flag to the base wins",
     "features": [
         {
             "name": "flag",

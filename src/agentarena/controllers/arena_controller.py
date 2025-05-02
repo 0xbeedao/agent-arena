@@ -46,7 +46,8 @@ async def create_arena(
         height=createRequest.height,
         width=createRequest.width,
         rules=createRequest.rules,
-        max_random_features=createRequest.max_random_features)
+        max_random_features=createRequest.max_random_features,
+        winning_condition=createRequest.winning_condition)
     
     features = createRequest.features
     agents = createRequest.agents
@@ -172,7 +173,8 @@ async def update_arena(
         height=updateRequest.height,
         width=updateRequest.width,
         rules=updateRequest.rules,
-        max_random_features=updateRequest.max_random_features
+        max_random_features=updateRequest.max_random_features,
+        winning_condition=updateRequest.winning_condition
     )
     response = await arena_service.update(arena_id, arena_config)
     if not response.success:
@@ -235,7 +237,6 @@ async def add_features_and_agents(
 
     features = createRequest.features
     agents = createRequest.agents
-    db = feature_service.dbService.db
     # db.execute("BEGIN TRANSACTION")
     boundlog = log.bind(featureCt=len(features), agentCt=len(agents))
     boundlog.info("Mapping features and agents to arena")

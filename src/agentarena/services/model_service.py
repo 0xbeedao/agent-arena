@@ -128,10 +128,16 @@ class ModelService(Generic[T]):
         Returns:
             The model instance, or None if not found
         """
-        row = self.table.get(str(obj_id))
         model_name = self.model_class.__name__
-        self.log.info(f"Getting: %s", obj_id)
-        obj = self.model_class.model_validate(row) if row is not None else None
+        boundlog = self.log.bind(get=obj_id)
+        boundlog.info("Getting from DB")
+        row = self.table.get(str(obj_id))
+        try:
+            boundlog.debug("validating model")
+            obj = self.model_class.model_validate(row) if row is not None else None
+        except Exception as e:
+            self.log.error("error when loading", e)
+            obj = None
         if obj is None:
             self.log.warn(f"Not found #%s", obj_id)
             return None, ModelResponse(success=False, id=obj_id, error=f"{model_name} with ID {obj_id} not found")

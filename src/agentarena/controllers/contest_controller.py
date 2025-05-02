@@ -39,13 +39,17 @@ async def create_contest(
     """
     contestDTO = ContestDTO(
         arena_config_id=createRequest.arena_config_id,
+        current_round=1,
+        player_positions=";".join(createRequest.player_positions),
         status=ContestStatus.CREATED.value,
         start_time=None,
-        end_time=None
+        end_time=None,
+        winner=None,
     )
     [contest_id, response] = await contest_service.create(contestDTO)
     if not response.success:
-        raise HTTPException(status_code=422, detail=response.validation)
+        raise HTTPException(status_code=422, detail=response.validation)  
+
     return {"id": contest_id}    
 
 @router.get("/contest/{contest_id}", response_model=ContestDTO)
@@ -53,7 +57,7 @@ async def create_contest(
 async def get_contest(
     contest_id: str,
     contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
-) -> ContestDTO:
+) -> Contest:
     """
     Get a contest by ID.
 
@@ -69,8 +73,11 @@ async def get_contest(
     """
     [contest_obj, response] = await contest_service.get(contest_id)
     if not response.success:
+        log.info("Error getting that contest")
         raise HTTPException(status_code=404, detail=response.error)
-    return contest_obj
+    log.info("got contest_obj")
+    
+    return await make_contest(contest_obj)
 
 @router.get("/contest", response_model=List[ContestDTO])
 @inject
@@ -109,6 +116,7 @@ async def update_contest(
     Raises:
         HTTPException: If the contest is not found
     """
+    contest.winner = None
     response = await contest_service.update(contest_id, contest)
     if not response.success:
         raise HTTPException(status_code=404, detail=response.validation)

@@ -8,7 +8,7 @@ from typing import Dict, Optional, List
 from pydantic import BaseModel, Field
 
 from .feature import FeatureRequest, Feature
-from .arenaagent import AgentRole, ArenaAgentRequest, ArenaAgent
+from .arenaagent import AgentRole, ArenaAgentRequest, ArenaAgent    
 from .dbmodel import DbBase
 
 class ArenaDTO(DbBase):
@@ -22,6 +22,7 @@ class ArenaDTO(DbBase):
     height: int = Field(description="Arena height", gt=0)
     width: int = Field(description="Arena width", gt=0)
     rules: str = Field(description="Game rules")
+    winning_condition: str = Field(description="winning condition description")
     max_random_features: int = Field(description="Maximum number of random features", ge=0)
     
 class ArenaCreateRequest(BaseModel):
@@ -30,6 +31,7 @@ class ArenaCreateRequest(BaseModel):
     height: int = Field(description="Arena height", gt=0)
     width: int = Field(description="Arena width", gt=0)
     rules: str = Field(description="Game rules")
+    winning_condition: str = Field(description="winning condition description")
     max_random_features: int = Field(description="Maximum number of random features", ge=0)
     features: Optional[List[FeatureRequest]] = Field(
         default=None, 

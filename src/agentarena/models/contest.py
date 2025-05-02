@@ -4,10 +4,11 @@ Contest model for the Agent Arena application.
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from pydantic import BaseModel, Field
 
 from agentarena.models.arena import Arena
+from agentarena.models.arenaagent import ArenaAgent
 from .dbmodel import DbBase
 
 class ContestRole(str, Enum):
@@ -37,7 +38,11 @@ class ContestDTO(DbBase):
     Maps to the CONTEST entity in the ER diagram.
     """
     arena_config_id: str = Field(description="Reference to ArenaDTO")
+    current_round: int = Field(default=1, description="Current round")
+    player_positions: str = Field(description="A semicolon delimited list of player positions")
     status: str = Field(default=ContestStatus.CREATED, description="Contest status")
+    winner: Optional[str] = Field(default=None, description="id of winning player agent")
+
     start_time: Optional[datetime] = Field(default=None, description="Contest start time")
     end_time: Optional[datetime] = Field(default=None, description="Contest end time")
 
@@ -49,6 +54,8 @@ class ContestDTO(DbBase):
             ("arena_config_id", "arenas", "id")
         ]
     
+
+    
 class ContestAgentDTO(DbBase):
     """
     Maps agents to contests
@@ -58,7 +65,6 @@ class ContestAgentDTO(DbBase):
     contest_id: str = Field(description="Reference to a Contest")
     agent_id: str = Field(description="Reference to the Agent playing this role")
 
-    # Not a Pydantic Field, this is used by the DB to set up FKs
     def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
         """
         Returns the foreign keys for this model.
@@ -80,6 +86,8 @@ class ContestRequest(BaseModel):
     Request model for creating a contest
     """
     arena_config_id: str = Field(description="Reference to ArenaDTO")
+    current_round: Optional[int] = Field(default=1, description="Current round")
+    player_positions: str = Field(description="Positions to use for players, must be at least as long as the number of players, semicolon delimited")
     
 class Contest(BaseModel):
     """
@@ -88,8 +96,10 @@ class Contest(BaseModel):
     Maps to the CONTEST entity in the ER diagram.
     """
     id: str = Field(description="Contest identifier")
+    arena: Arena = Field(description="Arena")
+    current_round: int = Field(description="Current round number")
+    player_positions: str = Field(description="A list of positions of players at start, semicolon delimited")
     status: ContestStatus = Field(description="Contest status")
     start_time: Optional[datetime] = Field(default=None, description="Contest start time")
     end_time: Optional[datetime] = Field(default=None, description="Contest end time")
-    arena: Arena = Field(description="Arena")
-
+    winner: Optional[ArenaAgent] = Field(description="winning player")
