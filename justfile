@@ -8,3 +8,7 @@ server: checkvenv
 
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"
+
+load:
+    python etc/bin/load_fixtures.py etc/fixtures
+    
