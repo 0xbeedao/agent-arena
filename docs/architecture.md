@@ -60,7 +60,23 @@ sequenceDiagram
 ```
 ## Models
 
-See [model diagrams](./model-diagrams.md)
+See [model diagrams](./model-diagrams.md) for a comprehensive view of the data model.
+
+### Key Model Relationships
+
+The system uses several interconnected models to represent the contest:
+
+1. **Strategy** - Defines behavior patterns for agents with personality and instructions
+2. **Agent** - Configured with a strategy and endpoint details
+3. **Arena** - Defines the contest environment with dimensions, rules, and features
+4. **ArenaAgent** - Maps agents to arenas with specific roles (player, judge, arena, announcer)
+5. **Contest** - Represents an active competition between agents
+6. **ContestAgent** - Maps agents to contests with specific roles
+7. **ArenaState** - Captures the state of the arena at each round
+8. **PlayerState** - Tracks position, inventory, and health of each player
+9. **PlayerAction** - Records actions taken by players
+10. **JudgeResult** - Stores evaluation results from the judge
+11. **RoundStats** - Collects performance metrics for each round
 
 ### Rules
 
