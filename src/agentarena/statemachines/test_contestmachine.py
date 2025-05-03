@@ -1,9 +1,9 @@
-import pytest
-from agentarena.statemachines.contestmachine import ContestMachine
-from agentarena.models.contest import Contest, ContestStatus
 from agentarena.models.arena import Arena
-from agentarena.models.arenaagent import ArenaAgent, AgentRole
+from agentarena.models.arenaagent import AgentRole, ArenaAgent
+from agentarena.models.contest import Contest, ContestStatus
 from agentarena.models.strategy import Strategy, StrategyType
+from agentarena.statemachines.contestmachine import ContestMachine
+
 
 def make_strategy():
     return Strategy(
@@ -12,8 +12,9 @@ def make_strategy():
         personality="Neutral",
         instructions="Do nothing",
         description="A test strategy",
-        role=StrategyType.PLAYER
+        role=StrategyType.PLAYER,
     )
+
 
 def make_agent(agent_id="agent1", role=AgentRole.PLAYER):
     return ArenaAgent(
@@ -21,8 +22,9 @@ def make_agent(agent_id="agent1", role=AgentRole.PLAYER):
         role=role,
         name="Test Agent",
         description="A test agent",
-        strategy=make_strategy()
+        strategy=make_strategy(),
     )
+
 
 def make_arena():
     return Arena(
@@ -34,8 +36,9 @@ def make_arena():
         rules="No rules",
         max_random_features=0,
         features=[],
-        agents=[make_agent()]
+        agents=[make_agent()],
     )
+
 
 def make_contest():
     return Contest(
@@ -46,13 +49,15 @@ def make_contest():
         status=ContestStatus.CREATED,
         start_time=None,
         end_time=None,
-        winner=None
+        winner=None,
     )
+
 
 def test_initial_state():
     contest = make_contest()
     machine = ContestMachine(contest)
     assert machine.current_state.id == "idle"
+
 
 def test_start_contest_transition_creates_setup_machine():
     contest = make_contest()
@@ -62,7 +67,10 @@ def test_start_contest_transition_creates_setup_machine():
     # SetupMachine should be created
     assert machine._setup_machine is not None
     assert machine.setup_machine is not None
-    assert machine.setup_machine.current_state.id == "setup_prompting" or hasattr(machine.setup_machine, "current_state")
+    assert machine.setup_machine.current_state.id == "setup_prompting" or hasattr(
+        machine.setup_machine, "current_state"
+    )
+
 
 def test_setup_done_transition():
     contest = make_contest()
@@ -70,6 +78,7 @@ def test_setup_done_transition():
     machine.start_contest()
     machine.setup_done()
     assert machine.current_state.id == "ready"
+
 
 def test_start_round_transition_creates_round_machine():
     contest = make_contest()
@@ -81,7 +90,10 @@ def test_start_round_transition_creates_round_machine():
     # RoundMachine should be created
     assert machine._round_machine is not None
     assert machine.round_machine is not None
-    assert machine.round_machine.current_state.id == "round_prompting" or hasattr(machine.round_machine, "current_state")
+    assert machine.round_machine.current_state.id == "round_prompting" or hasattr(
+        machine.round_machine, "current_state"
+    )
+
 
 def test_round_done_transition():
     contest = make_contest()
@@ -91,6 +103,7 @@ def test_round_done_transition():
     machine.start_round()
     machine.round_done()
     assert machine.current_state.id == "checking_end"
+
 
 def test_end_condition_met_transition():
     contest = make_contest()
@@ -103,6 +116,7 @@ def test_end_condition_met_transition():
     assert machine.current_state.id == "completed"
     assert machine.current_state.final
 
+
 def test_more_rounds_remain_transition():
     contest = make_contest()
     machine = ContestMachine(contest)
@@ -112,6 +126,7 @@ def test_more_rounds_remain_transition():
     machine.round_done()
     machine.more_rounds_remain()
     assert machine.current_state.id == "ready"
+
 
 def test_full_contest_sequence():
     contest = make_contest()
@@ -129,6 +144,7 @@ def test_full_contest_sequence():
     assert machine.current_state.id == "completed"
     assert machine.current_state.final
 
+
 def test_setup_machine_property_none_when_not_in_setup():
     contest = make_contest()
     machine = ContestMachine(contest)
@@ -137,6 +153,7 @@ def test_setup_machine_property_none_when_not_in_setup():
     assert machine.setup_machine is not None
     machine.setup_done()
     assert machine.setup_machine is None
+
 
 def test_round_machine_property_none_when_not_in_round():
     contest = make_contest()
@@ -149,6 +166,7 @@ def test_round_machine_property_none_when_not_in_round():
     assert machine.round_machine is not None
     machine.round_done()
     assert machine.round_machine is None
+
 
 def test_check_setup_done_and_check_round_done():
     contest = make_contest()
@@ -167,7 +185,9 @@ def test_check_setup_done_and_check_round_done():
             machine._setup_machine.results_ready()
         except Exception:
             pass
-        assert machine.check_setup_done() == (machine._setup_machine.describing_setup.is_active)
+        assert machine.check_setup_done() == (
+            machine._setup_machine.describing_setup.is_active
+        )
     machine.setup_done()
     machine.start_round()
     # RoundMachine created, but not in presenting_results state
@@ -182,7 +202,10 @@ def test_check_setup_done_and_check_round_done():
             machine._round_machine.results_ready()
         except Exception:
             pass
-        assert machine.check_round_done() == (machine._round_machine.presenting_results.is_active)
+        assert machine.check_round_done() == (
+            machine._round_machine.presenting_results.is_active
+        )
+
 
 def test_get_state_dict():
     contest = make_contest()
@@ -198,6 +221,7 @@ def test_get_state_dict():
     state_dict = machine.get_state_dict()
     assert state_dict["contest_state"] == "in_round"
     assert "round_state" in state_dict
+
 
 def test_on_enter_methods_are_callable():
     contest = make_contest()

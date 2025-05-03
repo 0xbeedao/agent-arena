@@ -4,25 +4,32 @@ Contest model for the Agent Arena application.
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
+
 from pydantic import BaseModel, Field
 
 from agentarena.models.arena import Arena
 from agentarena.models.arenaagent import ArenaAgent
+
 from .dbmodel import DbBase
+
 
 class ContestRole(str, Enum):
     """
     Roles for agents in contests
     """
+
     PLAYER = "player"
     ARENA = "arena"
     JUDGE = "judge"
     ANNOUNCER = "announcer"
+
+
 class ContestStatus(str, Enum):
     """
     Status of a contest.
     """
+
     CREATED = "created"
     STARTING = "starting"
     STARTED = "started"
@@ -30,32 +37,37 @@ class ContestStatus(str, Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
-    
+
+
 class ContestDTO(DbBase):
     """
     Represents a contest between agents.
-    
+
     Maps to the CONTEST entity in the ER diagram.
     """
+
     arena_config_id: str = Field(description="Reference to ArenaDTO")
     current_round: int = Field(default=1, description="Current round")
-    player_positions: str = Field(description="A semicolon delimited list of player positions")
+    player_positions: str = Field(
+        description="A semicolon delimited list of player positions"
+    )
     status: str = Field(default=ContestStatus.CREATED, description="Contest status")
-    winner: Optional[str] = Field(default=None, description="id of winning player agent")
+    winner: Optional[str] = Field(
+        default=None, description="id of winning player agent"
+    )
 
-    start_time: Optional[datetime] = Field(default=None, description="Contest start time")
+    start_time: Optional[datetime] = Field(
+        default=None, description="Contest start time"
+    )
     end_time: Optional[datetime] = Field(default=None, description="Contest end time")
 
     def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
         """
         Returns the foreign keys for this model.
         """
-        return [
-            ("arena_config_id", "arenas", "id")
-        ]
-    
+        return [("arena_config_id", "arenas", "id")]
 
-    
+
 class ContestAgentDTO(DbBase):
     """
     Maps agents to contests
@@ -69,37 +81,46 @@ class ContestAgentDTO(DbBase):
         """
         Returns the foreign keys for this model.
         """
-        return [
-            ("contest_id", "contests", "id"),
-            ("agent_id", "agents", "id")
-        ]
+        return [("contest_id", "contests", "id"), ("agent_id", "agents", "id")]
+
 
 class ContestAgentRequest(BaseModel):
     """
     Request model for creating a contest agent
     """
+
     role: ContestRole = Field(description="Role in contest")
     agent_id: str = Field(description="Reference to the Agent playing this role")
+
 
 class ContestRequest(BaseModel):
     """
     Request model for creating a contest
     """
+
     arena_config_id: str = Field(description="Reference to ArenaDTO")
     current_round: Optional[int] = Field(default=1, description="Current round")
-    player_positions: List[str] = Field(description="Positions to use for players, must be at least as long as the number of players")
-    
+    player_positions: List[str] = Field(
+        description="Positions to use for players, must be at least as long as the number of players"
+    )
+
+
 class Contest(BaseModel):
     """
     Contest model for the Agent Arena application.
-    
+
     Maps to the CONTEST entity in the ER diagram.
     """
+
     id: str = Field(description="Contest identifier")
     arena: Arena = Field(description="Arena")
     current_round: int = Field(description="Current round number")
-    player_positions: List[str] = Field(description="A list of positions of players at start")
+    player_positions: List[str] = Field(
+        description="A list of positions of players at start"
+    )
     status: ContestStatus = Field(description="Contest status")
-    start_time: Optional[datetime] = Field(default=None, description="Contest start time")
+    start_time: Optional[datetime] = Field(
+        default=None, description="Contest start time"
+    )
     end_time: Optional[datetime] = Field(default=None, description="Contest end time")
     winner: Optional[ArenaAgent] = Field(description="winning player")

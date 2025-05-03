@@ -3,26 +3,29 @@ RoundStatsDTO controller for the Agent Arena application.
 Handles HTTP requests for roundstats operations.
 """
 
-from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Annotated, Dict, List
-from ulid import ULID
-
-from agentarena.models.stats import RoundStatsDTO
-from agentarena.services.model_service import ModelService
-from agentarena.config.containers import Container
+from typing import Dict, List
 
 import structlog
+from dependency_injector.wiring import Provide, inject
+from fastapi import APIRouter, Depends, HTTPException
+from ulid import ULID
+
+from agentarena.config.containers import Container
+from agentarena.models.stats import RoundStatsDTO
+from agentarena.services.model_service import ModelService
 
 # Create a router for roundstats endpoints
 router = APIRouter(tags=["RoundStatsDTO"])
 log = structlog.get_logger("roundstats_controller").bind(module="roundstats_controller")
 
+
 @router.post("/roundstats", response_model=Dict[str, str])
 @inject
 async def create_roundstats(
     roundstats: RoundStatsDTO,
-    roundstats_service: ModelService[RoundStatsDTO] = Depends(Provide[Container.roundstats_service])
+    roundstats_service: ModelService[RoundStatsDTO] = Depends(
+        Provide[Container.roundstats_service]
+    ),
 ) -> Dict[str, str]:
     """
     Create a new roundstats.
@@ -39,11 +42,14 @@ async def create_roundstats(
         raise HTTPException(status_code=422, detail=response.validation)
     return {"id": id}
 
+
 @router.get("/roundstats/{roundstats_id}", response_model=RoundStatsDTO)
 @inject
 async def get_roundstats(
     roundstats_id: str,
-    roundstats_service: ModelService[RoundStatsDTO] = Depends(Provide[Container.roundstats_service])
+    roundstats_service: ModelService[RoundStatsDTO] = Depends(
+        Provide[Container.roundstats_service]
+    ),
 ) -> RoundStatsDTO:
     """
     Get a roundstats by ID.
@@ -63,10 +69,13 @@ async def get_roundstats(
         raise HTTPException(status_code=404, detail=response.error)
     return roundstats_obj
 
+
 @router.get("/roundstats", response_model=List[RoundStatsDTO])
 @inject
 async def get_roundstats_list(
-    roundstats_service: ModelService[RoundStatsDTO] = Depends(Provide[Container.roundstats_service])
+    roundstats_service: ModelService[RoundStatsDTO] = Depends(
+        Provide[Container.roundstats_service]
+    ),
 ) -> List[RoundStatsDTO]:
     """
     Get a list of all roundstats.
@@ -79,12 +88,15 @@ async def get_roundstats_list(
     """
     return await roundstats_service.list()
 
+
 @router.put("/roundstats/{roundstats_id}", response_model=Dict[str, bool])
 @inject
 async def update_roundstats(
     roundstats_id: str,
     roundstats: RoundStatsDTO,
-    roundstats_service: ModelService[RoundStatsDTO] = Depends(Provide[Container.roundstats_service])
+    roundstats_service: ModelService[RoundStatsDTO] = Depends(
+        Provide[Container.roundstats_service]
+    ),
 ) -> Dict[str, bool]:
     """
     Update a roundstats.
@@ -105,11 +117,14 @@ async def update_roundstats(
         raise HTTPException(status_code=422, detail=response.validation)
     return {"success": response.success}
 
+
 @router.delete("/roundstats/{roundstats_id}", response_model=Dict[str, bool])
 @inject
 async def delete_roundstats(
     roundstats_id: str,
-    roundstats_service: ModelService[RoundStatsDTO] = Depends(Provide[Container.roundstats_service])
+    roundstats_service: ModelService[RoundStatsDTO] = Depends(
+        Provide[Container.roundstats_service]
+    ),
 ) -> Dict[str, bool]:
     """
     Delete a roundstats.

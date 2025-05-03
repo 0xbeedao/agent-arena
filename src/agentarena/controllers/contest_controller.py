@@ -3,29 +3,31 @@ ContestDTO controller for the Agent Arena application.
 Handles HTTP requests for contest operations.
 """
 
-from datetime import datetime
+from typing import Dict, List
+
+import structlog
 from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Annotated, Dict, List
+from fastapi import APIRouter, Depends, HTTPException
 from ulid import ULID
 
+from agentarena.config.containers import Container
 from agentarena.models.arenaagent import AgentRole
 from agentarena.models.contest import Contest, ContestDTO, ContestRequest, ContestStatus
 from agentarena.services.builder_service import make_contest
 from agentarena.services.model_service import ModelService
-from agentarena.config.containers import Container
-
-import structlog
 
 # Create a router for contest endpoints
 router = APIRouter(tags=["ContestDTO"])
 log = structlog.get_logger("contest_controller").bind(module="contest_controller")
 
+
 @router.post("/contest", response_model=Dict[str, str])
 @inject
 async def create_contest(
     createRequest: ContestRequest,
-    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
+    contest_service: ModelService[ContestDTO] = Depends(
+        Provide[Container.contest_service]
+    ),
 ) -> Dict[str, str]:
     """
     Create a new contest.
@@ -48,15 +50,18 @@ async def create_contest(
     )
     [contest_id, response] = await contest_service.create(contestDTO)
     if not response.success:
-        raise HTTPException(status_code=422, detail=response.validation)  
+        raise HTTPException(status_code=422, detail=response.validation)
 
-    return {"id": contest_id}    
+    return {"id": contest_id}
+
 
 @router.get("/contest/{contest_id}", response_model=Contest)
 @inject
 async def get_contest(
     contest_id: str,
-    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
+    contest_service: ModelService[ContestDTO] = Depends(
+        Provide[Container.contest_service]
+    ),
 ) -> Contest:
     """
     Get a contest by ID.
@@ -76,13 +81,16 @@ async def get_contest(
         log.info("Error getting that contest")
         raise HTTPException(status_code=404, detail=response.error)
     log.info("got contest_obj")
-    
+
     return await make_contest(contest_obj)
+
 
 @router.get("/contest", response_model=List[ContestDTO])
 @inject
 async def get_contest_list(
-    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
+    contest_service: ModelService[ContestDTO] = Depends(
+        Provide[Container.contest_service]
+    ),
 ) -> List[ContestDTO]:
     """
     Get a list of all contests.
@@ -95,12 +103,15 @@ async def get_contest_list(
     """
     return await contest_service.list()
 
+
 @router.put("/contest/{contest_id}", response_model=Dict[str, bool])
 @inject
 async def update_contest(
     contest_id: str,
     contest: ContestDTO,
-    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
+    contest_service: ModelService[ContestDTO] = Depends(
+        Provide[Container.contest_service]
+    ),
 ) -> Dict[str, bool]:
     """
     Update a contest.
@@ -122,11 +133,14 @@ async def update_contest(
         raise HTTPException(status_code=404, detail=response.validation)
     return {"success": response.success}
 
+
 @router.delete("/contest/{contest_id}", response_model=Dict[str, bool])
 @inject
 async def delete_contest(
     contest_id: str,
-    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
+    contest_service: ModelService[ContestDTO] = Depends(
+        Provide[Container.contest_service]
+    ),
 ) -> Dict[str, bool]:
     """
     Delete a contest.
@@ -146,11 +160,14 @@ async def delete_contest(
         raise HTTPException(status_code=404, detail=response.validation)
     return {"success": response.success}
 
+
 @router.post("/contest/{contest_id}/start", response_model=Dict[str, str])
 @inject
 async def start_contest(
     contest_id: str,
-    contest_service: ModelService[ContestDTO] = Depends(Provide[Container.contest_service])
+    contest_service: ModelService[ContestDTO] = Depends(
+        Provide[Container.contest_service]
+    ),
 ) -> Dict[str, str]:
     """
     Start a contest, and returns the ID of the started contest, with everything set up for first round.
@@ -168,25 +185,30 @@ async def start_contest(
     if not response.success:
         boundlog.error("failed to get contest")
         raise HTTPException(status_code=404, detail=response.validation)
-    
+
     if contestDTO.status != ContestStatus.CREATED:
         boundlog.error("contest is not in CREATED state, was: %s", contestDTO.status)
         raise HTTPException(status_code=422, detail="Contest is not in CREATED state")
-    
+
     # sanity check, we need at least one player, announcer, judge, and arena agent
     contest = await make_contest(contestDTO)
     arena = contest.arena
 
     if arena.agents is None or len(arena.agents) < 4:
         boundlog.error("No agents in arena, raising error")
-        raise HTTPException(status_code=422, detail="Arena needs at least 4 agents: player, announcer, judge, and arena agent")
-    
+        raise HTTPException(
+            status_code=422,
+            detail="Arena needs at least 4 agents: player, announcer, judge, and arena agent",
+        )
+
     agent_roles = arena.agents_by_role()
 
     for role in AgentRole:
         if agent_roles[role] is None or len(agent_roles[role]) == 0:
             boundlog.error("No agents in arena for role %s, raising error", role)
-            raise HTTPException(status_code=422, detail=f"Arena needs at least one {role} agent") 
+            raise HTTPException(
+                status_code=422, detail=f"Arena needs at least one {role} agent"
+            )
 
     # Set contest status to STARTING
     # and update start time
@@ -194,14 +216,8 @@ async def start_contest(
     # contestDTO.start_time = datetime.now()
     # contest_service.update(contest_id, contestDTO)
 
-
     # Populate the features if needed
     # if arena.max_random_features > 0:
     #     random_features = []
 
     return {"id": contest_id}
-    
-
-
-    
-    

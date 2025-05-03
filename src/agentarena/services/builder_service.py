@@ -1,4 +1,6 @@
 from typing import List
+
+import structlog
 from dependency_injector.wiring import Provide, inject
 from fastapi import Depends
 
@@ -10,15 +12,19 @@ from agentarena.models.contest import Contest, ContestDTO, ContestStatus
 from agentarena.models.feature import Feature, FeatureDTO
 from agentarena.models.strategy import Strategy, StrategyDTO
 from agentarena.services.model_service import ModelService
-import structlog
 
 log = structlog.getLogger("builder_service")
+
 
 @inject
 async def make_arena(
     arena_config: ArenaDTO,
-    arenaagent_service: ModelService[ArenaAgentDTO] = Depends(Provide[Container.arenaagent_service]),
-    feature_service: ModelService[FeatureDTO] = Depends(Provide[Container.feature_service]),
+    arenaagent_service: ModelService[ArenaAgentDTO] = Depends(
+        Provide[Container.arenaagent_service]
+    ),
+    feature_service: ModelService[FeatureDTO] = Depends(
+        Provide[Container.feature_service]
+    ),
 ) -> Arena:
     """
     Create an arena object from the arena configuration.
@@ -32,16 +38,20 @@ async def make_arena(
     """
     log.info(f"Making arena: #{arena_config.id}")
     # Get the features
-    featureDTOs: List[FeatureDTO] = await feature_service.get_where("arena_config_id = :id", {"id": arena_config.id})
+    featureDTOs: List[FeatureDTO] = await feature_service.get_where(
+        "arena_config_id = :id", {"id": arena_config.id}
+    )
     features = [Feature.from_dto(feature) for feature in featureDTOs]
 
     # Get the Agents
-    arenaagents: List[ArenaAgentDTO] = await arenaagent_service.get_where("arena_config_id = :id", {"id": arena_config.id})
+    arenaagents: List[ArenaAgentDTO] = await arenaagent_service.get_where(
+        "arena_config_id = :id", {"id": arena_config.id}
+    )
 
     agentResponses: List[ArenaAgent] = [
         await make_arenaagent(arena_agent) for arena_agent in arenaagents
     ]
-        
+
     return Arena(
         id=arena_config.id,
         name=arena_config.name,
@@ -51,15 +61,18 @@ async def make_arena(
         rules=arena_config.rules,
         max_random_features=arena_config.max_random_features,
         features=features,
-        agents=agentResponses
+        agents=agentResponses,
     )
+
 
 @inject
 async def make_arenaagent(
     arena_agent: ArenaAgentDTO,
     logger=log,
     agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service]),
-    strategy_service: ModelService[StrategyDTO] = Depends(Provide[Container.strategy_service]),
+    strategy_service: ModelService[StrategyDTO] = Depends(
+        Provide[Container.strategy_service]
+    ),
 ) -> ArenaAgent:
     """
     Create an arena agent object from the arena agent configuration.
@@ -90,14 +103,17 @@ async def make_arenaagent(
         agent_id=agentDTO.id,
         name=agentDTO.name,
         description=agentDTO.description,
-        strategy=strategy
+        strategy=strategy,
     )
+
 
 @inject
 async def make_contest(
     contestDTO: ContestDTO,
     arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
-    arenaagent_service: ModelService[ArenaAgentDTO] = Depends(Provide[Container.arenaagent_service]),
+    arenaagent_service: ModelService[ArenaAgentDTO] = Depends(
+        Provide[Container.arenaagent_service]
+    ),
 ) -> Contest:
     """
     Create a contest object from the contest configuration.
@@ -114,18 +130,18 @@ async def make_contest(
     [arenaDTO, response] = await arena_service.get(contestDTO.arena_config_id)
     if not response.success:
         raise ValueError(f"Arena with ID {contestDTO.arena_config_id} not found")
-    
+
     boundlog.info(f"got arenaDTO: {arenaDTO}")
     arena = await make_arena(arenaDTO)
     boundlog.info(f"got arena: {arena.id}")
-    
+
     winner = None
     if contestDTO.winner is not None:
         boundlog.info("Found a winner, loading it: {}", contestDTO.winnner)
         aa, _ = await arenaagent_service.get(contestDTO.winner)
         winner, _ = await make_arenaagent(aa, logger=boundlog)
 
-    positions: List[str] = contestDTO.player_positions.split(';')
+    positions: List[str] = contestDTO.player_positions.split(";")
     boundlog.info(f"positions: {positions}")
 
     return Contest(
@@ -138,4 +154,3 @@ async def make_contest(
         end_time=contestDTO.end_time,
         winner=winner,
     )
-    

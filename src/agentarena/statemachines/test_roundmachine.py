@@ -1,10 +1,11 @@
 import pytest
-from datetime import datetime
-from agentarena.statemachines.roundmachine import RoundMachine
-from agentarena.models.contest import Contest, ContestStatus
+
 from agentarena.models.arena import Arena
-from agentarena.models.arenaagent import ArenaAgent, AgentRole
+from agentarena.models.arenaagent import AgentRole, ArenaAgent
+from agentarena.models.contest import Contest, ContestStatus
 from agentarena.models.strategy import Strategy, StrategyType
+from agentarena.statemachines.roundmachine import RoundMachine
+
 
 def make_strategy():
     return Strategy(
@@ -13,8 +14,9 @@ def make_strategy():
         personality="Neutral",
         instructions="Do nothing",
         description="A test strategy",
-        role=StrategyType.PLAYER
+        role=StrategyType.PLAYER,
     )
+
 
 def make_agent(agent_id="agent1", role=AgentRole.PLAYER):
     return ArenaAgent(
@@ -22,8 +24,9 @@ def make_agent(agent_id="agent1", role=AgentRole.PLAYER):
         role=role,
         name="Test Agent",
         description="A test agent",
-        strategy=make_strategy()
+        strategy=make_strategy(),
     )
+
 
 def make_arena():
     return Arena(
@@ -35,8 +38,9 @@ def make_arena():
         rules="No rules",
         max_random_features=0,
         features=[],
-        agents=[make_agent()]
+        agents=[make_agent()],
     )
+
 
 def make_contest():
     return Contest(
@@ -47,13 +51,15 @@ def make_contest():
         status=ContestStatus.CREATED,
         start_time=None,
         end_time=None,
-        winner=None
+        winner=None,
     )
+
 
 def test_initial_state():
     contest = make_contest()
     machine = RoundMachine(contest)
     assert machine.current_state.id == "round_prompting"
+
 
 def test_prompt_sent_transition():
     contest = make_contest()
@@ -61,12 +67,14 @@ def test_prompt_sent_transition():
     machine.prompt_sent()
     assert machine.current_state.id == "awaiting_actions"
 
+
 def test_actions_received_transition():
     contest = make_contest()
     machine = RoundMachine(contest)
     machine.prompt_sent()
     machine.actions_received()
     assert machine.current_state.id == "judging_actions"
+
 
 def test_raw_results_transition():
     contest = make_contest()
@@ -76,6 +84,7 @@ def test_raw_results_transition():
     machine.raw_results()
     assert machine.current_state.id == "applying_effects"
 
+
 def test_effects_determined_transition():
     contest = make_contest()
     machine = RoundMachine(contest)
@@ -84,6 +93,7 @@ def test_effects_determined_transition():
     machine.raw_results()
     machine.effects_determined()
     assert machine.current_state.id == "describing_results"
+
 
 def test_results_ready_transition():
     contest = make_contest()
@@ -95,6 +105,7 @@ def test_results_ready_transition():
     machine.results_ready()
     assert machine.current_state.id == "presenting_results"
     assert machine.current_state.final
+
 
 def test_full_round_sequence():
     contest = make_contest()
@@ -111,6 +122,7 @@ def test_full_round_sequence():
     machine.results_ready()
     assert machine.current_state.id == "presenting_results"
     assert machine.current_state.final
+
 
 def test_on_enter_methods_are_callable():
     # These are empty, but we check they exist and are callable

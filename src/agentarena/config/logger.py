@@ -1,5 +1,7 @@
 import logging
+
 import structlog
+
 
 def setup_logging():
     """
@@ -12,12 +14,12 @@ def setup_logging():
             structlog.processors.StackInfoRenderer(),
             structlog.dev.set_exc_info,
             structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S", utc=False),
-            structlog.dev.ConsoleRenderer()
+            structlog.dev.ConsoleRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.NOTSET),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
-        cache_logger_on_first_use=False
+        cache_logger_on_first_use=False,
     )
     print("Logging configured")
 

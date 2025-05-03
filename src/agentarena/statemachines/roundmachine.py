@@ -1,6 +1,5 @@
-
-from statemachine import StateMachine, State
 import structlog
+from statemachine import State, StateMachine
 
 from agentarena.models.contest import Contest
 
@@ -8,7 +7,7 @@ from agentarena.models.contest import Contest
 class RoundMachine(StateMachine):
     """
     Round machine for handling the flow of a single round.
-    
+
     States:
     - RoundPrompting: Initial state for prompting
     - AwaitingActions: State for awaiting actions
@@ -17,13 +16,14 @@ class RoundMachine(StateMachine):
     - DescribingResults: State for describing results
     - PresentingResults: State for presenting results
     """
-    round_prompting = State('RoundPrompting', initial=True)
-    awaiting_actions = State('AwaitingActions')
-    judging_actions = State('JudgingActions')
-    applying_effects = State('ApplyingEffects')
-    describing_results = State('DescribingResults')
-    presenting_results = State('PresentingResults', final=True)
-    
+
+    round_prompting = State("RoundPrompting", initial=True)
+    awaiting_actions = State("AwaitingActions")
+    judging_actions = State("JudgingActions")
+    applying_effects = State("ApplyingEffects")
+    describing_results = State("DescribingResults")
+    presenting_results = State("PresentingResults", final=True)
+
     # cycle = (
     #     round_prompting.to(awaiting_actions)
     #     | awaiting_actions.to(judging_actions)
@@ -38,36 +38,32 @@ class RoundMachine(StateMachine):
     raw_results = judging_actions.to(applying_effects)
     effects_determined = applying_effects.to(describing_results)
     results_ready = describing_results.to(presenting_results)
-    
+
     def __init__(self, contest: Contest):
         """Initialize the round machine."""
         self.contest = contest
-        self.log = structlog.get_logger("roundmachine", contest = contest.id if contest else "none")
+        self.log = structlog.get_logger(
+            "roundmachine", contest=contest.id if contest else "none"
+        )
         super().__init__()
-        
+
     def on_enter_round_prompting(self):
         """Called when entering the RoundPrompting state."""
-        pass
-        
+
     def on_enter_awaiting_actions(self):
         """Called when entering the AwaitingActions state."""
-        pass
-        
+
     def on_enter_judging_actions(self):
         """Called when entering the JudgingActions state."""
-        pass
-        
+
     def on_enter_applying_effects(self):
         """Called when entering the ApplyingEffects state."""
-        pass
-        
+
     def on_enter_describing_results(self):
         """Called when entering the DescribingResults state."""
-        pass
-        
+
     def on_enter_presenting_results(self):
         """Called when entering the PresentingResults state."""
-        pass
 
     # logging changes
     def after_transition(self, event, source, target):

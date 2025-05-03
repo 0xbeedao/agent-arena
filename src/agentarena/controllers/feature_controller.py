@@ -3,26 +3,29 @@ FeatureDTO controller for the Agent Arena application.
 Handles HTTP requests for feature operations.
 """
 
-from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, List
-from ulid import ULID
-
-from agentarena.models.feature import FeatureDTO
-from agentarena.services.model_service import ModelService
-from agentarena.config.containers import Container
 
 import structlog
+from dependency_injector.wiring import Provide, inject
+from fastapi import APIRouter, Depends, HTTPException
+from ulid import ULID
+
+from agentarena.config.containers import Container
+from agentarena.models.feature import FeatureDTO
+from agentarena.services.model_service import ModelService
 
 # Create a router for feature endpoints
 router = APIRouter(tags=["FeatureDTO"])
 log = structlog.get_logger("feature_controller").bind(module="feature_controller")
 
+
 @router.post("/feature", response_model=Dict[str, str])
 @inject
 async def create_feature(
     feature: FeatureDTO,
-    feature_service: ModelService[FeatureDTO] = Depends(Provide[Container.feature_service])
+    feature_service: ModelService[FeatureDTO] = Depends(
+        Provide[Container.feature_service]
+    ),
 ) -> Dict[str, str]:
     """
     Create a new feature.
@@ -39,11 +42,14 @@ async def create_feature(
         raise HTTPException(status_code=422, detail=response.validation)
     return {"id": id}
 
+
 @router.get("/feature/{feature_id}", response_model=FeatureDTO)
 @inject
 async def get_feature(
     feature_id: str,
-    feature_service: ModelService[FeatureDTO] = Depends(Provide[Container.feature_service])
+    feature_service: ModelService[FeatureDTO] = Depends(
+        Provide[Container.feature_service]
+    ),
 ) -> FeatureDTO:
     """
     Get a feature by ID.
@@ -63,10 +69,13 @@ async def get_feature(
         raise HTTPException(status_code=404, detail=response.error)
     return feature_obj
 
+
 @router.get("/feature", response_model=List[FeatureDTO])
 @inject
 async def get_feature_list(
-    feature_service: ModelService[FeatureDTO] = Depends(Provide[Container.feature_service])
+    feature_service: ModelService[FeatureDTO] = Depends(
+        Provide[Container.feature_service]
+    ),
 ) -> List[FeatureDTO]:
     """
     Get a list of all features.
@@ -79,12 +88,15 @@ async def get_feature_list(
     """
     return await feature_service.list()
 
+
 @router.put("/feature/{feature_id}", response_model=Dict[str, bool])
 @inject
 async def update_feature(
     feature_id: str,
     feature: FeatureDTO,
-    feature_service: ModelService[FeatureDTO] = Depends(Provide[Container.feature_service])
+    feature_service: ModelService[FeatureDTO] = Depends(
+        Provide[Container.feature_service]
+    ),
 ) -> Dict[str, bool]:
     """
     Update a feature.
@@ -105,11 +117,14 @@ async def update_feature(
         raise HTTPException(status_code=422, detail=response.validation)
     return {"success": response.success}
 
+
 @router.delete("/feature/{feature_id}", response_model=Dict[str, bool])
 @inject
 async def delete_feature(
     feature_id: str,
-    feature_service: ModelService[FeatureDTO] = Depends(Provide[Container.feature_service])
+    feature_service: ModelService[FeatureDTO] = Depends(
+        Provide[Container.feature_service]
+    ),
 ) -> Dict[str, bool]:
     """
     Delete a feature.

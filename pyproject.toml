@@ -24,7 +24,8 @@ dependencies = [
     "python-ulid[pydantic]",
     "dependency-injector>=4.46.0",
     "python-statemachine>=2.5.0",
-    "asyncio>=3.4.3"
+    "asyncio>=3.4.3",
+    "litequeue>=0.9",
 ]
 
 [project.optional-dependencies]

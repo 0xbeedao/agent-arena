@@ -1,18 +1,18 @@
 """
 FastAPI server for the Agent Arena application.
 """
+
 import os
 import sys
+from pathlib import Path
+
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pathlib import Path
 
 from agentarena.config.containers import Container
 from agentarena.controllers import routers
-import os
-from pathlib import Path
 
 # Initialize the container
 container = Container()
@@ -23,16 +23,19 @@ if os.path.exists(yamlFile):
 # Always initialize resources and wire the container
 container.init_resources()
 
-to_wire = ['agentarena.controllers.%s_controller' % module for module in [
-    'agent', 
-    'arena', 
-    'contest',
-    'feature',
-    'roundstats',
-    'strategy', 
-]]
+to_wire = [
+    "agentarena.controllers.%s_controller" % module
+    for module in [
+        "agent",
+        "arena",
+        "contest",
+        "feature",
+        "roundstats",
+        "strategy",
+    ]
+]
 # wire up the service class
-to_wire.append('agentarena.services.builder_service') 
+to_wire.append("agentarena.services.builder_service")
 
 container.wire(modules=to_wire)
 
@@ -55,6 +58,7 @@ app.add_middleware(
 # Include routers
 [app.include_router(router) for router in routers]
 
+
 # Add exception handlers
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
@@ -64,6 +68,7 @@ async def http_exception_handler(request, exc):
         content={"message": exc.detail},
     )
 
+
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
     """Handle general exceptions."""
@@ -72,11 +77,13 @@ async def general_exception_handler(request, exc):
         content={"message": f"Internal server error: {str(exc)}"},
     )
 
+
 # Add health check endpoint
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok"}
+
 
 # Run the server if this file is executed directly
 if __name__ == "__main__":

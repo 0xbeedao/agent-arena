@@ -14,3 +14,9 @@ load: checkvenv
 
 test: checkvenv
     PYTHONPATH=src pytest
+
+[working-directory: "src"]
+lint:
+    isort .
+    black .
+    autoflake -r -v -i ./*

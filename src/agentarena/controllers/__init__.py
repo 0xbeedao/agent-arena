@@ -1,6 +1,7 @@
 """
 Controllers package for the Agent Arena application.
 """
+
 from .agent_controller import router as agent_router
 from .arena_controller import router as arena_router
 from .contest_controller import router as contest_router
