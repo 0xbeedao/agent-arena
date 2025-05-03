@@ -3,6 +3,7 @@ from sqlite_utils.db import Database
 from pathlib import Path
 
 from agentarena.models.feature import FeatureDTO
+from agentarena.models.state import ArenaStateDTO
 
 
 from .logger import setup_logging
@@ -71,6 +72,13 @@ class Container(containers.DeclarativeContainer):
         model_class=ArenaAgentDTO,
         dbService=db_service,
         table_name="arena_agents"
+    )
+
+    arenastate_service = providers.Singleton(
+        ModelService[ArenaStateDTO],
+        model_class=ArenaStateDTO,
+        dbService=db_service,
+        table_name="arena_states"
     )
 
     contest_service = providers.Singleton(
