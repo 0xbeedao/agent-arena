@@ -1,5 +1,6 @@
 import structlog
-from statemachine import State, StateMachine
+from statemachine import State
+from statemachine import StateMachine
 
 from agentarena.models.contest import Contest
 

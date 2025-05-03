@@ -4,9 +4,12 @@ Contest model for the Agent Arena application.
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Tuple
+from typing import List
+from typing import Optional
+from typing import Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic import Field
 
 from agentarena.models.arena import Arena
 from agentarena.models.arenaagent import ArenaAgent

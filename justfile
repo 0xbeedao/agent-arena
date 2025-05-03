@@ -17,6 +17,6 @@ test: checkvenv
 
 [working-directory: "src"]
 lint:
-    isort .
+    autoflake -r -v -i --remove-all-unused-imports ./*
+    isort --sl .
     black .
-    autoflake -r -v -i ./*

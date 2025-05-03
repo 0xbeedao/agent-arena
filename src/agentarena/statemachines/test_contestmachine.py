@@ -1,7 +1,10 @@
 from agentarena.models.arena import Arena
-from agentarena.models.arenaagent import AgentRole, ArenaAgent
-from agentarena.models.contest import Contest, ContestStatus
-from agentarena.models.strategy import Strategy, StrategyType
+from agentarena.models.arenaagent import AgentRole
+from agentarena.models.arenaagent import ArenaAgent
+from agentarena.models.contest import Contest
+from agentarena.models.contest import ContestStatus
+from agentarena.models.strategy import Strategy
+from agentarena.models.strategy import StrategyType
 from agentarena.statemachines.contestmachine import ContestMachine
 
 

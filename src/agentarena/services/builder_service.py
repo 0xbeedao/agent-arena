@@ -1,16 +1,23 @@
 from typing import List
 
 import structlog
-from dependency_injector.wiring import Provide, inject
+from dependency_injector.wiring import Provide
+from dependency_injector.wiring import inject
 from fastapi import Depends
 
 from agentarena.config.containers import Container
 from agentarena.models.agent import AgentDTO
-from agentarena.models.arena import Arena, ArenaDTO
-from agentarena.models.arenaagent import ArenaAgent, ArenaAgentDTO
-from agentarena.models.contest import Contest, ContestDTO, ContestStatus
-from agentarena.models.feature import Feature, FeatureDTO
-from agentarena.models.strategy import Strategy, StrategyDTO
+from agentarena.models.arena import Arena
+from agentarena.models.arena import ArenaDTO
+from agentarena.models.arenaagent import ArenaAgent
+from agentarena.models.arenaagent import ArenaAgentDTO
+from agentarena.models.contest import Contest
+from agentarena.models.contest import ContestDTO
+from agentarena.models.contest import ContestStatus
+from agentarena.models.feature import Feature
+from agentarena.models.feature import FeatureDTO
+from agentarena.models.strategy import Strategy
+from agentarena.models.strategy import StrategyDTO
 from agentarena.services.model_service import ModelService
 
 log = structlog.getLogger("builder_service")

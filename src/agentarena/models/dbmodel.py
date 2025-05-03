@@ -1,7 +1,10 @@
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import List
+from typing import Optional
+from typing import Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic import Field
 
 from .validation import ValidationResponse
 

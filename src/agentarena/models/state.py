@@ -2,14 +2,18 @@
 Arena state model for the Agent Arena application.
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 from pydantic import Field
 
 from .dbmodel import DbBase
 from .feature import FeatureDTO
 from .judge import JudgeResultDTO
-from .player import PlayerAction, PlayerStateDTO
+from .player import PlayerAction
+from .player import PlayerStateDTO
 
 
 class ArenaStateDTO(DbBase):

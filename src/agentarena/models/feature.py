@@ -5,7 +5,8 @@ Feature model for the Agent Arena application.
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic import Field
 
 from .dbmodel import DbBase
 

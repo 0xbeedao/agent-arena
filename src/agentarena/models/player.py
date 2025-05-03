@@ -2,7 +2,11 @@
 Player models for the Agent Arena application.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 from pydantic import Field
 

@@ -6,7 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from agentarena.models.contest import Contest, ContestStatus
+from agentarena.models.contest import Contest
+from agentarena.models.contest import ContestStatus
 from agentarena.statemachines.setupmachine import SetupMachine
 
 

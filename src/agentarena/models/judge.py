@@ -2,7 +2,9 @@
 Judge models for the Agent Arena application.
 """
 
-from typing import List, Optional, Tuple
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 from pydantic import Field
 

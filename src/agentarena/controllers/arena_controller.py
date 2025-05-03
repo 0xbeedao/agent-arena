@@ -3,21 +3,29 @@ Arena controller for the Agent Arena application.
 Handles HTTP requests for arena operations.
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import structlog
-from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, Depends, HTTPException
+from dependency_injector.wiring import Provide
+from dependency_injector.wiring import inject
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException
 
 from agentarena.config.containers import Container
 from agentarena.models.agent import AgentDTO
-from agentarena.models.arena import Arena, ArenaAgent, ArenaCreateRequest, ArenaDTO
+from agentarena.models.arena import Arena
+from agentarena.models.arena import ArenaCreateRequest
+from agentarena.models.arena import ArenaDTO
 from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.dbmodel import DbBase
-from agentarena.models.feature import FeatureDTO, FeatureOriginType
-from agentarena.models.strategy import StrategyDTO
+from agentarena.models.feature import FeatureDTO
+from agentarena.models.feature import FeatureOriginType
 from agentarena.services.builder_service import make_arena
-from agentarena.services.model_service import ModelResponse, ModelService
+from agentarena.services.model_service import ModelResponse
+from agentarena.services.model_service import ModelService
 
 # Create a router for arena endpoints
 router = APIRouter(tags=["Arena"])

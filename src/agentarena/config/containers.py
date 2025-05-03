@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from dependency_injector import containers, providers
+from dependency_injector import containers
+from dependency_injector import providers
 from sqlite_utils.db import Database
 
 from agentarena.models.agent import AgentDTO

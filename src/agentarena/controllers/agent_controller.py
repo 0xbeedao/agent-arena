@@ -3,16 +3,19 @@ Agent controller for the Agent Arena application.
 Handles HTTP requests for agent operations.
 """
 
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 import structlog
-from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, Depends, HTTPException
-from ulid import ULID
+from dependency_injector.wiring import Provide
+from dependency_injector.wiring import inject
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException
 
 from agentarena.config.containers import Container
 from agentarena.models.agent import AgentDTO
-from agentarena.services.model_service import ModelResponse, ModelService
+from agentarena.services.model_service import ModelService
 
 # Create a router for agent endpoints
 router = APIRouter(tags=["Agent"])

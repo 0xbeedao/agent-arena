@@ -6,8 +6,8 @@ from .agent import AgentDTO
 from .arena import ArenaDTO
 from .contest import ContestDTO
 from .feature import FeatureDTO
-from .judge import JudgeResultDTO
-from .player import PlayerAction, PlayerStateDTO
+from .player import PlayerAction
+from .player import PlayerStateDTO
 from .state import ArenaStateDTO
 from .stats import RoundStatsDTO
 from .strategy import StrategyDTO

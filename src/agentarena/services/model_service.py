@@ -6,7 +6,14 @@ Provides a reusable service for CRUD operations on any model that inherits from 
 import json
 import sqlite3
 from datetime import datetime
-from typing import Any, Dict, Generic, List, Optional, Tuple, Type, TypeVar
+from typing import Any
+from typing import Dict
+from typing import Generic
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import TypeVar
 
 import structlog
 from pydantic import BaseModel

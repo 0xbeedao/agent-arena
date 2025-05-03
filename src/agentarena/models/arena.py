@@ -2,13 +2,19 @@
 Arena configuration model for the Agent Arena application.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict
+from typing import List
+from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic import Field
 
-from .arenaagent import AgentRole, ArenaAgent, ArenaAgentRequest
+from .arenaagent import AgentRole
+from .arenaagent import ArenaAgent
+from .arenaagent import ArenaAgentRequest
 from .dbmodel import DbBase
-from .feature import Feature, FeatureRequest
+from .feature import Feature
+from .feature import FeatureRequest
 
 
 class ArenaDTO(DbBase):
