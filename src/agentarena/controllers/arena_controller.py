@@ -14,13 +14,13 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
-from agentarena.config.containers import Container
+from agentarena.containers.container import Container
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaCreateRequest
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.arenaagent import ArenaAgentDTO
-from agentarena.models.dbmodel import DbBase
+from agentarena.models.dbbase import DbBase
 from agentarena.models.feature import FeatureDTO
 from agentarena.models.feature import FeatureOriginType
 from agentarena.services.builder_service import make_arena

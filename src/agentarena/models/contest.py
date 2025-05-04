@@ -14,7 +14,7 @@ from pydantic import Field
 from agentarena.models.arena import Arena
 from agentarena.models.arenaagent import ArenaAgent
 
-from .dbmodel import DbBase
+from .dbbase import DbBase
 
 
 class ContestRole(str, Enum):

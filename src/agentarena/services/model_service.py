@@ -19,7 +19,7 @@ import structlog
 from pydantic import BaseModel
 from ulid import ULID
 
-from agentarena.models.dbmodel import DbBase
+from agentarena.models.dbbase import DbBase
 from agentarena.models.validation import ValidationResponse
 
 from .db_service import DbService

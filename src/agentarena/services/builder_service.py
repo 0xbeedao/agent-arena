@@ -5,7 +5,7 @@ from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import Depends
 
-from agentarena.config.containers import Container
+from agentarena.containers.container import Container
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaDTO

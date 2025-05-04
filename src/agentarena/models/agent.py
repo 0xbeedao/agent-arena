@@ -8,7 +8,7 @@ from typing import Tuple
 
 from pydantic import Field
 
-from .dbmodel import DbBase
+from .dbbase import DbBase
 
 
 class AgentDTO(DbBase):

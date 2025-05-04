@@ -12,7 +12,7 @@ from pydantic import Field
 from .arenaagent import AgentRole
 from .arenaagent import ArenaAgent
 from .arenaagent import ArenaAgentRequest
-from .dbmodel import DbBase
+from .dbbase import DbBase
 from .feature import Feature
 from .feature import FeatureRequest
 

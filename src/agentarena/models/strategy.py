@@ -8,7 +8,7 @@ from typing import Optional
 from pydantic import BaseModel
 from pydantic import Field
 
-from .dbmodel import DbBase
+from .dbbase import DbBase
 from .validation import ValidationResponse
 
 

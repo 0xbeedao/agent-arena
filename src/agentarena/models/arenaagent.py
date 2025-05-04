@@ -3,7 +3,7 @@ from enum import Enum
 from pydantic import BaseModel
 from pydantic import Field
 
-from .dbmodel import DbBase
+from .dbbase import DbBase
 from .strategy import Strategy
 
 

@@ -13,7 +13,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
-from agentarena.config.containers import Container
+from agentarena.containers.container import Container
 from agentarena.models.agent import AgentDTO
 from agentarena.services.model_service import ModelService
 
