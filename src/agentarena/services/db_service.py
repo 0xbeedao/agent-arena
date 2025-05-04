@@ -7,6 +7,9 @@ from ulid import ULID
 
 
 class DbService:
+    """
+    Provides db service, and a handle to the DB itself.
+    """
 
     def __init__(self, projectroot: str, dbfile: str, get_database):
 

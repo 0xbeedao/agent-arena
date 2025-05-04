@@ -3,7 +3,7 @@ import logging
 import structlog
 
 
-def setup_logging():
+def get_logger():
     """
     Configure structlog logging.
     """
@@ -23,4 +23,4 @@ def setup_logging():
     )
     print("Logging configured")
 
-    return structlog
+    return structlog.get_logger

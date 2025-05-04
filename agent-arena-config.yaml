@@ -1,2 +1,5 @@
 db:
   filename: <projectroot>/arena.db
+queues:
+  jobs:
+    filename: <projectroot>/queue.db

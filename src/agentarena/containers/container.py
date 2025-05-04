@@ -1,9 +1,12 @@
 from pathlib import Path
 
+import httpx
 from dependency_injector import containers
 from dependency_injector import providers
-from sqlite_utils.db import Database
 
+from .db import get_database
+from .queue import get_queue
+from .environment import get_project_root
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.arenaagent import ArenaAgentDTO
@@ -14,22 +17,9 @@ from agentarena.models.stats import RoundStatsDTO
 from agentarena.models.strategy import StrategyDTO
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
+from agentarena.services.queue_service import QueueService
 
 from .logger import setup_logging
-
-
-def get_database(filename: str, memory: bool = False) -> Database:
-    if memory:
-        return Database(memory=True)
-
-    print(f"opening db at: {filename}")
-    return Database(filename)
-
-
-def get_project_root():
-    root = Path(__file__).parent.parent.parent.parent
-    print(f"root: {root}")
-    return root
 
 
 class Container(containers.DeclarativeContainer):
@@ -40,10 +30,14 @@ class Container(containers.DeclarativeContainer):
 
     logging = providers.Resource(setup_logging)
 
-    get_db = providers.Factory(get_database)
+    get_q = providers.Factory(get_queue)
 
     db_service = providers.Singleton(
         DbService, projectroot, config.db.filename, get_database
+    )
+
+    job_q_service = providers.Singleton(
+        QueueService, projectroot, config.queues.jobs.filename, get_q
     )
 
     # model services
@@ -103,3 +97,5 @@ class Container(containers.DeclarativeContainer):
         dbService=db_service,
         table_name="strategies",
     )
+
+    http_client = providers.Factory(httpx.Client)

@@ -1,0 +1,50 @@
+"""
+Responder controller for Agent Response endpoints
+"""
+
+import structlog
+from dependency_injector.wiring import Provide
+from dependency_injector.wiring import inject
+from fastapi import APIRouter
+from fastapi import Depends
+
+from agentarena.containers.container import Container
+from agentarena.models.agent import AgentDTO
+from agentarena.models.arenaagent import ArenaAgent
+from agentarena.models.job import HealthResponse
+from agentarena.models.job import HealthStatus
+from agentarena.services.builder_service import make_arenaagent
+from agentarena.services.model_service import ModelService
+
+# Create a router for agent endpoints
+router = APIRouter(tags=["Responder"])
+log = structlog.get_logger("responder_controller", module="responder_controller")
+
+
+@router.get(
+    "/responders/{arenaagent_id}/health/{job_id}", response_model=HealthResponse
+)
+@inject
+async def healthcheck(
+    arenaagent_id: str,
+    job_id: str,
+    arenaagent_service: ModelService[AgentDTO] = Depends(
+        Provide[Container.arenaagent_service]
+    ),
+) -> HealthResponse:
+    aa, response = await arenaagent_service.get(arenaagent_id)
+
+    if not response.success:
+        return HealthResponse(
+            status="failed",
+            message=f"no such responder: #{arenaagent_id}",
+            job_id=job_id,
+        )
+
+    agent: ArenaAgent = await make_arenaagent(aa)
+
+    return HealthResponse(
+        status="completed",
+        job_id=job_id,
+        data=HealthStatus(name=agent.name, status="OK", version="1"),
+    )

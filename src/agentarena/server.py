@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from agentarena.config.containers import Container
+from agentarena.containers.container import Container
 from agentarena.controllers import routers
 
 # Initialize the container
@@ -31,6 +31,7 @@ to_wire = [
         "arena",
         "contest",
         "feature",
+        "responder",
         "roundstats",
         "strategy",
     ]
