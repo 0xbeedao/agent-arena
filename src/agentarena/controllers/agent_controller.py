@@ -6,20 +6,18 @@ Handles HTTP requests for agent operations.
 from typing import Dict
 from typing import List
 
-import structlog
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
-from agentarena.containers.container import Container
+from agentarena.containers import Container
 from agentarena.models.agent import AgentDTO
 from agentarena.services.model_service import ModelService
 
 # Create a router for agent endpoints
 router = APIRouter(tags=["Agent"])
-log = structlog.get_logger("agent_controller").bind(module="agent_controller")
 
 
 @router.post("/agent", response_model=Dict[str, str])

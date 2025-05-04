@@ -6,20 +6,18 @@ Handles HTTP requests for strategy operations.
 from typing import Dict
 from typing import List
 
-import structlog
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
-from agentarena.containers.container import Container
+from agentarena.containers import Container
 from agentarena.models.strategy import StrategyDTO
 from agentarena.services.model_service import ModelService
 
 # Create a router for strategy endpoints
 router = APIRouter(tags=["StrategyDTO"])
-log = structlog.get_logger("strategy_controller").bind(module="strategy_controller")
 
 
 @router.post("/strategy", response_model=Dict[str, str])

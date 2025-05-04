@@ -1,12 +1,14 @@
-from pathlib import Path
-
 import httpx
 from dependency_injector import containers
 from dependency_injector import providers
 
-from .db import get_database
-from .queue import get_queue
-from .environment import get_project_root
+from agentarena.factories.arena import arena_factory
+from agentarena.factories.arenaagent import arenaagent_factory
+from agentarena.factories.contest import contest_factory
+from agentarena.factories.db import get_database
+from agentarena.factories.environment import get_project_root
+from agentarena.factories.logger import get_logger
+from agentarena.factories.queue import get_queue
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.arenaagent import ArenaAgentDTO
@@ -19,8 +21,6 @@ from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 
-from .logger import setup_logging
-
 
 class Container(containers.DeclarativeContainer):
 
@@ -28,7 +28,7 @@ class Container(containers.DeclarativeContainer):
 
     projectroot = providers.Resource(get_project_root)
 
-    logging = providers.Resource(setup_logging)
+    make_logger = providers.Factory(get_logger)
 
     get_q = providers.Factory(get_queue)
 
@@ -98,4 +98,26 @@ class Container(containers.DeclarativeContainer):
         table_name="strategies",
     )
 
-    http_client = providers.Factory(httpx.Client)
+    # factory services
+    make_httpclient = providers.Factory(httpx.Client)
+
+    make_arenaagent = providers.Factory(
+        arenaagent_factory,
+        agent_service=agent_service,
+        strategy_service=strategy_service,
+    )
+
+    make_arena = providers.Factory(
+        arena_factory,
+        arenaagent_service=arenaagent_service,
+        feature_service=feature_service,
+        make_arenaagent=make_arenaagent,
+    )
+
+    make_contest = providers.Factory(
+        contest_factory,
+        arena_service=arena_service,
+        arenaagent_service=arenaagent_service,
+        make_arenaagent=make_arenaagent,
+        make_arena=make_arena,
+    )

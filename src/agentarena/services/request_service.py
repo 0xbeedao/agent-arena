@@ -1,8 +1,7 @@
-import structlog
 from dependency_injector.wiring import Provide
 from fastapi import Depends
 
-from agentarena.containers.container import Container
+from agentarena.containers import Container
 from agentarena.models.job import Job
 from agentarena.statemachines.request_machine import RequestMachine
 
@@ -23,6 +22,7 @@ class RequestService:
         self,
         queue_service=Depends(Provide[Container.job_q_service]),
         http_client_factory=Depends(Provide[Container.http_client]),
+        make_logger=None,
     ):
         """
         :param queue_service: Service for queue operations (get, requeue jobs).
@@ -31,7 +31,7 @@ class RequestService:
         """
         self.queue_service = queue_service
         self.http_client = http_client_factory()
-        self.log = structlog.get_logger("requestservice")
+        self.log = make_logger("requestservice")
 
     def poll_and_process(self):
         """

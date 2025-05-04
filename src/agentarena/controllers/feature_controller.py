@@ -6,20 +6,18 @@ Handles HTTP requests for feature operations.
 from typing import Dict
 from typing import List
 
-import structlog
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
-from agentarena.containers.container import Container
+from agentarena.containers import Container
 from agentarena.models.feature import FeatureDTO
 from agentarena.services.model_service import ModelService
 
 # Create a router for feature endpoints
 router = APIRouter(tags=["FeatureDTO"])
-log = structlog.get_logger("feature_controller").bind(module="feature_controller")
 
 
 @router.post("/feature", response_model=Dict[str, str])

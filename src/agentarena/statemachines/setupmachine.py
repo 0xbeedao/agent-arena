@@ -1,4 +1,3 @@
-import structlog
 from statemachine import State
 from statemachine import StateMachine
 
@@ -27,10 +26,10 @@ class SetupMachine(StateMachine):
         describing_setup
     )
 
-    def __init__(self, contest: Contest):
+    def __init__(self, contest: Contest, make_logger=None):
         """Initialize the setup machine."""
         self.contest = contest
-        self.log = structlog.get_logger(
+        self.log = make_logger(
             "setupmachine", contest=contest.id if contest else "none"
         )
         super().__init__()

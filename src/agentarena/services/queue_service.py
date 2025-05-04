@@ -2,7 +2,6 @@ import os.path
 from typing import Any
 from typing import Tuple
 
-import structlog
 from litequeue import LiteQueue
 
 from agentarena.models.job import Job
@@ -13,9 +12,9 @@ class QueueService:
     Provides Queue services, and a handle to the queue itself.
     """
 
-    def __init__(self, projectroot: str, dbfile: str, get_queue):
+    def __init__(self, projectroot: str, dbfile: str, get_queue=None, make_logger=None):
         filename = dbfile.replace("<projectroot>", str(projectroot))
-        self.log = structlog.getLogger(
+        self.log = make_logger(
             "queueservice", module="queue_service", db=os.path.basename(filename)
         )
 

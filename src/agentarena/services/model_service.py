@@ -15,7 +15,6 @@ from typing import Tuple
 from typing import Type
 from typing import TypeVar
 
-import structlog
 from pydantic import BaseModel
 from ulid import ULID
 
@@ -50,7 +49,13 @@ class ModelService(Generic[T]):
     It can be used directly or as a base class for more specialized services.
     """
 
-    def __init__(self, model_class: Type[T], dbService: DbService, table_name: str):
+    def __init__(
+        self,
+        model_class: Type[T],
+        dbService: DbService,
+        table_name: str,
+        make_logger=None,
+    ):
         """
         Initialize the model service.
 
@@ -69,8 +74,10 @@ class ModelService(Generic[T]):
         self.table_name = table_name
         self.table = dbService.db[table_name]
         self.model_name = model_class.__name__
-        self.log = structlog.get_logger(f"{self.model_name}service").bind(
-            module=f"{self.model_name}service", model=self.model_name
+        self.log = make_logger(
+            f"{self.model_name}service",
+            module=f"{self.model_name}service",
+            model=self.model_name,
         )
 
     async def create(self, obj: T) -> Tuple[str, ModelResponse]:

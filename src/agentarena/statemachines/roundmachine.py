@@ -1,4 +1,3 @@
-import structlog
 from statemachine import State
 from statemachine import StateMachine
 
@@ -40,10 +39,10 @@ class RoundMachine(StateMachine):
     effects_determined = applying_effects.to(describing_results)
     results_ready = describing_results.to(presenting_results)
 
-    def __init__(self, contest: Contest):
+    def __init__(self, contest: Contest, make_logger=None):
         """Initialize the round machine."""
         self.contest = contest
-        self.log = structlog.get_logger(
+        self.log = make_logger(
             "roundmachine", contest=contest.id if contest else "none"
         )
         super().__init__()

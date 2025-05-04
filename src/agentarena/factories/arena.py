@@ -1,4 +1,6 @@
-from typing import List, Callable, Awaitable
+from typing import Awaitable
+from typing import Callable
+from typing import List
 
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaDTO
@@ -7,16 +9,16 @@ from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.feature import Feature
 from agentarena.models.feature import FeatureDTO
 from agentarena.services.model_service import ModelService
-import structlog
 
 log = structlog.get_logger(module="container.arena")
 
 
-async def make_arena(
+async def arena_factory(
     arena_config: ArenaDTO,
     arenaagent_service: ModelService[ArenaAgentDTO] = None,
     feature_service: ModelService[FeatureDTO] = None,
-    make_arenaagent: Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]] = None,
+    arenaagent_factory: Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]] = None,
+    make_logger=None,
 ) -> Arena:
     """
     Create an arena object from the arena configuration.
@@ -28,6 +30,7 @@ async def make_arena(
     Returns:
         The arena object
     """
+    log = make_logger(module="arena_factory", arena_id=arena_config.id)
     log.info(f"Making arena: #{arena_config.id}")
     # Get the features
     featureDTOs: List[FeatureDTO] = await feature_service.get_where(
@@ -41,7 +44,7 @@ async def make_arena(
     )
 
     agentResponses: List[ArenaAgent] = [
-        await make_arenaagent(arena_agent) for arena_agent in arenaagents
+        await arenaagent_factory(arena_agent) for arena_agent in arenaagents
     ]
 
     return Arena(

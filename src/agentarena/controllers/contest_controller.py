@@ -3,28 +3,27 @@ ContestDTO controller for the Agent Arena application.
 Handles HTTP requests for contest operations.
 """
 
+from typing import Awaitable
+from typing import Callable
 from typing import Dict
 from typing import List
 
-import structlog
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
-from agentarena.containers.container import Container
+from agentarena.containers import Container
 from agentarena.models.arenaagent import AgentRole
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestDTO
 from agentarena.models.contest import ContestRequest
 from agentarena.models.contest import ContestStatus
-from agentarena.services.builder_service import make_contest
 from agentarena.services.model_service import ModelService
 
 # Create a router for contest endpoints
 router = APIRouter(tags=["ContestDTO"])
-log = structlog.get_logger("contest_controller").bind(module="contest_controller")
 
 
 @router.post("/contest", response_model=Dict[str, str])
@@ -34,6 +33,7 @@ async def create_contest(
     contest_service: ModelService[ContestDTO] = Depends(
         Provide[Container.contest_service]
     ),
+    make_arenaagent=Callable[[ContestDTO], Awaitable[Contest]],
 ) -> Dict[str, str]:
     """
     Create a new contest.
@@ -84,9 +84,7 @@ async def get_contest(
     """
     [contest_obj, response] = await contest_service.get(contest_id)
     if not response.success:
-        log.info("Error getting that contest")
         raise HTTPException(status_code=404, detail=response.error)
-    log.info("got contest_obj")
 
     return await make_contest(contest_obj)
 
@@ -174,6 +172,7 @@ async def start_contest(
     contest_service: ModelService[ContestDTO] = Depends(
         Provide[Container.contest_service]
     ),
+    make_logger=Depends(Provide[Container.make_logger]),
 ) -> Dict[str, str]:
     """
     Start a contest, and returns the ID of the started contest, with everything set up for first round.
@@ -185,7 +184,7 @@ async def start_contest(
     Returns:
         A dictionary with the ID of the started contest
     """
-    boundlog = log.bind(contest_id=contest_id)
+    boundlog = make_logger(contest_id=contest_id)
     boundlog.info("starting contest")
     [contestDTO, response] = await contest_service.get(contest_id)
     if not response.success:

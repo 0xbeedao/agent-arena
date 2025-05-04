@@ -6,7 +6,6 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 
-import structlog
 from statemachine import State
 from statemachine import StateMachine
 
@@ -44,12 +43,12 @@ class ContestMachine(StateMachine):
     end_condition_met = checking_end.to(completed)
     more_rounds_remain = checking_end.to(ready)
 
-    def __init__(self, contest: Contest):
+    def __init__(self, contest: Contest, make_logger=None):
         """Initialize the contest machine."""
         self._setup_machine = None
         self._round_machine = None
         self.contest = contest
-        self.log = structlog.get_logger(
+        self.log = make_logger(
             "contestmachine", contest=contest.id if contest is not None else "none"
         )
         super().__init__()

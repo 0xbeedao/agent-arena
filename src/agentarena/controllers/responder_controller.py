@@ -2,23 +2,24 @@
 Responder controller for Agent Response endpoints
 """
 
-import structlog
+from typing import Awaitable
+from typing import Callable
+
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import APIRouter
 from fastapi import Depends
 
-from agentarena.containers.container import Container
+from agentarena.containers import Container
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arenaagent import ArenaAgent
+from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.job import HealthResponse
 from agentarena.models.job import HealthStatus
-from agentarena.services.builder_service import make_arenaagent
 from agentarena.services.model_service import ModelService
 
 # Create a router for agent endpoints
 router = APIRouter(tags=["Responder"])
-log = structlog.get_logger("responder_controller", module="responder_controller")
 
 
 @router.get(
@@ -31,6 +32,7 @@ async def healthcheck(
     arenaagent_service: ModelService[AgentDTO] = Depends(
         Provide[Container.arenaagent_service]
     ),
+    make_arenaagent=Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]],
 ) -> HealthResponse:
     aa, response = await arenaagent_service.get(arenaagent_id)
 

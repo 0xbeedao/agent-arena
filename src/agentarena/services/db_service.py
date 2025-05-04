@@ -1,7 +1,6 @@
 import os.path
 from datetime import datetime
 
-import structlog
 from sqlite_utils.db import Database
 from ulid import ULID
 
@@ -11,11 +10,13 @@ class DbService:
     Provides db service, and a handle to the DB itself.
     """
 
-    def __init__(self, projectroot: str, dbfile: str, get_database):
+    def __init__(
+        self, projectroot: str, dbfile: str, get_database=None, make_logger=None
+    ):
 
         filename = dbfile.replace("<projectroot>", str(projectroot))
-        self.log = structlog.getLogger("dbservice").bind(
-            module="dbservice", db=os.path.basename(filename)
+        self.log = make_logger(
+            "dbservice", module="dbservice", db=os.path.basename(filename)
         )
         self.log.info("Setting up DB at %s", filename)
         self.db: Database = get_database(filename)

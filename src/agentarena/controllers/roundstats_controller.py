@@ -6,20 +6,18 @@ Handles HTTP requests for roundstats operations.
 from typing import Dict
 from typing import List
 
-import structlog
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
-from agentarena.containers.container import Container
+from agentarena.containers import Container
 from agentarena.models.stats import RoundStatsDTO
 from agentarena.services.model_service import ModelService
 
 # Create a router for roundstats endpoints
 router = APIRouter(tags=["RoundStatsDTO"])
-log = structlog.get_logger("roundstats_controller").bind(module="roundstats_controller")
 
 
 @router.post("/roundstats", response_model=Dict[str, str])

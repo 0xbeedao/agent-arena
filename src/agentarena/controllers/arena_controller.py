@@ -3,18 +3,19 @@ Arena controller for the Agent Arena application.
 Handles HTTP requests for arena operations.
 """
 
+from typing import Awaitable
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Tuple
 
-import structlog
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
-from agentarena.containers.container import Container
+from agentarena.containers import Container
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaCreateRequest
@@ -23,13 +24,11 @@ from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.dbbase import DbBase
 from agentarena.models.feature import FeatureDTO
 from agentarena.models.feature import FeatureOriginType
-from agentarena.services.builder_service import make_arena
 from agentarena.services.model_service import ModelResponse
 from agentarena.services.model_service import ModelService
 
 # Create a router for arena endpoints
 router = APIRouter(tags=["Arena"])
-log = structlog.get_logger("arena_controller").bind(module="arena_controller")
 
 
 @router.post("/arena", response_model=Dict[str, str])
@@ -38,6 +37,7 @@ async def create_arena(
     createRequest: ArenaCreateRequest,
     arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
     agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service]),
+    make_logger=Depends(Provide[Container.make_logger]),
 ) -> Dict[str, str]:
     """
     Create a new arena.
@@ -61,6 +61,7 @@ async def create_arena(
 
     features = createRequest.features
     agents = createRequest.agents
+    log = make_logger(module="arena_controller", endpoint="create_arena")
 
     # get and validate the features
     invalid_features = get_invalid_features(features)
@@ -109,6 +110,7 @@ async def create_arena(
 async def get_arena(
     arena_id: str,
     arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
+    make_arena=Callable[[ArenaDTO], Awaitable[Arena]],
 ) -> Arena:
     """
     Get an arena by ID.
@@ -154,6 +156,7 @@ async def update_arena(
     updateRequest: ArenaCreateRequest,
     agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service]),
     arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
+    make_logger=Depends(Provide[Container.make_logger]),
 ) -> Dict[str, bool]:
     """
     Update an arena.
@@ -171,6 +174,9 @@ async def update_arena(
     """
     features = updateRequest.features
     agents = updateRequest.agents
+    log = make_logger(
+        module="arena_controller", endpoint="update_arena", arena_id=arena_id
+    )
 
     # get and validate the features
     invalid_features = get_invalid_features(features)
@@ -254,6 +260,7 @@ async def add_features_and_agents(
     arenaagent_service: ModelService[ArenaAgentDTO] = Depends(
         Provide[Container.arenaagent_service]
     ),
+    log=None,
 ) -> ModelResponse:
     """
     Add features and agents to the arena.
@@ -263,15 +270,19 @@ async def add_features_and_agents(
         features: The list of features to add
         agents: The list of agents to add
     """
+    locallog = log.bind(
+        module="arena_controller", arena_id=arena_id, method="add_features_and_agents"
+    )
     # If clean is true, delete the existing features and agents
     if clean:
+        locallog.info("Deleting old features and agents")
         feature_service.table.delete_where("arena_config_id = :id", {"id": arena_id})
         arenaagent_service.table.delete_where("arena_config_id = :id", {"id": arena_id})
 
     features = createRequest.features
     agents = createRequest.agents
     # db.execute("BEGIN TRANSACTION")
-    boundlog = log.bind(featureCt=len(features), agentCt=len(agents))
+    boundlog = locallog.bind(featureCt=len(features), agentCt=len(agents))
     boundlog.info("Mapping features and agents to arena")
     if len(features) > 0:
 
@@ -293,7 +304,7 @@ async def add_features_and_agents(
             # db.execute("ROLLBACK")
             return problems[0]
 
-    log.debug("Mapped %i features to arena %s", len(features), arena_id)
+    locallog.debug("Mapped %i features to arena %s", len(features), arena_id)
 
     # Map the agents to the arena
     if len(agents) > 0:
@@ -307,12 +318,12 @@ async def add_features_and_agents(
             if not response.success:
                 boundlog.error(
                     "Failed to map agent %s to arena %s, rolling-back",
-                    agent.id,
+                    agentReq.id,
                     arena_id,
                 )
                 # db.execute("ROLLBACK")
                 return ModelResponse(success=False, validation=response.validation)
-    log.debug("Mapped %i agents to arena %s", len(agents), arena_id)
+    locallog.debug("Mapped %i agents to arena %s", len(agents), arena_id)
 
     # db.execute("COMMIT")
     return ModelResponse(success=True)
