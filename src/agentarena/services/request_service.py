@@ -22,7 +22,7 @@ class RequestService:
         self,
         queue_service=Depends(Provide[Container.job_q_service]),
         http_client_factory=Depends(Provide[Container.http_client]),
-        make_logger=None,
+        logging=None,
     ):
         """
         :param queue_service: Service for queue operations (get, requeue jobs).
@@ -31,7 +31,7 @@ class RequestService:
         """
         self.queue_service = queue_service
         self.http_client = http_client_factory()
-        self.log = make_logger("requestservice")
+        self.log = logging.make_logger("requestservice")
 
     def poll_and_process(self):
         """

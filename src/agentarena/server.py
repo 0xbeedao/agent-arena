@@ -91,7 +91,7 @@ if __name__ == "__main__":
     if not os.path.exists(yamlFile):
         print(f"Cannot find the config file: {yamlFile}")
         sys.exit(1)
-    log = container.make_logger("server", module="server")
+    log = container.logging.make_logger("server", module="server")
     log.info("path: %s", container.projectroot())
     log.info("Starting app")
     dbService = container.db_service().add_audit_log("startup")

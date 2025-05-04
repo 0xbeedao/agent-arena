@@ -18,7 +18,7 @@ async def contest_factory(
     arenaagent_service: ModelService[ArenaAgentDTO] = None,
     make_arenaagent=Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]],
     make_arena=Callable[[ArenaDTO], Awaitable[Arena]],
-    make_logger=None,
+    logging=None,
 ) -> Contest:
     """
     Create a contest object from the contest configuration.
@@ -30,7 +30,7 @@ async def contest_factory(
     Returns:
         The contest object
     """
-    log = make_logger(contest=contestDTO.arena_config_id)
+    log = logging.make_logger(contest=contestDTO.arena_config_id)
     log.info("making contest")
     [arenaDTO, response] = await arena_service.get(contestDTO.arena_config_id)
     if not response.success:

@@ -39,10 +39,10 @@ class RoundMachine(StateMachine):
     effects_determined = applying_effects.to(describing_results)
     results_ready = describing_results.to(presenting_results)
 
-    def __init__(self, contest: Contest, make_logger=None):
+    def __init__(self, contest: Contest, logging=None):
         """Initialize the round machine."""
         self.contest = contest
-        self.log = make_logger(
+        self.log = logging.make_logger(
             "roundmachine", contest=contest.id if contest else "none"
         )
         super().__init__()

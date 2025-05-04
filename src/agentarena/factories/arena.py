@@ -16,7 +16,7 @@ async def arena_factory(
     arenaagent_service: ModelService[ArenaAgentDTO] = None,
     feature_service: ModelService[FeatureDTO] = None,
     arenaagent_factory: Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]] = None,
-    make_logger=None,
+    logging=None,
 ) -> Arena:
     """
     Create an arena object from the arena configuration.
@@ -28,7 +28,7 @@ async def arena_factory(
     Returns:
         The arena object
     """
-    log = make_logger(module="arena_factory", arena_id=arena_config.id)
+    log = logging.make_logger(module="arena_factory", arena_id=arena_config.id)
     log.info(f"Making arena: #{arena_config.id}")
     # Get the features
     featureDTOs: List[FeatureDTO] = await feature_service.get_where(

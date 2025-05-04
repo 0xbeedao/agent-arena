@@ -7,7 +7,7 @@ from agentarena.factories.arenaagent import arenaagent_factory
 from agentarena.factories.contest import contest_factory
 from agentarena.factories.db import get_database
 from agentarena.factories.environment import get_project_root
-from agentarena.factories.logger import get_logger
+from agentarena.factories.logger import LoggingService
 from agentarena.factories.queue import get_queue
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import ArenaDTO
@@ -28,7 +28,7 @@ class Container(containers.DeclarativeContainer):
 
     projectroot = providers.Resource(get_project_root)
 
-    make_logger = providers.Resource(get_logger)
+    logging = providers.Singleton(LoggingService)
 
     get_q = providers.Factory(get_queue)
 
@@ -37,7 +37,7 @@ class Container(containers.DeclarativeContainer):
         projectroot,
         config.db.filename,
         get_database=get_database,
-        make_logger=make_logger,
+        logging=logging,
     )
 
     job_q_service = providers.Singleton(
@@ -51,7 +51,7 @@ class Container(containers.DeclarativeContainer):
         model_class=AgentDTO,
         dbService=db_service,
         table_name="agents",
-        make_logger=make_logger,
+        logging=logging,
     )
 
     arena_service = providers.Singleton(
@@ -59,7 +59,7 @@ class Container(containers.DeclarativeContainer):
         model_class=ArenaDTO,
         dbService=db_service,
         table_name="arenas",
-        make_logger=make_logger,
+        logging=logging,
     )
 
     arenaagent_service = providers.Singleton(
@@ -67,7 +67,7 @@ class Container(containers.DeclarativeContainer):
         model_class=ArenaAgentDTO,
         dbService=db_service,
         table_name="arena_agents",
-        make_logger=make_logger,
+        logging=logging,
     )
 
     arenastate_service = providers.Singleton(
@@ -75,7 +75,7 @@ class Container(containers.DeclarativeContainer):
         model_class=ArenaStateDTO,
         dbService=db_service,
         table_name="arena_states",
-        make_logger=make_logger,
+        logging=logging,
     )
 
     contest_service = providers.Singleton(
@@ -83,7 +83,7 @@ class Container(containers.DeclarativeContainer):
         model_class=ContestDTO,
         dbService=db_service,
         table_name="contests",
-        make_logger=make_logger,
+        logging=logging,
     )
 
     feature_service = providers.Singleton(
@@ -91,7 +91,7 @@ class Container(containers.DeclarativeContainer):
         model_class=FeatureDTO,
         dbService=db_service,
         table_name="features",
-        make_logger=make_logger,
+        logging=logging,
     )
 
     roundstats_service = providers.Singleton(
@@ -99,7 +99,7 @@ class Container(containers.DeclarativeContainer):
         model_class=RoundStatsDTO,
         dbService=db_service,
         table_name="roundstats",
-        make_logger=make_logger,
+        logging=logging,
     )
 
     strategy_service = providers.Singleton(
@@ -107,7 +107,7 @@ class Container(containers.DeclarativeContainer):
         model_class=StrategyDTO,
         dbService=db_service,
         table_name="strategies",
-        make_logger=make_logger,
+        logging=logging,
     )
 
     # factory services
@@ -117,7 +117,7 @@ class Container(containers.DeclarativeContainer):
         arenaagent_factory,
         agent_service=agent_service,
         strategy_service=strategy_service,
-        make_logger=make_logger,
+        logging=logging,
     )
 
     make_arena = providers.Factory(
@@ -125,7 +125,7 @@ class Container(containers.DeclarativeContainer):
         arenaagent_service=arenaagent_service,
         feature_service=feature_service,
         make_arenaagent=make_arenaagent,
-        make_logger=make_logger,
+        logging=logging,
     )
 
     make_contest = providers.Factory(
@@ -134,5 +134,5 @@ class Container(containers.DeclarativeContainer):
         arenaagent_service=arenaagent_service,
         make_arenaagent=make_arenaagent,
         make_arena=make_arena,
-        make_logger=make_logger,
+        logging=logging,
     )

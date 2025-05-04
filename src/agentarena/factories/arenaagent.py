@@ -10,7 +10,7 @@ async def arenaagent_factory(
     arena_agent: ArenaAgentDTO,
     agent_service: ModelService[AgentDTO] = None,
     strategy_service: ModelService[StrategyDTO] = None,
-    make_logger=None,
+    logging=None,
 ) -> ArenaAgent:
     """
     Create an arena agent object from the arena agent configuration.
@@ -23,7 +23,7 @@ async def arenaagent_factory(
     Returns:
         The arena agent object
     """
-    log = make_logger.bind(arenaagent=arena_agent.id)
+    log = logging.bind(arenaagent=arena_agent.id)
     log.info("Making arenaagent")
 
     # Get the Agent

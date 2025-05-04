@@ -12,9 +12,9 @@ class QueueService:
     Provides Queue services, and a handle to the queue itself.
     """
 
-    def __init__(self, projectroot: str, dbfile: str, get_queue=None, make_logger=None):
+    def __init__(self, projectroot: str, dbfile: str, get_queue=None, logging=None):
         filename = dbfile.replace("<projectroot>", str(projectroot))
-        self.log = make_logger(
+        self.log = logging.make_logger(
             "queueservice", module="queue_service", db=os.path.basename(filename)
         )
 

@@ -35,14 +35,14 @@ class RequestMachine(StateMachine):
     state_pending = response.to(waiting)
     wakeup = waiting.to(request)
 
-    def __init__(self, job=None, make_logger=None):
+    def __init__(self, job=None, logging=None):
         """
         Initialize the request machine.
 
         :param job: Optional job or context object for the request.
         """
         self.job = job
-        self.log = make_logger(
+        self.log = logging.make_logger(
             "requestmachine", job=getattr(job, "id", None) if job else "none"
         )
         super().__init__()
