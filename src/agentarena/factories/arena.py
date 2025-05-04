@@ -10,8 +10,6 @@ from agentarena.models.feature import Feature
 from agentarena.models.feature import FeatureDTO
 from agentarena.services.model_service import ModelService
 
-log = structlog.get_logger(module="container.arena")
-
 
 async def arena_factory(
     arena_config: ArenaDTO,

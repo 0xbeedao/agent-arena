@@ -14,8 +14,8 @@ from agentarena.containers import Container
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arenaagent import ArenaAgent
 from agentarena.models.arenaagent import ArenaAgentDTO
-from agentarena.models.job import HealthResponse
-from agentarena.models.job import HealthStatus
+from agentarena.models.requests import HealthResponse
+from agentarena.models.requests import HealthStatus
 from agentarena.services.model_service import ModelService
 
 # Create a router for agent endpoints

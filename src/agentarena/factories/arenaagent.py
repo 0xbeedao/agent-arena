@@ -6,7 +6,7 @@ from agentarena.models.strategy import StrategyDTO
 from agentarena.services.model_service import ModelService
 
 
-async def make_arenaagent(
+async def arenaagent_factory(
     arena_agent: ArenaAgentDTO,
     agent_service: ModelService[AgentDTO] = None,
     strategy_service: ModelService[StrategyDTO] = None,
