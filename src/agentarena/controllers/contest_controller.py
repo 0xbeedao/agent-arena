@@ -15,12 +15,12 @@ from fastapi import Depends
 from fastapi import HTTPException
 
 from agentarena.containers import Container
-from agentarena.factories.contest import ContestFactory
-from agentarena.models.arenaagent import AgentRole
+from agentarena.factories.contest_factory import ContestFactory
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestDTO
 from agentarena.models.contest import ContestRequest
 from agentarena.models.contest import ContestStatus
+from agentarena.models.participant import ParticipantRole
 from agentarena.services.model_service import ModelService
 
 # Create a router for contest endpoints
@@ -34,7 +34,7 @@ async def create_contest(
     contest_service: ModelService[ContestDTO] = Depends(
         Provide[Container.contest_service]
     ),
-    make_arenaagent=Callable[[ContestDTO], Awaitable[Contest]],
+    make_participant=Callable[[ContestDTO], Awaitable[Contest]],
 ) -> Dict[str, str]:
     """
     Create a new contest.
@@ -198,7 +198,7 @@ async def start_contest(
         boundlog.error("contest is not in CREATED state, was: %s", contestDTO.status)
         raise HTTPException(status_code=422, detail="Contest is not in CREATED state")
 
-    # sanity check, we need at least one player, announcer, judge, and arena agent
+    # sanity check, we need at least one player, announcer, judge, and participant
     contest = await contest_factory.build(contestDTO)
     arena = contest.arena
 
@@ -206,12 +206,12 @@ async def start_contest(
         boundlog.error("No agents in arena, raising error")
         raise HTTPException(
             status_code=422,
-            detail="Arena needs at least 4 agents: player, announcer, judge, and arena agent",
+            detail="Arena needs at least 4 agents: player, announcer, judge, and participant",
         )
 
     agent_roles = arena.agents_by_role()
 
-    for role in AgentRole:
+    for role in ParticipantRole:
         if agent_roles[role] is None or len(agent_roles[role]) == 0:
             boundlog.error("No agents in arena for role %s, raising error", role)
             raise HTTPException(

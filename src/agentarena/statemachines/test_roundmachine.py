@@ -1,9 +1,9 @@
-from agentarena.factories.logger import LoggingService
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.arena import Arena
-from agentarena.models.arenaagent import AgentRole
-from agentarena.models.arenaagent import ArenaAgent
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestStatus
+from agentarena.models.participant import Participant
+from agentarena.models.participant import ParticipantRole
 from agentarena.models.strategy import Strategy
 from agentarena.models.strategy import StrategyType
 from agentarena.statemachines.roundmachine import RoundMachine
@@ -20,8 +20,8 @@ def make_strategy():
     )
 
 
-def make_agent(agent_id="agent1", role=AgentRole.PLAYER):
-    return ArenaAgent(
+def make_agent(agent_id="agent1", role=ParticipantRole.PLAYER):
+    return Participant(
         agent_id=agent_id,
         role=role,
         name="Test Agent",

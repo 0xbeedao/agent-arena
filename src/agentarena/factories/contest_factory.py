@@ -4,11 +4,11 @@ from typing import List
 
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaDTO
-from agentarena.models.arenaagent import ArenaAgent
-from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestDTO
 from agentarena.models.contest import ContestStatus
+from agentarena.models.participant import Participant
+from agentarena.models.participant import ParticipantDTO
 from agentarena.services.model_service import ModelService
 
 
@@ -17,14 +17,14 @@ class ContestFactory:
     def __init__(
         self,
         arena_service: ModelService[ArenaDTO] = None,
-        arenaagent_service: ModelService[ArenaAgentDTO] = None,
-        arenaagent_factory=Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]],
+        participant_service: ModelService[ParticipantDTO] = None,
+        participant_factory=Callable[[ParticipantDTO], Awaitable[Participant]],
         arena_factory=Callable[[ArenaDTO], Awaitable[Arena]],
         logging=None,
     ):
         self.arena_service = arena_service
-        self.arenaagent_service = arenaagent_service
-        self.arenaagent_factory = arenaagent_factory
+        self.participant_service = participant_service
+        self.participant_factory = participant_factory
         self.arena_factory = arena_factory
         self.log = logging.get_logger(module="contest_factory")
         self.log.debug("init")
@@ -58,8 +58,8 @@ class ContestFactory:
         winner = None
         if contestDTO.winner is not None:
             log.info(f"Found a winner, loading it: {contestDTO.winnner}")
-            aa, _ = await self.arenaagent_service.get(contestDTO.winner)
-            winner, _ = await self.arenaagent_factory.build(aa, logger=log)
+            aa, _ = await self.participant_service.get(contestDTO.winner)
+            winner, _ = await self.participant_factory.build(aa, logger=log)
 
         positions: List[str] = contestDTO.player_positions.split(";")
         log.info(f"positions: {positions}")

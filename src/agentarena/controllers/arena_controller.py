@@ -18,10 +18,10 @@ from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaCreateRequest
 from agentarena.models.arena import ArenaDTO
-from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.dbbase import DbBase
 from agentarena.models.feature import FeatureDTO
 from agentarena.models.feature import FeatureOriginType
+from agentarena.models.participant import ParticipantDTO
 from agentarena.services.model_service import ModelResponse
 from agentarena.services.model_service import ModelService
 
@@ -255,8 +255,8 @@ async def add_features_and_agents(
     feature_service: ModelService[FeatureDTO] = Depends(
         Provide[Container.feature_service]
     ),
-    arenaagent_service: ModelService[ArenaAgentDTO] = Depends(
-        Provide[Container.arenaagent_service]
+    participant_service: ModelService[ParticipantDTO] = Depends(
+        Provide[Container.participant_service]
     ),
     log=None,
 ) -> ModelResponse:
@@ -275,7 +275,9 @@ async def add_features_and_agents(
     if clean:
         locallog.info("Deleting old features and agents")
         feature_service.table.delete_where("arena_config_id = :id", {"id": arena_id})
-        arenaagent_service.table.delete_where("arena_config_id = :id", {"id": arena_id})
+        participant_service.table.delete_where(
+            "arena_config_id = :id", {"id": arena_id}
+        )
 
     features = createRequest.features
     agents = createRequest.agents
@@ -307,12 +309,12 @@ async def add_features_and_agents(
     # Map the agents to the arena
     if len(agents) > 0:
         for agentReq in agents:
-            arena_agent = ArenaAgentDTO(
+            participant = ParticipantDTO(
                 arena_config_id=arena_id,
                 agent_id=agentReq.agent_id,
                 role=agentReq.role,
             )
-            [_, response] = await arenaagent_service.create(arena_agent)
+            [_, response] = await participant_service.create(participant)
             if not response.success:
                 boundlog.error(
                     "Failed to map agent %s to arena %s, rolling-back",

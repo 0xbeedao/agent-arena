@@ -2,17 +2,17 @@ import httpx
 from dependency_injector import containers
 from dependency_injector import providers
 
-from agentarena.factories.arena import arena_factory
-from agentarena.factories.arenaagent import arenaagent_factory
-from agentarena.factories.db import get_database
-from agentarena.factories.environment import get_project_root
-from agentarena.factories.logger import setup_logging
-from agentarena.factories.queue import get_queue
+from agentarena.factories.arena_factory import arena_factory
+from agentarena.factories.db_factory import get_database
+from agentarena.factories.environment_factory import get_project_root
+from agentarena.factories.logger_factory import setup_logging
+from agentarena.factories.participant_factory import participant_factory
+from agentarena.factories.queue_factory import get_queue
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import ArenaDTO
-from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.contest import ContestDTO
 from agentarena.models.feature import FeatureDTO
+from agentarena.models.participant import ParticipantDTO
 from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
 from agentarena.models.strategy import StrategyDTO
@@ -55,11 +55,11 @@ class Container(containers.DeclarativeContainer):
         table_name="arenas",
     )
 
-    arenaagent_service = providers.Singleton(
-        ModelService[ArenaAgentDTO],
-        model_class=ArenaAgentDTO,
+    participant_service = providers.Singleton(
+        ModelService[ParticipantDTO],
+        model_class=ParticipantDTO,
         dbService=db_service,
-        table_name="arena_agents",
+        table_name="participants",
     )
 
     arenastate_service = providers.Singleton(
@@ -98,17 +98,17 @@ class Container(containers.DeclarativeContainer):
     )
 
     # factory services
-    make_arenaagent = providers.Factory(
-        arenaagent_factory,
+    make_participant = providers.Factory(
+        participant_factory,
         agent_service=agent_service,
         strategy_service=strategy_service,
     )
 
     make_arena = providers.Factory(
         arena_factory,
-        arenaagent_service=arenaagent_service,
+        participant_service=participant_service,
         feature_service=feature_service,
-        make_arenaagent=make_arenaagent,
+        make_participant=make_participant,
     )
 
     http_client = providers.Factory(httpx.Client)

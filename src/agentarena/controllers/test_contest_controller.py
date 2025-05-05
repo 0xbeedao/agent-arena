@@ -17,15 +17,15 @@ def mock_contest_service():
 
 
 @pytest.fixture
-def mock_make_arenaagent():
-    async def dummy_make_arenaagent(dto):
+def mock_make_participant():
+    async def dummy_make_participant(dto):
         return Mock()
 
-    return dummy_make_arenaagent
+    return dummy_make_participant
 
 
 @pytest.mark.asyncio
-async def test_create_contest_success(mock_contest_service, mock_make_arenaagent):
+async def test_create_contest_success(mock_contest_service, mock_make_participant):
     # Arrange
     create_request = ContestRequest(
         arena_config_id="arena123", player_positions=["A", "B", "C", "D"]
@@ -47,7 +47,7 @@ async def test_create_contest_success(mock_contest_service, mock_make_arenaagent
     result = await contest_controller.create_contest(
         createRequest=create_request,
         contest_service=mock_contest_service,
-        make_arenaagent=mock_make_arenaagent,
+        make_participant=mock_make_participant,
     )
     # Assert
     assert result == {"id": "contest456"}

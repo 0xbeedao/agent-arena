@@ -9,12 +9,12 @@ from typing import Optional
 from pydantic import BaseModel
 from pydantic import Field
 
-from .arenaagent import AgentRole
-from .arenaagent import ArenaAgent
-from .arenaagent import ArenaAgentRequest
 from .dbbase import DbBase
 from .feature import Feature
 from .feature import FeatureRequest
+from .participant import Participant
+from .participant import ParticipantRequest
+from .participant import ParticipantRole
 
 
 class ArenaDTO(DbBase):
@@ -48,7 +48,7 @@ class ArenaCreateRequest(BaseModel):
     features: Optional[List[FeatureRequest]] = Field(
         default=None, description="Features associated with the arena"
     )
-    agents: Optional[List[ArenaAgentRequest]] = Field(
+    agents: Optional[List[ParticipantRequest]] = Field(
         default=None, description="Agents associated with the arena"
     )
 
@@ -73,20 +73,20 @@ class Arena(BaseModel):
     features: List[Feature] = Field(
         default=None, description="Features associated with the arena"
     )
-    agents: List[ArenaAgent] = Field(
+    agents: List[Participant] = Field(
         default=None, description="Agents associated with the arena"
     )
 
-    def agents_by_role(self) -> Dict[AgentRole, ArenaAgent]:
+    def agents_by_role(self) -> Dict[ParticipantRole, Participant]:
         """
         Returns a list of agents by their role.
         """
         # collect the agents by role
         agents_by_role = {
-            AgentRole.ANNOUNCER: [],
-            AgentRole.ARENA: [],
-            AgentRole.JUDGE: [],
-            AgentRole.PLAYER: [],
+            ParticipantRole.ANNOUNCER: [],
+            ParticipantRole.ARENA: [],
+            ParticipantRole.JUDGE: [],
+            ParticipantRole.PLAYER: [],
         }
         for agent in self.agents:
             if agent.role not in agents_by_role:

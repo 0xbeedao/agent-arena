@@ -4,10 +4,10 @@ from typing import List
 
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaDTO
-from agentarena.models.arenaagent import ArenaAgent
-from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.feature import Feature
 from agentarena.models.feature import FeatureDTO
+from agentarena.models.participant import Participant
+from agentarena.models.participant import ParticipantDTO
 from agentarena.services.model_service import ModelService
 
 
@@ -15,14 +15,14 @@ class ArenaFactory:
 
     def __init__(
         self,
-        arenaagent_service: ModelService[ArenaAgentDTO] = None,
+        participant_service: ModelService[ParticipantDTO] = None,
         feature_service: ModelService[FeatureDTO] = None,
-        arenaagent_factory: Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]] = None,
+        participant_factory: Callable[[ParticipantDTO], Awaitable[Participant]] = None,
         logging=None,
     ):
-        self.arenaagent_service = arenaagent_service
+        self.participant_service = participant_service
         self.feature_service = feature_service
-        self.arenaagent_factory = arenaagent_factory
+        self.participant_factory = participant_factory
         self.log = logging.get_logger(module="arena_factory")
 
     async def build(
@@ -52,13 +52,13 @@ class ArenaFactory:
         features = [Feature.from_dto(feature) for feature in featureDTOs]
 
         # Get the Agents
-        arenaagents: List[ArenaAgentDTO] = await self.arenaagent_service.get_where(
+        participants: List[ParticipantDTO] = await self.participant_service.get_where(
             "arena_config_id = :id", {"id": arena_config.id}
         )
 
-        builder = self.arenaagent_factory.build
-        agentResponses: List[ArenaAgent] = [
-            await builder(arena_agent) for arena_agent in arenaagents
+        builder = self.participant_factory.build
+        agentResponses: List[Participant] = [
+            await builder(participant) for participant in participants
         ]
 
         return Arena(

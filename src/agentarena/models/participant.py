@@ -7,7 +7,7 @@ from .dbbase import DbBase
 from .strategy import Strategy
 
 
-class AgentRole(str, Enum):
+class ParticipantRole(str, Enum):
     """
     Enum for different roles
     """
@@ -18,7 +18,7 @@ class AgentRole(str, Enum):
     ANNOUNCER = "announcer"
 
 
-class ArenaAgentDTO(DbBase):
+class ParticipantDTO(DbBase):
     """
     Maps agents to arenas
     """
@@ -36,22 +36,22 @@ class ArenaAgentDTO(DbBase):
         return [("arena_config_id", "arenas", "id"), ("agent_id", "agents", "id")]
 
 
-class ArenaAgentRequest(BaseModel):
+class ParticipantRequest(BaseModel):
     """
-    Request model for creating an arena agent
+    Request model for creating a participant
     """
 
     agent_id: str = Field(description="Reference to Agent")
-    role: AgentRole = Field(description="Role in arena")
+    role: ParticipantRole = Field(description="Role in arena")
 
 
-class ArenaAgent(BaseModel):
+class Participant(BaseModel):
     """
     Arena Agent model for the Agent Arena application.
     """
 
     agent_id: str = Field(description="Reference to Agent")
-    role: AgentRole = Field(description="Role in arena")
+    role: ParticipantRole = Field(description="Role in arena")
     name: str = Field(description="Agent name")
     description: str = Field(description="Agent description")
     strategy: Strategy = Field(description="Agent strategy")

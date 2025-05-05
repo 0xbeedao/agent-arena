@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from agentarena.factories.logger import LoggingService
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestStatus
 from agentarena.statemachines.setupmachine import SetupMachine

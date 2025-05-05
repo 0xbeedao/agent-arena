@@ -1,12 +1,12 @@
 from agentarena.models.agent import AgentDTO
-from agentarena.models.arenaagent import ArenaAgent
-from agentarena.models.arenaagent import ArenaAgentDTO
+from agentarena.models.participant import Participant
+from agentarena.models.participant import ParticipantDTO
 from agentarena.models.strategy import Strategy
 from agentarena.models.strategy import StrategyDTO
 from agentarena.services.model_service import ModelService
 
 
-class ArenaAgentFactory:
+class ParticipantFactory:
 
     def __init__(
         self,
@@ -16,31 +16,31 @@ class ArenaAgentFactory:
     ):
         self.agent_service = agent_service
         self.strategy_service = strategy_service
-        self.log = logging.get_logger(module="ArenaAgentFactory")
+        self.log = logging.get_logger(module="ParticipantFactory")
 
-    async def build(self, arena_agent: ArenaAgentDTO) -> ArenaAgent:
+    async def build(self, participant: ParticipantDTO) -> Participant:
         """
-        Create an arena agent object from the arena agent configuration.
+        Create a participant object from the participant configuration.
 
         Args:
-            arenaagent_config: The arena agent configuration
+            participant_config: The participant configuration
             agent_service: The agent service
             strategy_service: The strategy service
 
         Returns:
-            The arena agent object
+            The participant object
         """
         log = self.log.bind(
-            module="arenaagent_factory",
-            arenaagent="none" if arena_agent is None else arena_agent.id,
+            module="participant_factory",
+            participant="none" if participant is None else participant.id,
         )
-        if arena_agent is None:
+        if participant is None:
             log.warn("Null agent")
             return None
-        log.info("Making arenaagent")
+        log.info("Making participant")
 
         # Get the Agent
-        [agentDTO, _] = await self.agent_service.get(arena_agent.agent_id)
+        [agentDTO, _] = await self.agent_service.get(participant.agent_id)
 
         # Get the Strategy
         [strategyDTO, _] = await self.strategy_service.get(agentDTO.strategy_id)
@@ -48,9 +48,9 @@ class ArenaAgentFactory:
         strategy: Strategy = Strategy.from_dto(strategyDTO)
         log.debug(f"Got strategy #{agentDTO.strategy_id}")
 
-        return ArenaAgent(
-            id=arena_agent.id,
-            role=arena_agent.role,
+        return Participant(
+            id=participant.id,
+            role=participant.role,
             agent_id=agentDTO.id,
             name=agentDTO.name,
             description=agentDTO.description,

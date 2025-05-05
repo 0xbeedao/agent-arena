@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from agentarena.models.arena import Arena
-from agentarena.models.arenaagent import ArenaAgent
+from agentarena.models.participant import Participant
 
 from .dbbase import DbBase
 
@@ -126,4 +126,4 @@ class Contest(BaseModel):
         default=None, description="Contest start time"
     )
     end_time: Optional[datetime] = Field(default=None, description="Contest end time")
-    winner: Optional[ArenaAgent] = Field(description="winning player")
+    winner: Optional[Participant] = Field(description="winning player")

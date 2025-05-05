@@ -4,13 +4,13 @@ from unittest.mock import Mock
 import pytest
 
 from agentarena.controllers import responder_controller
-from agentarena.models.arenaagent import ArenaAgentDTO
+from agentarena.models.participant import ParticipantDTO
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
 
 
 @pytest.fixture
-def mock_arenaagent_service():
+def mock_participant_service():
     service = AsyncMock()
     return service
 
@@ -24,33 +24,33 @@ def mock_logging():
 
 
 @pytest.fixture
-def mock_arenaagent_factory():
+def mock_participant_factory():
     factory = AsyncMock()
     return factory
 
 
 @pytest.mark.asyncio
 async def test_healthcheck_success(
-    mock_arenaagent_service, mock_logging, mock_arenaagent_factory
+    mock_participant_service, mock_logging, mock_participant_factory
 ):
     # Arrange
-    arenaagent_id = "aa1"
+    participant_id = "aa1"
     job_id = "job42"
-    agent_dto = ArenaAgentDTO(
+    agent_dto = ParticipantDTO(
         arena_config_id="arena1", agent_id="agent1", role="player"
     )
-    mock_arenaagent_service.get.return_value = (agent_dto, Mock(success=True))
+    mock_participant_service.get.return_value = (agent_dto, Mock(success=True))
     agent = Mock()
     agent.name = "AgentName"
-    mock_arenaagent_factory.build.return_value = agent
+    mock_participant_factory.build.return_value = agent
 
     # Act
     result = await responder_controller.healthcheck(
-        arenaagent_id=arenaagent_id,
+        participant_id=participant_id,
         job_id=job_id,
-        arenaagent_service=mock_arenaagent_service,
+        participant_service=mock_participant_service,
         logging=mock_logging,
-        arenaagent_factory=mock_arenaagent_factory,
+        participant_factory=mock_participant_factory,
     )
 
     # Assert
