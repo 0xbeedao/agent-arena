@@ -88,7 +88,7 @@ async def create_arena(
 
     # Map the features to the arena
     if (len(features) + len(agents)) > 0:
-        response = await add_features_and_agents(arena_id, createRequest)
+        response = await add_features_and_agents(arena_id, createRequest, log=log)
         if not response.success:
             log.info(
                 "Failed to map features and agents: %s",
@@ -209,7 +209,7 @@ async def update_arena(
 
     # Add new mappings
     response = await add_features_and_agents(
-        arena_id, updateRequest, features, agents, clean=True
+        arena_id, updateRequest, features, agents, clean=True, log=log
     )
     if not response.success:
         log.info(
