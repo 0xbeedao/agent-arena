@@ -24,13 +24,9 @@ class RequestService:
         self,
         queue_service=Depends(Provide[Container.job_q_service]),
         http_client_factory=Depends(Provide[Container.http_client]),
+        job_result_handler=Depends(Provide[Container.result_service]),
         logging=None,
     ):
-        """
-        :param queue_service: Service for queue operations (get, requeue jobs).
-        :param http_client: Service or function to send HTTP requests.
-        :param result_handler: Service or function to handle results (payload/rejection).
-        """
         self.queue_service = queue_service
         self.http_client = http_client_factory()
         self.log = logging.get_logger("requestservice")
@@ -98,6 +94,7 @@ class RequestService:
         """
         self.log.info("Job complete", job_id=getattr(job, "id", None))
         self.result_handler.send_payload(job, response)
+        self.queue_service.done(task, job)
 
     def handle_fail(self, job, task, response=None, error=None):
         """

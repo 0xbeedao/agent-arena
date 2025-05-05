@@ -57,7 +57,7 @@ class ArenaFactory:
         )
 
         builder = self.participant_factory.build
-        agentResponses: List[Participant] = [
+        participantResponses: List[Participant] = [
             await builder(participant) for participant in participants
         ]
 
@@ -70,5 +70,5 @@ class ArenaFactory:
             rules=arena_config.rules,
             max_random_features=arena_config.max_random_features,
             features=features,
-            agents=agentResponses,
+            participants=participantResponses,
         )

@@ -22,6 +22,7 @@ def make_strategy():
 
 def make_agent(agent_id="agent1", role=ParticipantRole.PLAYER):
     return Participant(
+        id=f"p.{agent_id}",
         agent_id=agent_id,
         role=role,
         name="Test Agent",
@@ -40,7 +41,7 @@ def make_arena():
         rules="No rules",
         max_random_features=0,
         features=[],
-        agents=[make_agent()],
+        participants=[make_agent()],
     )
 
 

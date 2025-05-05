@@ -73,23 +73,23 @@ class Arena(BaseModel):
     features: List[Feature] = Field(
         default=None, description="Features associated with the arena"
     )
-    agents: List[Participant] = Field(
-        default=None, description="Agents associated with the arena"
+    participants: List[Participant] = Field(
+        default=None, description="Participants associated with the arena"
     )
 
-    def agents_by_role(self) -> Dict[ParticipantRole, Participant]:
+    def participants_by_role(self) -> Dict[ParticipantRole, Participant]:
         """
         Returns a list of agents by their role.
         """
         # collect the agents by role
-        agents_by_role = {
+        parts_by_role = {
             ParticipantRole.ANNOUNCER: [],
             ParticipantRole.ARENA: [],
             ParticipantRole.JUDGE: [],
             ParticipantRole.PLAYER: [],
         }
-        for agent in self.agents:
-            if agent.role not in agents_by_role:
-                raise f"Unknown agent role: {agent.role}"
-            agents_by_role[agent.role].append(agent)
-        return agents_by_role
+        for participant in self.participants:
+            if participant.role not in parts_by_role:
+                raise f"Unknown role: {participant.role}"
+            parts_by_role[participant.role].append(participant)
+        return parts_by_role

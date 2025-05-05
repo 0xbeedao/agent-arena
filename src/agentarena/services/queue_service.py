@@ -30,14 +30,14 @@ class QueueService:
         self.q: LiteQueue = get_queue(filename)
         self.q.prune()
 
-    def done(self, task):
+    def done(self, task, job, status="completed"):
         if task is None:
             return None
 
-        job_id = "none"
-        if task.data is not None and hasattr(task.data, "id"):
-            job_id = task.data["id"]
-        self.log.info(f"Task done: task# {task.message_id} job# {job_id}")
+        job_id = job.id
+        self.log.info(f"Task {status}: task# {task.message_id} job# {job_id}")
+        job.status = status
+        self.job_service.update(job)
         return self.q.done(task.message_id)
 
     def drain(self):
@@ -45,10 +45,10 @@ class QueueService:
         Clear the queue
         """
         self.log.warn("Draining the queue")
-        task = self.q.pop()
+        job, task = self.get_job()
         while task is not None:
-            self.done(task)
-            task = self.q.pop()
+            self.done(task, job)
+            job, task = self.get_job()
 
     def get_job(self) -> Tuple[JsonRequestJob, Any]:
         if self.q.qsize() == 0:
@@ -60,9 +60,7 @@ class QueueService:
             return JsonRequestJob.model_validate_json(task.data), task
 
     def requeue_job(self, job: JsonRequestJob, task):
-        job.status = "WAITING"
-        self.job_service.update(job.id, job)
-        task.done()
+        self.q.done(task.message_id, status="waiting")
         self.send_job(job)
 
     def send_job(self, job: JsonRequestJob):

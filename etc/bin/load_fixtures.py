@@ -208,6 +208,10 @@ def load_fixtures(
             contest_id = load_contest_fixture(Path(contest_fixture), arena_id)
             typer.echo(f"Created contest: #{contest_id}")
 
+    contest = httpx.get((f"{BASE_URL}/contest/{contest_id}"))
+    c = json.loads(contest.content)
+    print(json.dumps(c, indent=4, sort_keys=True))
+
 
 if __name__ == "__main__":
     app()

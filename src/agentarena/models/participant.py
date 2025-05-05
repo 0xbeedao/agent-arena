@@ -50,6 +50,7 @@ class Participant(BaseModel):
     Arena Agent model for the Agent Arena application.
     """
 
+    id: str = Field(description="Participant ID")
     agent_id: str = Field(description="Reference to Agent")
     role: ParticipantRole = Field(description="Role in arena")
     name: str = Field(description="Agent name")
