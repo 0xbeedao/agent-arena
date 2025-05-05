@@ -1,8 +1,10 @@
 from dependency_injector.wiring import Provide
 from fastapi import Depends
+from httpx import Response
 
 from agentarena.containers import Container
-from agentarena.models.job import Job
+from agentarena.models.job import BaseAsyncJobResponse
+from agentarena.models.job import JsonRequestJob
 from agentarena.statemachines.request_machine import RequestMachine
 
 
@@ -37,15 +39,15 @@ class RequestService:
         """
         Poll the queue for jobs and process them.
         """
-        job: Job = self.queue_service.get_job()
-        if not job:
+        job: JsonRequestJob = self.queue_service.get_job()
+        if job is None:
             self.log.debug("No job found in queue")
             return
 
         self.log.info("Processing job", job_id=getattr(job, "id", None))
         self.process_job(job)
 
-    def process_job(self, job):
+    def process_job(self, job: JsonRequestJob):
         """
         Process a single job using the request state machine.
         """
@@ -53,9 +55,12 @@ class RequestService:
         machine.get_job()  # IDLE -> REQUEST
         machine.start_request()  # REQUEST -> REQUESTING
 
-        # Simulate sending HTTP request
+        response: Response = None
+
+        # send the request
         try:
-            response = self.http_client.send(job)
+            method = job.method
+            response = self.http_client[method](job.url, data=job.payload)
             if response.status_code >= 400:
                 machine.http_error()  # REQUESTING -> FAIL
                 self.handle_fail(job, response)
@@ -113,24 +118,14 @@ class RequestService:
         Validate the response (placeholder).
         """
         # Implement actual validation logic
-        return hasattr(response, "status_code")
+        return response is not None
 
-    def get_response_state(self, response):
+    def get_response_state(self, response: BaseAsyncJobResponse):
         """
         Determine the state from the response (placeholder).
         Should return one of: "complete", "pending", "failure"
         """
-        # Implement actual logic based on response content
-        # Example:
-        # if response.json().get("status") == "complete":
-        #     return "complete"
-        # elif response.json().get("status") == "pending":
-        #     return "pending"
-        # elif response.json().get("status") == "failure":
-        #     return "failure"
-        # else:
-        #     return None
-        return "complete"  # Default for placeholder
+        return "failure" if response is None else response.status
 
     def wakeup_job(self, job):
         """

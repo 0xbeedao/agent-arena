@@ -25,10 +25,13 @@ class BaseAsyncJobResponse(BaseModel):
     )
 
 
-class Job(DbBase):
-    command: str = Field(description="job command")
-    payload: str = Field(description="payload, usually JSON")
+class JsonRequestJob(DbBase):
     caller: str = Field(description="Name of calling service")
+    command: str = Field(description="job command")
+    method: str = Field(desciption="HTTP method")
+    payload: object = Field(description="JSON payload")
+    attempt: int = Field(default=1, description="Request attempt counter")
+    url: str = Field(description="Url to Call")
     status: Optional[str] = Field(
         default="IDLE", description="Job status, see RequestMachine states"
     )
