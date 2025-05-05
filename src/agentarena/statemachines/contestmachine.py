@@ -48,6 +48,7 @@ class ContestMachine(StateMachine):
         self._setup_machine = None
         self._round_machine = None
         self.contest = contest
+        self.logging = logging
         self.log = logging.get_logger(
             "contestmachine", contest=contest.id if contest is not None else "none"
         )
@@ -57,13 +58,13 @@ class ContestMachine(StateMachine):
         """Called when entering the InSetup state."""
         # Create a new setup machine when entering the InSetup state
         print("Creating setup machine")
-        self._setup_machine = SetupMachine(self.contest)
+        self._setup_machine = SetupMachine(self.contest, logging=self.logging)
         print(f"Current setup machine state {self._setup_machine.current_state.id}")
 
     def on_enter_in_round(self):
         """Called when entering the InRound state."""
         # Create a new round machine when entering the InRound state
-        self._round_machine = RoundMachine(self.contest)
+        self._round_machine = RoundMachine(self.contest, logging=self.logging)
 
     def on_enter_checking_end(self):
         """Called when entering the CheckingEnd state."""

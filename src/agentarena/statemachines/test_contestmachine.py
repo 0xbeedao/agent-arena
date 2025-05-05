@@ -1,3 +1,4 @@
+from agentarena.factories.logger import LoggingService
 from agentarena.models.arena import Arena
 from agentarena.models.arenaagent import AgentRole
 from agentarena.models.arenaagent import ArenaAgent
@@ -56,15 +57,19 @@ def make_contest():
     )
 
 
+def logging():
+    return LoggingService(True)
+
+
 def test_initial_state():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     assert machine.current_state.id == "idle"
 
 
 def test_start_contest_transition_creates_setup_machine():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     machine.start_contest()
     assert machine.current_state.id == "in_setup"
     # SetupMachine should be created
@@ -77,7 +82,7 @@ def test_start_contest_transition_creates_setup_machine():
 
 def test_setup_done_transition():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     machine.start_contest()
     machine.setup_done()
     assert machine.current_state.id == "ready"
@@ -85,7 +90,7 @@ def test_setup_done_transition():
 
 def test_start_round_transition_creates_round_machine():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     machine.start_contest()
     machine.setup_done()
     machine.start_round()
@@ -100,7 +105,7 @@ def test_start_round_transition_creates_round_machine():
 
 def test_round_done_transition():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     machine.start_contest()
     machine.setup_done()
     machine.start_round()
@@ -110,7 +115,7 @@ def test_round_done_transition():
 
 def test_end_condition_met_transition():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     machine.start_contest()
     machine.setup_done()
     machine.start_round()
@@ -122,7 +127,7 @@ def test_end_condition_met_transition():
 
 def test_more_rounds_remain_transition():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     machine.start_contest()
     machine.setup_done()
     machine.start_round()
@@ -133,7 +138,7 @@ def test_more_rounds_remain_transition():
 
 def test_full_contest_sequence():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     assert machine.current_state.id == "idle"
     machine.start_contest()
     assert machine.current_state.id == "in_setup"
@@ -150,7 +155,7 @@ def test_full_contest_sequence():
 
 def test_setup_machine_property_none_when_not_in_setup():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     assert machine.setup_machine is None
     machine.start_contest()
     assert machine.setup_machine is not None
@@ -160,7 +165,7 @@ def test_setup_machine_property_none_when_not_in_setup():
 
 def test_round_machine_property_none_when_not_in_round():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     assert machine.round_machine is None
     machine.start_contest()
     machine.setup_done()
@@ -173,7 +178,7 @@ def test_round_machine_property_none_when_not_in_round():
 
 def test_check_setup_done_and_check_round_done():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     assert not machine.check_setup_done()
     assert not machine.check_round_done()
     machine.start_contest()
@@ -212,7 +217,7 @@ def test_check_setup_done_and_check_round_done():
 
 def test_get_state_dict():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     state_dict = machine.get_state_dict()
     assert state_dict["contest_state"] == "idle"
     machine.start_contest()
@@ -228,7 +233,7 @@ def test_get_state_dict():
 
 def test_on_enter_methods_are_callable():
     contest = make_contest()
-    machine = ContestMachine(contest)
+    machine = ContestMachine(contest, logging=logging())
     # Only test methods that are not just pass
     machine.on_enter_in_setup()
     machine.on_enter_in_round()

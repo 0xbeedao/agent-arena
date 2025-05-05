@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from agentarena.factories.logger import LoggingService
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestStatus
 from agentarena.statemachines.setupmachine import SetupMachine
@@ -20,13 +21,18 @@ def contest():
     return mock
 
 
+@pytest.fixture()
+def logging():
+    return LoggingService(True)
+
+
 class TestSetupMachine:
     """Test suite for the SetupMachine class."""
 
-    def test_initialization(self, contest):
+    def test_initialization(self, contest, logging):
         """Test that the SetupMachine initializes correctly."""
         # Create a setup machine
-        setup_machine = SetupMachine(contest)
+        setup_machine = SetupMachine(contest, logging=logging)
 
         # Check initial state
         assert setup_machine.current_state.id == "generating_features"
@@ -36,9 +42,9 @@ class TestSetupMachine:
         # Check that the contest was set correctly
         assert setup_machine.contest == contest
 
-    def test_transition_to_generating_positions(self, contest):
+    def test_transition_to_generating_positions(self, contest, logging):
         """Test transition from generating_features to generating_positions."""
-        setup_machine = SetupMachine(contest)
+        setup_machine = SetupMachine(contest, logging=logging)
 
         # Transition to generating_positions
         setup_machine.features_generated()
@@ -48,9 +54,9 @@ class TestSetupMachine:
         assert not setup_machine.current_state.initial
         assert not setup_machine.current_state.final
 
-    def test_transition_to_describing_setup(self, contest):
+    def test_transition_to_describing_setup(self, contest, logging):
         """Test transition from generating_positions to describing_setup."""
-        setup_machine = SetupMachine(contest)
+        setup_machine = SetupMachine(contest, logging=logging)
 
         # Transition to generating_positions first
         setup_machine.features_generated()
@@ -63,9 +69,9 @@ class TestSetupMachine:
         assert not setup_machine.current_state.initial
         assert setup_machine.current_state.final
 
-    def test_cycle_transition(self, contest):
+    def test_cycle_transition(self, contest, logging):
         """Test the cycle transition method."""
-        setup_machine = SetupMachine(contest)
+        setup_machine = SetupMachine(contest, logging=logging)
 
         # Initial state should be generating_features
         assert setup_machine.current_state.id == "generating_features"
@@ -81,9 +87,9 @@ class TestSetupMachine:
         # Check that we're in the final state
         assert setup_machine.current_state.final
 
-    def test_complete_workflow(self, contest):
+    def test_complete_workflow(self, contest, logging):
         """Test the complete workflow of the SetupMachine."""
-        setup_machine = SetupMachine(contest)
+        setup_machine = SetupMachine(contest, logging=logging)
 
         # Check initial state
         assert setup_machine.current_state.id == "generating_features"

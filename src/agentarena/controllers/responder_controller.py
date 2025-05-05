@@ -2,16 +2,12 @@
 Responder controller for Agent Response endpoints
 """
 
-from typing import Awaitable
-from typing import Callable
-
 from dependency_injector.wiring import Provide
 from dependency_injector.wiring import inject
 from fastapi import APIRouter
 from fastapi import Depends
 
 from agentarena.containers import Container
-from agentarena.models.agent import AgentDTO
 from agentarena.models.arenaagent import ArenaAgent
 from agentarena.models.arenaagent import ArenaAgentDTO
 from agentarena.models.requests import HealthResponse

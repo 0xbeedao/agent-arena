@@ -1,3 +1,4 @@
+from agentarena.factories.logger import LoggingService
 from agentarena.models.arena import Arena
 from agentarena.models.arenaagent import AgentRole
 from agentarena.models.arenaagent import ArenaAgent
@@ -56,22 +57,26 @@ def make_contest():
     )
 
 
+def logging():
+    return LoggingService(True)
+
+
 def test_initial_state():
     contest = make_contest()
-    machine = RoundMachine(contest)
+    machine = RoundMachine(contest, logging=logging())
     assert machine.current_state.id == "round_prompting"
 
 
 def test_prompt_sent_transition():
     contest = make_contest()
-    machine = RoundMachine(contest)
+    machine = RoundMachine(contest, logging=logging())
     machine.prompt_sent()
     assert machine.current_state.id == "awaiting_actions"
 
 
 def test_actions_received_transition():
     contest = make_contest()
-    machine = RoundMachine(contest)
+    machine = RoundMachine(contest, logging=logging())
     machine.prompt_sent()
     machine.actions_received()
     assert machine.current_state.id == "judging_actions"
@@ -79,7 +84,7 @@ def test_actions_received_transition():
 
 def test_raw_results_transition():
     contest = make_contest()
-    machine = RoundMachine(contest)
+    machine = RoundMachine(contest, logging=logging())
     machine.prompt_sent()
     machine.actions_received()
     machine.raw_results()
@@ -88,7 +93,7 @@ def test_raw_results_transition():
 
 def test_effects_determined_transition():
     contest = make_contest()
-    machine = RoundMachine(contest)
+    machine = RoundMachine(contest, logging=logging())
     machine.prompt_sent()
     machine.actions_received()
     machine.raw_results()
@@ -98,7 +103,7 @@ def test_effects_determined_transition():
 
 def test_results_ready_transition():
     contest = make_contest()
-    machine = RoundMachine(contest)
+    machine = RoundMachine(contest, logging=logging())
     machine.prompt_sent()
     machine.actions_received()
     machine.raw_results()
@@ -110,7 +115,7 @@ def test_results_ready_transition():
 
 def test_full_round_sequence():
     contest = make_contest()
-    machine = RoundMachine(contest)
+    machine = RoundMachine(contest, logging=logging())
     assert machine.current_state.id == "round_prompting"
     machine.prompt_sent()
     assert machine.current_state.id == "awaiting_actions"
@@ -128,7 +133,7 @@ def test_full_round_sequence():
 def test_on_enter_methods_are_callable():
     # These are empty, but we check they exist and are callable
     contest = make_contest()
-    machine = RoundMachine(contest)
+    machine = RoundMachine(contest, logging=logging())
     for method in [
         machine.on_enter_round_prompting,
         machine.on_enter_awaiting_actions,

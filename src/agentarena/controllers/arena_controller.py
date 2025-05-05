@@ -3,8 +3,6 @@ Arena controller for the Agent Arena application.
 Handles HTTP requests for arena operations.
 """
 
-from typing import Awaitable
-from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Tuple
