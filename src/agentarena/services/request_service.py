@@ -39,15 +39,15 @@ class RequestService:
         """
         Poll the queue for jobs and process them.
         """
-        job: JsonRequestJob = self.queue_service.get_job()
+        job, task = self.queue_service.get_job()
         if job is None:
             self.log.debug("No job found in queue")
             return
 
         self.log.info("Processing job", job_id=getattr(job, "id", None))
-        self.process_job(job)
+        self.process_job(job, task)
 
-    def process_job(self, job: JsonRequestJob):
+    def process_job(self, job: JsonRequestJob, task):
         """
         Process a single job using the request state machine.
         """
@@ -63,55 +63,55 @@ class RequestService:
             response = self.http_client[method](job.url, data=job.payload)
             if response.status_code >= 400:
                 machine.http_error()  # REQUESTING -> FAIL
-                self.handle_fail(job, response)
+                self.handle_fail(job, task, response)
                 return
             else:
                 machine.http_ok()  # REQUESTING -> RESPONSE
         except Exception as e:
             machine.http_error()
-            self.handle_fail(job, error=e)
+            self.handle_fail(job, task, error=e)
             return
 
         # Process response
         if not self.is_response_valid(response):
             machine.malformed_response()  # RESPONSE -> FAIL
-            self.handle_fail(job, response)
+            self.handle_fail(job, task, response)
             return
 
         state = self.get_response_state(response)
         if state == "complete":
             machine.state_complete()  # RESPONSE -> COMPLETE
-            self.handle_complete(job, response)
+            self.handle_complete(job, task, response)
         elif state == "pending":
             machine.state_pending()  # RESPONSE -> WAITING
-            self.handle_waiting(job, response)
+            self.handle_waiting(job, task, response)
         elif state == "failure":
             machine.state_failure()  # RESPONSE -> FAIL
-            self.handle_fail(job, response)
+            self.handle_fail(job, task, response)
         else:
             machine.malformed_response()  # RESPONSE -> FAIL
-            self.handle_fail(job, response)
+            self.handle_fail(job, task, response)
 
-    def handle_complete(self, job, response):
+    def handle_complete(self, job, task, response):
         """
         Handle a completed job.
         """
         self.log.info("Job complete", job_id=getattr(job, "id", None))
         self.result_handler.send_payload(job, response)
 
-    def handle_fail(self, job, response=None, error=None):
+    def handle_fail(self, job, task, response=None, error=None):
         """
         Handle a failed job.
         """
         self.log.info("Job failed", job_id=getattr(job, "id", None), error=error)
         self.result_handler.send_rejection(job, response, error)
 
-    def handle_waiting(self, job, response):
+    def handle_waiting(self, job, task, response):
         """
         Handle a waiting job (requeue).
         """
         self.log.info("Job waiting, requeueing", job_id=getattr(job, "id", None))
-        self.queue_service.requeue_job(job)
+        self.queue_service.requeue_job(job, task)
 
     def is_response_valid(self, response):
         """
