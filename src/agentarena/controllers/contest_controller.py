@@ -174,7 +174,8 @@ async def start_contest(
     contest_service: ModelService[ContestDTO] = Depends(
         Provide[Container.contest_service]
     ),
-    logger=Depends(Provide[Container.logging]),
+    contest_factory=Depends(Provide[Container.contest_factory]),
+    logging=Depends(Provide[Container.logging]),
 ) -> Dict[str, str]:
     """
     Start a contest, and returns the ID of the started contest, with everything set up for first round.
@@ -198,7 +199,7 @@ async def start_contest(
         raise HTTPException(status_code=422, detail="Contest is not in CREATED state")
 
     # sanity check, we need at least one player, announcer, judge, and arena agent
-    contest = await make_contest(contestDTO)
+    contest = await contest_factory.build(contestDTO)
     arena = contest.arena
 
     if arena.agents is None or len(arena.agents) < 4:

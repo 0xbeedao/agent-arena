@@ -154,7 +154,7 @@ async def update_arena(
     updateRequest: ArenaCreateRequest,
     agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service]),
     arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
-    logger=Depends(Provide[Container.logging]),
+    logging=Depends(Provide[Container.logging]),
 ) -> Dict[str, bool]:
     """
     Update an arena.
