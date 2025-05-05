@@ -48,7 +48,7 @@ class ContestMachine(StateMachine):
         self._setup_machine = None
         self._round_machine = None
         self.contest = contest
-        self.log = logging.make_logger(
+        self.log = logging.get_logger(
             "contestmachine", contest=contest.id if contest is not None else "none"
         )
         super().__init__()

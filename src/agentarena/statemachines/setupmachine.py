@@ -29,7 +29,7 @@ class SetupMachine(StateMachine):
     def __init__(self, contest: Contest, logging=None):
         """Initialize the setup machine."""
         self.contest = contest
-        self.log = logging.make_logger(
+        self.log = logging.get_logger(
             "setupmachine", contest=contest.id if contest else "none"
         )
         super().__init__()

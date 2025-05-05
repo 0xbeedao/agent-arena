@@ -37,7 +37,7 @@ async def create_arena(
     createRequest: ArenaCreateRequest,
     arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
     agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service]),
-    logger=Depends(Provide[Container.logger]),
+    logger=Depends(Provide[Container.logging]),
 ) -> Dict[str, str]:
     """
     Create a new arena.
@@ -61,7 +61,7 @@ async def create_arena(
 
     features = createRequest.features
     agents = createRequest.agents
-    log = logging.make_logger(module="arena_controller", endpoint="create_arena")
+    log = logging.get_logger(module="arena_controller", endpoint="create_arena")
 
     # get and validate the features
     invalid_features = get_invalid_features(features)
@@ -156,7 +156,7 @@ async def update_arena(
     updateRequest: ArenaCreateRequest,
     agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service]),
     arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
-    logger=Depends(Provide[Container.logger]),
+    logger=Depends(Provide[Container.logging]),
 ) -> Dict[str, bool]:
     """
     Update an arena.
@@ -174,7 +174,7 @@ async def update_arena(
     """
     features = updateRequest.features
     agents = updateRequest.agents
-    log = logging.make_logger(
+    log = logging.get_logger(
         module="arena_controller", endpoint="update_arena", arena_id=arena_id
     )
 

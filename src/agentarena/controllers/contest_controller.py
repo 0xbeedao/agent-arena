@@ -172,7 +172,7 @@ async def start_contest(
     contest_service: ModelService[ContestDTO] = Depends(
         Provide[Container.contest_service]
     ),
-    logger=Depends(Provide[Container.logger]),
+    logger=Depends(Provide[Container.logging]),
 ) -> Dict[str, str]:
     """
     Start a contest, and returns the ID of the started contest, with everything set up for first round.
@@ -184,7 +184,7 @@ async def start_contest(
     Returns:
         A dictionary with the ID of the started contest
     """
-    boundlog = logging.make_logger(contest_id=contest_id)
+    boundlog = logging.get_logger(contest_id=contest_id)
     boundlog.info("starting contest")
     [contestDTO, response] = await contest_service.get(contest_id)
     if not response.success:

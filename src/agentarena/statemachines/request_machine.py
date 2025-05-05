@@ -42,7 +42,7 @@ class RequestMachine(StateMachine):
         :param job: Optional job or context object for the request.
         """
         self.job = job
-        self.log = logging.make_logger(
+        self.log = logging.get_logger(
             "requestmachine", job=getattr(job, "id", None) if job else "none"
         )
         super().__init__()

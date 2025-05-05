@@ -30,7 +30,7 @@ async def contest_factory(
     Returns:
         The contest object
     """
-    log = logging.make_logger(contest=contestDTO.arena_config_id)
+    log = logging.get_logger(contest=contestDTO.arena_config_id)
     log.info("making contest")
     [arenaDTO, response] = await arena_service.get(contestDTO.arena_config_id)
     if not response.success:

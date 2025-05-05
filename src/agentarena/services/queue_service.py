@@ -14,7 +14,7 @@ class QueueService:
 
     def __init__(self, projectroot: str, dbfile: str, get_queue=None, logging=None):
         filename = dbfile.replace("<projectroot>", str(projectroot))
-        self.log = logging.make_logger(
+        self.log = logging.get_logger(
             "queueservice", module="queue_service", db=os.path.basename(filename)
         )
 

@@ -31,7 +31,7 @@ class RequestService:
         """
         self.queue_service = queue_service
         self.http_client = http_client_factory()
-        self.log = logging.make_logger("requestservice")
+        self.log = logging.get_logger("requestservice")
 
     def poll_and_process(self):
         """

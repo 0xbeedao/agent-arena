@@ -13,7 +13,7 @@ class DbService:
     def __init__(self, projectroot: str, dbfile: str, get_database=None, logging=None):
 
         filename = dbfile.replace("<projectroot>", str(projectroot))
-        self.log = logging.make_logger(
+        self.log = logging.get_logger(
             "dbservice", module="dbservice", db=os.path.basename(filename)
         )
         self.log.info("Setting up DB at %s", filename)

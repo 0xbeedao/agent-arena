@@ -28,7 +28,7 @@ async def arena_factory(
     Returns:
         The arena object
     """
-    log = logging.make_logger(module="arena_factory", arena_id=arena_config.id)
+    log = logging.get_logger(module="arena_factory", arena_id=arena_config.id)
     log.info(f"Making arena: #{arena_config.id}")
     # Get the features
     featureDTOs: List[FeatureDTO] = await feature_service.get_where(

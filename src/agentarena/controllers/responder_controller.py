@@ -32,7 +32,9 @@ async def healthcheck(
     arenaagent_service: ModelService[AgentDTO] = Depends(
         Provide[Container.arenaagent_service]
     ),
-    make_arenaagent=Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]],
+    make_arenaagent: Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]] = Depends(
+        Provide[Container.make_arenaagent]
+    ),
 ) -> HealthResponse:
     aa, response = await arenaagent_service.get(arenaagent_id)
 
