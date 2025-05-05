@@ -12,50 +12,65 @@ from agentarena.models.contest import ContestStatus
 from agentarena.services.model_service import ModelService
 
 
-async def contest_factory(
-    contestDTO: ContestDTO,
-    arena_service: ModelService[ArenaDTO] = None,
-    arenaagent_service: ModelService[ArenaAgentDTO] = None,
-    make_arenaagent=Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]],
-    make_arena=Callable[[ArenaDTO], Awaitable[Arena]],
-    logging=None,
-) -> Contest:
-    """
-    Create a contest object from the contest configuration.
+class ContestFactory:
 
-    Args:
-        contest_id: The contest ID
-        contest_service: The contest service
+    def __init__(
+        self,
+        arena_service: ModelService[ArenaDTO] = None,
+        arenaagent_service: ModelService[ArenaAgentDTO] = None,
+        arenaagent_factory=Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]],
+        arena_factory=Callable[[ArenaDTO], Awaitable[Arena]],
+        logging=None,
+    ):
+        self.arena_service = arena_service
+        self.arenaagent_service = arenaagent_service
+        self.arenaagent_factory = arenaagent_factory
+        self.arena_factory = arena_factory
+        self.log = logging.get_logger(module="contest_factory")
+        self.log.debug("init")
 
-    Returns:
-        The contest object
-    """
-    log = logging.get_logger(contest=contestDTO.arena_config_id)
-    log.info("making contest")
-    [arenaDTO, response] = await arena_service.get(contestDTO.arena_config_id)
-    if not response.success:
-        raise ValueError(f"Arena with ID {contestDTO.arena_config_id} not found")
+    async def build(self, contestDTO: ContestDTO) -> Contest:
+        """
+        Create a contest object from the contest configuration.
 
-    log.info(f"got arenaDTO: {arenaDTO}")
-    arena = await make_arena(arenaDTO)
-    log.info(f"got arena: {arena.id}")
+        Args:
+            contest_id: The contest ID
+            contest_service: The contest service
 
-    winner = None
-    if contestDTO.winner is not None:
-        log.info("Found a winner, loading it: {}", contestDTO.winnner)
-        aa, _ = await arenaagent_service.get(contestDTO.winner)
-        winner, _ = await make_arenaagent(aa, logger=log)
+        Returns:
+            The contest object
+        """
+        log = self.log.bind(
+            contest="none" if contestDTO is None else contestDTO.arena_config_id
+        )
+        log.info("making contest")
+        if contestDTO is None:
+            return None
+        [arenaDTO, response] = await self.arena_service.get(contestDTO.arena_config_id)
+        if not response.success:
+            raise ValueError(f"Arena with ID {contestDTO.arena_config_id} not found")
 
-    positions: List[str] = contestDTO.player_positions.split(";")
-    log.info(f"positions: {positions}")
+        log = log.bind(arena_id=arenaDTO.id)
+        log.info(f"got arenaDTO: {arenaDTO}")
+        arena = await self.arena_factory.build(arenaDTO)
+        log.info(f"got arena")
 
-    return Contest(
-        id=contestDTO.id,
-        arena=arena,
-        current_round=contestDTO.current_round,
-        player_positions=positions,
-        status=ContestStatus(contestDTO.status),
-        start_time=contestDTO.start_time,
-        end_time=contestDTO.end_time,
-        winner=winner,
-    )
+        winner = None
+        if contestDTO.winner is not None:
+            log.info(f"Found a winner, loading it: {contestDTO.winnner}")
+            aa, _ = await self.arenaagent_service.get(contestDTO.winner)
+            winner, _ = await self.arenaagent_factory.build(aa, logger=log)
+
+        positions: List[str] = contestDTO.player_positions.split(";")
+        log.info(f"positions: {positions}")
+
+        return Contest(
+            id=contestDTO.id,
+            arena=arena,
+            current_round=contestDTO.current_round,
+            player_positions=positions,
+            status=ContestStatus(contestDTO.status),
+            start_time=contestDTO.start_time,
+            end_time=contestDTO.end_time,
+            winner=winner,
+        )

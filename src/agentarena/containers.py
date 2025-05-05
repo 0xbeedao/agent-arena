@@ -2,9 +2,9 @@ import httpx
 from dependency_injector import containers
 from dependency_injector import providers
 
-from agentarena.factories.arena import arena_factory
-from agentarena.factories.arenaagent import arenaagent_factory
-from agentarena.factories.contest import contest_factory
+from agentarena.factories.arena import ArenaFactory
+from agentarena.factories.arenaagent import ArenaAgentFactory
+from agentarena.factories.contest import ContestFactory
 from agentarena.factories.db import get_database
 from agentarena.factories.environment import get_project_root
 from agentarena.factories.logger import LoggingService
@@ -113,26 +113,26 @@ class Container(containers.DeclarativeContainer):
     # factory services
     make_httpclient = providers.Factory(httpx.Client)
 
-    make_arenaagent = providers.Factory(
-        arenaagent_factory,
+    arenaagent_factory = providers.Singleton(
+        ArenaAgentFactory,
         agent_service=agent_service,
         strategy_service=strategy_service,
         logging=logging,
     )
 
-    make_arena = providers.Factory(
-        arena_factory,
+    arena_factory = providers.Singleton(
+        ArenaFactory,
         arenaagent_service=arenaagent_service,
         feature_service=feature_service,
-        make_arenaagent=make_arenaagent,
+        arenaagent_factory=arenaagent_factory,
         logging=logging,
     )
 
-    make_contest = providers.Factory(
-        contest_factory,
+    contest_factory = providers.Singleton(
+        ContestFactory,
         arena_service=arena_service,
         arenaagent_service=arenaagent_service,
-        make_arenaagent=make_arenaagent,
-        make_arena=make_arena,
+        arenaagent_factory=arenaagent_factory,
+        arena_factory=arena_factory,
         logging=logging,
     )

@@ -6,40 +6,53 @@ from agentarena.models.strategy import StrategyDTO
 from agentarena.services.model_service import ModelService
 
 
-async def arenaagent_factory(
-    arena_agent: ArenaAgentDTO,
-    agent_service: ModelService[AgentDTO] = None,
-    strategy_service: ModelService[StrategyDTO] = None,
-    logging=None,
-) -> ArenaAgent:
-    """
-    Create an arena agent object from the arena agent configuration.
+class ArenaAgentFactory:
 
-    Args:
-        arenaagent_config: The arena agent configuration
-        agent_service: The agent service
-        strategy_service: The strategy service
+    def __init__(
+        self,
+        agent_service: ModelService[AgentDTO] = None,
+        strategy_service: ModelService[StrategyDTO] = None,
+        logging=None,
+    ):
+        self.agent_service = agent_service
+        self.strategy_service = strategy_service
+        self.log = logging.get_logger(module="ArenaAgentFactory")
 
-    Returns:
-        The arena agent object
-    """
-    log = logging.bind(arenaagent=arena_agent.id)
-    log.info("Making arenaagent")
+    async def build(self, arena_agent: ArenaAgentDTO) -> ArenaAgent:
+        """
+        Create an arena agent object from the arena agent configuration.
 
-    # Get the Agent
-    [agentDTO, _] = await agent_service.get(arena_agent.agent_id)
+        Args:
+            arenaagent_config: The arena agent configuration
+            agent_service: The agent service
+            strategy_service: The strategy service
 
-    # Get the Strategy
-    [strategyDTO, _] = await strategy_service.get(agentDTO.strategy_id)
+        Returns:
+            The arena agent object
+        """
+        log = self.log.bind(
+            module="arenaagent_factory",
+            arenaagent="none" if arena_agent is None else arena_agent.id,
+        )
+        if arena_agent is None:
+            log.warn("Null agent")
+            return None
+        log.info("Making arenaagent")
 
-    strategy: Strategy = Strategy.from_dto(strategyDTO)
-    log.debug(f"Got strategy #{agentDTO.strategy_id}")
+        # Get the Agent
+        [agentDTO, _] = await self.agent_service.get(arena_agent.agent_id)
 
-    return ArenaAgent(
-        id=arena_agent.id,
-        role=arena_agent.role,
-        agent_id=agentDTO.id,
-        name=agentDTO.name,
-        description=agentDTO.description,
-        strategy=strategy,
-    )
+        # Get the Strategy
+        [strategyDTO, _] = await self.strategy_service.get(agentDTO.strategy_id)
+
+        strategy: Strategy = Strategy.from_dto(strategyDTO)
+        log.debug(f"Got strategy #{agentDTO.strategy_id}")
+
+        return ArenaAgent(
+            id=arena_agent.id,
+            role=arena_agent.role,
+            agent_id=agentDTO.id,
+            name=agentDTO.name,
+            description=agentDTO.description,
+            strategy=strategy,
+        )

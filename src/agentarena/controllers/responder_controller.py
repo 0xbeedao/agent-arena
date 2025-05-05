@@ -29,13 +29,14 @@ router = APIRouter(tags=["Responder"])
 async def healthcheck(
     arenaagent_id: str,
     job_id: str,
-    arenaagent_service: ModelService[AgentDTO] = Depends(
+    arenaagent_service: ModelService[ArenaAgentDTO] = Depends(
         Provide[Container.arenaagent_service]
     ),
-    make_arenaagent: Callable[[ArenaAgentDTO], Awaitable[ArenaAgent]] = Depends(
-        Provide[Container.make_arenaagent]
-    ),
+    logging=Depends(Provide[Container.logging]),
+    arenaagent_factory=Depends(Provide[Container.arenaagent_factory]),
 ) -> HealthResponse:
+    log = logging.get_logger("healthcheck")
+    log.info(f"make_arenaagent: {arenaagent_service}")
     aa, response = await arenaagent_service.get(arenaagent_id)
 
     if not response.success:
@@ -45,7 +46,7 @@ async def healthcheck(
             job_id=job_id,
         )
 
-    agent: ArenaAgent = await make_arenaagent(aa)
+    agent: ArenaAgent = await arenaagent_factory.build(aa)
 
     return HealthResponse(
         status="completed",

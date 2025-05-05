@@ -37,7 +37,7 @@ async def create_arena(
     createRequest: ArenaCreateRequest,
     arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
     agent_service: ModelService[AgentDTO] = Depends(Provide[Container.agent_service]),
-    logger=Depends(Provide[Container.logging]),
+    logging=Depends(Provide[Container.logging]),
 ) -> Dict[str, str]:
     """
     Create a new arena.
@@ -110,7 +110,7 @@ async def create_arena(
 async def get_arena(
     arena_id: str,
     arena_service: ModelService[ArenaDTO] = Depends(Provide[Container.arena_service]),
-    make_arena=Callable[[ArenaDTO], Awaitable[Arena]],
+    arena_factory=Depends(Provide[Container.arena_factory]),
 ) -> Arena:
     """
     Get an arena by ID.
@@ -129,7 +129,7 @@ async def get_arena(
     if not response.success:
         raise HTTPException(status_code=404, detail=response.error)
 
-    return await make_arena(arena_config)
+    return await arena_factory.build(arena_config)
 
 
 @router.get("/arena", response_model=List[ArenaDTO])

@@ -15,6 +15,7 @@ from fastapi import Depends
 from fastapi import HTTPException
 
 from agentarena.containers import Container
+from agentarena.factories.contest import ContestFactory
 from agentarena.models.arenaagent import AgentRole
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestDTO
@@ -68,6 +69,7 @@ async def get_contest(
     contest_service: ModelService[ContestDTO] = Depends(
         Provide[Container.contest_service]
     ),
+    contest_factory: ContestFactory = Depends(Provide(Container.contest_factory)),
 ) -> Contest:
     """
     Get a contest by ID.
@@ -86,7 +88,7 @@ async def get_contest(
     if not response.success:
         raise HTTPException(status_code=404, detail=response.error)
 
-    return await make_contest(contest_obj)
+    return await contest_factory.build(contest_obj)
 
 
 @router.get("/contest", response_model=List[ContestDTO])
