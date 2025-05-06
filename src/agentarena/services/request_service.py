@@ -1,10 +1,9 @@
-from dependency_injector.wiring import Provide
-from fastapi import Depends
 from httpx import Response
 
-from agentarena.containers import Container
 from agentarena.models.job import BaseAsyncJobResponse
 from agentarena.models.job import JsonRequestJob
+from agentarena.services.queue_service import QueueService
+from agentarena.services.result_service import ResultService
 from agentarena.statemachines.request_machine import RequestMachine
 
 
@@ -22,12 +21,13 @@ class RequestService:
 
     def __init__(
         self,
-        queue_service=Depends(Provide[Container.job_q_service]),
-        http_client_factory=Depends(Provide[Container.http_client]),
-        job_result_handler=Depends(Provide[Container.result_service]),
+        queue_service: QueueService = None,
+        result_handler: ResultService = None,
+        http_client_factory=None,
         logging=None,
     ):
         self.queue_service = queue_service
+        self.result_handler = result_handler
         self.http_client = http_client_factory()
         self.log = logging.get_logger("requestservice")
 
@@ -88,12 +88,12 @@ class RequestService:
             machine.malformed_response()  # RESPONSE -> FAIL
             self.handle_fail(job, task, response)
 
-    def handle_complete(self, job, task, response):
+    def handle_complete(self, job, task, response: Response):
         """
         Handle a completed job.
         """
         self.log.info("Job complete", job_id=getattr(job, "id", None))
-        self.result_handler.send_payload(job, response)
+        self.result_handler.send_payload(job, response.content)
         self.queue_service.done(task, job)
 
     def handle_fail(self, job, task, response=None, error=None):

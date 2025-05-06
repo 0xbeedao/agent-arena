@@ -2,6 +2,7 @@
 Provides models to manage aynchronous Jobs
 """
 
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -32,6 +33,9 @@ class JsonRequestJob(DbBase):
     payload: object = Field(description="JSON payload")
     attempt: int = Field(default=1, description="Request attempt counter")
     url: str = Field(description="Url to Call")
+    send_at: Optional[datetime] = Field(
+        default=None, description="Send after what timestamp"
+    )
     status: Optional[str] = Field(
         default="IDLE", description="Job status, see RequestMachine states"
     )

@@ -194,7 +194,7 @@ class ModelService(Generic[T]):
             obj: The updated instance data
 
         Returns:
-            True if the instance was updated, False if not found
+            modelresponse object
         """
         validation = obj.validateDTO()
         if not validation.success:
@@ -202,12 +202,11 @@ class ModelService(Generic[T]):
             return ModelResponse(success=False, data=obj, validation=validation)
 
         # Check if the object exists to update
-        [existing, response] = await self.get(obj_id)
+        existing, response = await self.get(obj_id)
         if not response.success:
             return ModelResponse(success=False, id=obj_id, error=response.error)
 
         # sanity checks done, now we can update
-        model_name = self.model_class.__name__
         updated = obj.model_dump(exclude=["id", "created_at"])
         existingObj = existing.model_dump(exclude=["updated_at"])
         cleaned = {}
@@ -215,7 +214,7 @@ class ModelService(Generic[T]):
         updates = {}
         # iterate and add only updates
         for key in updated:
-            if existingObj[key] != updated[key]:
+            if key not in existingObj or existingObj[key] != updated[key]:
                 cleaned[key] = updated[key]
                 updates[key] = updated[key]
 
@@ -228,9 +227,7 @@ class ModelService(Generic[T]):
             invalidation = ValidationResponse(success=False, message="Integrity error")
             return ModelResponse(success=False, id=obj_id, validation=invalidation)
 
-        self.dbService.add_audit_log(
-            f"Updated {self.model_name}, #{obj_id} with {json.dumps(updates)}"
-        )
+        self.dbService.add_audit_log(f"Updated {self.model_name}, #{obj_id}")
         return ModelResponse(success=True, id=obj_id, data=cleaned)
 
     async def delete(self, obj_id: str) -> ModelResponse:
@@ -280,7 +277,7 @@ class ModelService(Generic[T]):
                 responses.append(obj)
         return responses, problems
 
-    async def get_where(self, where: str, params: Dict) -> List[T]:
+    async def get_where(self, where: str, params: Dict, **kwargs) -> List[T]:
         """
         Get model instances by a WHERE clause.
 
@@ -291,7 +288,7 @@ class ModelService(Generic[T]):
         Returns:
             A list of model instances
         """
-        rows = self.table.rows_where(where, params)
+        rows = self.table.rows_where(where, params, **kwargs)
         return [self.model_class.model_validate(row) for row in rows]
 
     async def list(self) -> List[T]:

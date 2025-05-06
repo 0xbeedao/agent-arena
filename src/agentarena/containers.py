@@ -13,6 +13,7 @@ from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.contest import ContestDTO
 from agentarena.models.feature import FeatureDTO
+from agentarena.models.job import JsonRequestJob
 from agentarena.models.participant import ParticipantDTO
 from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
@@ -20,6 +21,8 @@ from agentarena.models.strategy import StrategyDTO
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
+from agentarena.services.request_service import RequestService
+from agentarena.services.result_service import ResultService
 
 
 class Container(containers.DeclarativeContainer):
@@ -29,6 +32,8 @@ class Container(containers.DeclarativeContainer):
     projectroot = providers.Resource(get_project_root)
 
     logging = providers.Singleton(LoggingService)
+
+    make_httpclient = providers.Factory(httpx.Client)
 
     get_q = providers.Factory(get_queue)
 
@@ -94,6 +99,14 @@ class Container(containers.DeclarativeContainer):
         logging=logging,
     )
 
+    requestjob_service = providers.Singleton(
+        ModelService[JsonRequestJob],
+        model_class=JsonRequestJob,
+        dbService=db_service,
+        table_name="jsonjobs",
+        logging=logging,
+    )
+
     roundstats_service = providers.Singleton(
         ModelService[RoundStatsDTO],
         model_class=RoundStatsDTO,
@@ -110,8 +123,25 @@ class Container(containers.DeclarativeContainer):
         logging=logging,
     )
 
+    job_service = providers.Singleton(
+        requestjob_service=requestjob_service,
+        logging=logging,
+    )
+
+    result_service = providers.Singleton(
+        ResultService,
+        logging=logging,
+    )
+
+    request_service = providers.Singleton(
+        RequestService,
+        queue_service=job_q_service,
+        http_client_factory=make_httpclient,
+        result_handler=result_service,
+        logging=logging,
+    )
+
     # factory services
-    make_httpclient = providers.Factory(httpx.Client)
 
     participant_factory = providers.Singleton(
         ParticipantFactory,
