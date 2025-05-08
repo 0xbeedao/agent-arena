@@ -39,7 +39,7 @@ class ResponderController:
 
         if not response.success:
             return HealthResponse(
-                status="failed",
+                state="failed",
                 message=f"no such responder: #{participant_id}",
                 job_id=job_id,
             )
@@ -47,9 +47,9 @@ class ResponderController:
         participant: Participant = await self.participant_factory.build(aa)
 
         return HealthResponse(
-            status="completed",
+            state="completed",
             job_id=job_id,
-            data=HealthStatus(name=participant.name, status="OK", version="1"),
+            data=HealthStatus(name=participant.name, state="OK", version="1"),
         )
 
     def get_router(self):

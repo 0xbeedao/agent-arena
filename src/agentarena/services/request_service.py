@@ -31,19 +31,20 @@ class RequestService:
         self.http_client = http_client_factory()
         self.log = logging.get_logger("requestservice")
 
-    def poll_and_process(self):
+    async def poll_and_process(self) -> bool:
         """
         Poll the queue for jobs and process them.
         """
-        job, task = self.queue_service.get_job()
+        job = await self.queue_service.get_next()
         if job is None:
             self.log.debug("No job found in queue")
-            return
+            return False
 
         self.log.info("Processing job", job_id=getattr(job, "id", None))
-        self.process_job(job, task)
+        self.process_job(job)
+        return True
 
-    def process_job(self, job: JsonRequestJob, task):
+    def process_job(self, job: JsonRequestJob):
         """
         Process a single job using the request state machine.
         """
@@ -56,7 +57,7 @@ class RequestService:
         # send the request
         try:
             method = job.method
-            response = self.http_client[method](job.url, data=job.payload)
+            response = self.http_client.request(method, job.url, data=job.payload)
             if response.status_code >= 400:
                 machine.http_error()  # REQUESTING -> FAIL
                 self.handle_fail(job, task, response)

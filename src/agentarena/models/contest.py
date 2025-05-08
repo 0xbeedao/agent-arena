@@ -28,7 +28,7 @@ class ContestRole(str, Enum):
     ANNOUNCER = "announcer"
 
 
-class ContestStatus(str, Enum):
+class ContestState(str, Enum):
     """
     Status of a contest.
     """
@@ -54,7 +54,7 @@ class ContestDTO(DbBase):
     player_positions: str = Field(
         description="A semicolon delimited list of player positions"
     )
-    status: str = Field(default=ContestStatus.CREATED, description="Contest status")
+    state: str = Field(default=ContestState.CREATED, description="Contest state")
     winner: Optional[str] = Field(
         default=None, description="id of winning player agent"
     )
@@ -119,7 +119,7 @@ class Contest(BaseModel):
     player_positions: List[str] = Field(
         description="A list of positions of players at start"
     )
-    status: ContestStatus = Field(description="Contest status")
+    state: ContestState = Field(description="Contest state")
     start_time: Optional[int] = Field(default=None, description="Contest start time")
     end_time: Optional[int] = Field(default=None, description="Contest end time")
     winner: Optional[Participant] = Field(description="winning player")

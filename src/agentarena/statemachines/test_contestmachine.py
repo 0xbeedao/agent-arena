@@ -1,7 +1,7 @@
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.arena import Arena
 from agentarena.models.contest import Contest
-from agentarena.models.contest import ContestStatus
+from agentarena.models.contest import ContestState
 from agentarena.models.participant import Participant
 from agentarena.models.participant import ParticipantRole
 from agentarena.models.strategy import Strategy
@@ -51,7 +51,7 @@ def make_contest():
         arena=make_arena(),
         current_round=1,
         player_positions=["A"],
-        status=ContestStatus.CREATED,
+        state=ContestState.CREATED,
         start_time=None,
         end_time=None,
         winner=None,

@@ -52,11 +52,11 @@ async def test_get(db_service, logging):
     assert next is not None
     assert next.attempt == 1
     assert next.started_at == 0
-    assert next.status == JobState.IDLE.value
+    assert next.state == JobState.IDLE.value
 
     retrieved = await q.get_next()
     assert retrieved.id == next.id
-    assert retrieved.status == JobState.REQUEST.value
+    assert retrieved.state == JobState.REQUEST.value
     assert retrieved.started_at > 0
 
 
@@ -78,14 +78,14 @@ async def test_get_unique(db_service, logging):
     live_job = await q.get_next()
     assert live_job.id == next.id
     assert live_job.started_at > datetime.now().timestamp() - 1000
-    assert live_job.status == JobState.REQUEST.value
+    assert live_job.state == JobState.REQUEST.value
 
     no_job = await q.get_next()
     assert no_job is None
 
 
 @pytest.mark.asyncio
-async def test_update_status(db_service, logging):
+async def test_update_state(db_service, logging):
     job_service = make_job_service(db_service, logging)
     q = QueueService(db_service=db_service, job_service=job_service, logging=logging)
     job = JsonRequestJob(
@@ -100,14 +100,12 @@ async def test_update_status(db_service, logging):
 
     live_job = await q.get_next()
 
-    success = await q.update_status(
-        live_job.id, JobState.COMPLETE.value, "test message"
-    )
+    success = await q.update_state(live_job.id, JobState.COMPLETE.value, "test message")
     assert success
 
     dead_job, response = await q.job_service.get(live_job.id)
     assert response.success
-    assert dead_job.status == JobState.COMPLETE.value
+    assert dead_job.state == JobState.COMPLETE.value
     assert dead_job.finished_at >= datetime.now().timestamp() - 1000
     assert dead_job.final_message == "test message"
 

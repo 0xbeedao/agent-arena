@@ -28,7 +28,7 @@ class QueueService:
         log.info("Draining queue")
         job = await self.get_next()
         while job is not None:
-            self.update_status(job.id, "complete", message=message)
+            self.update_state(job.id, "complete", message=message)
         log.info("drain complete")
 
     async def send_job(self, job: JsonRequestJob):
@@ -43,7 +43,7 @@ class QueueService:
 
     async def get_next(self) -> JsonRequestJob:
         next = await self.job_service.get_where(
-            "status = :idle and send_at < :now",
+            "state = :idle and send_at < :now",
             {"idle": JobState.IDLE.value, "now": int(datetime.now().timestamp())},
             order_by="priority asc, created_at asc",
             limit=1,
@@ -53,21 +53,21 @@ class QueueService:
             return None
         job = next[0]
         job.started_at = int(datetime.now().timestamp())
-        job.status = JobState.REQUEST.value
+        job.state = JobState.REQUEST.value
         startedJob, response = await self.job_service.update(job)
         if response.success:
             return startedJob
         return None
 
-    async def update_status(
-        self, job_id: str, status: str, message: str = ""
+    async def update_state(
+        self, job_id: str, state: str, message: str = ""
     ) -> JsonRequestJob:
 
-        if not status in ALL_STATES:
-            log.warn(f"Invalid status: {status}")
+        if not state in ALL_STATES:
+            log.warn(f"Invalid state: {state}")
             return False
 
-        log = self.log.bind(method="update_status", status=status, job_id=job_id)
+        log = self.log.bind(method="update_state", state=state, job_id=job_id)
 
         job, response = await self.job_service.get(job_id)
 
@@ -76,10 +76,10 @@ class QueueService:
             return None
 
         log = log.bind(attempt=job.attempt)
-        job.status = status
+        job.state = state
         sent = None
-        if status in FINAL_STATES:
-            log.info("final status for job")
+        if state in FINAL_STATES:
+            log.info("final state for job")
             job.finished_at = int(datetime.now().timestamp())
             job.final_message = message
             _, response = await self.job_service.update(job)
@@ -92,7 +92,7 @@ class QueueService:
             else:
                 log.info("Couldn't update the old job, so didn't make a new one")
         else:
-            log.info("job status updated to a non-final status, saving")
+            log.info("job state updated to a non-final state, saving")
             job.finished_at = int(datetime.now().timestamp())
             sent, response = await self.job_service.update(job)
             if not response.success:

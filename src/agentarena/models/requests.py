@@ -16,7 +16,7 @@ class HealthStatus(BaseModel):
     """
 
     name: str = Field(description="Responding service name")
-    status: str = Field(description="status name, ['OK', <errorstate>]")
+    state: str = Field(description="state name, ['OK', <errorstate>]")
     version: Optional[str] = Field(default="", description="service version")
 
 

@@ -7,7 +7,7 @@ from agentarena.controllers.contest_controller import ContestController
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.contest import Contest, ContestDTO
 from agentarena.models.contest import ContestRequest
-from agentarena.models.contest import ContestStatus
+from agentarena.models.contest import ContestState
 from agentarena.services.model_service import ModelResponse
 
 
@@ -45,7 +45,7 @@ async def test_create_contest_success(
         arena_config_id="arena123",
         current_round=1,
         player_positions="A;B;C;D",
-        status=ContestStatus.CREATED.value,
+        state=ContestState.CREATED.value,
         start_time=None,
         end_time=None,
         winner=None,

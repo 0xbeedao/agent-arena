@@ -33,11 +33,11 @@ class BaseAsyncJobResponse(BaseModel):
         default=0, description="Estimated time in milliseconds for job to complete"
     )
     message: Optional[str] = Field(
-        default="", description="Message regarding status, e.g. an error"
+        default="", description="Message regarding state, e.g. an error"
     )
-    status: str = Field(
+    state: str = Field(
         default=JobResponseState.COMPLETED.value,
-        description="status field, one of ['completed', 'pending', 'fail']",
+        description="state field, one of ['completed', 'pending', 'fail']",
     )
 
 
@@ -65,8 +65,8 @@ class JsonRequestJob(DbBase):
     send_at: int = Field(
         default=0, description="Available in queue after what timestamp"
     )
-    status: Optional[str] = Field(
-        default="idle", description="Job status, see JobState states"
+    state: Optional[str] = Field(
+        default="idle", description="Job state, see JobState states"
     )
     started_at: int = (
         Field(default=0, description="When this job was picked up from queue"),
@@ -83,6 +83,6 @@ class JsonRequestJob(DbBase):
             payload=self.payload,
             priority=self.priority,
             send_at=int(datetime.now().timestamp()),
-            status=JobState.IDLE.value,
+            state=JobState.IDLE.value,
             url=self.url,
         )

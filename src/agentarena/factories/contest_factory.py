@@ -6,7 +6,7 @@ from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestDTO
-from agentarena.models.contest import ContestStatus
+from agentarena.models.contest import ContestState
 from agentarena.models.participant import Participant
 from agentarena.models.participant import ParticipantDTO
 from agentarena.services.model_service import ModelService
@@ -69,7 +69,7 @@ class ContestFactory:
             arena=arena,
             current_round=contestDTO.current_round,
             player_positions=positions,
-            status=ContestStatus(contestDTO.status),
+            state=ContestState(contestDTO.state),
             start_time=contestDTO.start_time,
             end_time=contestDTO.end_time,
             winner=winner,

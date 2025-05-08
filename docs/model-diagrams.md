@@ -78,7 +78,7 @@ erDiagram
     CONTEST {
         string id PK
         string arena_config_id FK
-        string status
+        string state
         datetime start_time
         datetime end_time
         bool active
@@ -198,7 +198,7 @@ Defines the environment where contests take place, including dimensions, rules, 
 Maps agents to arenas with specific roles (player, judge, arena, announcer).
 
 #### Contest
-Represents a competition between agents in a specific arena. Tracks the status and timing of the contest.
+Represents a competition between agents in a specific arena. Tracks the state and timing of the contest.
 
 #### Contest Agent
 Maps agents to contests with specific roles.

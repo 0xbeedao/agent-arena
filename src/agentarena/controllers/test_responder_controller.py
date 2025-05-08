@@ -61,8 +61,8 @@ async def test_healthcheck_success(
 
     # Assert
     assert isinstance(result, HealthResponse)
-    assert result.status == "completed"
+    assert result.state == "completed"
     assert result.job_id == job_id
     assert isinstance(result.data, HealthStatus)
     assert result.data.name == "test participant"
-    assert result.data.status == "OK"
+    assert result.data.state == "OK"

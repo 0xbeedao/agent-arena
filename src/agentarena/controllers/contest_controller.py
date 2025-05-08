@@ -15,7 +15,7 @@ from agentarena.factories.contest_factory import ContestFactory
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestDTO
 from agentarena.models.contest import ContestRequest
-from agentarena.models.contest import ContestStatus
+from agentarena.models.contest import ContestState
 from agentarena.models.participant import ParticipantRole
 from agentarena.services.model_service import ModelService
 
@@ -56,7 +56,7 @@ class ContestController(ModelController[ContestDTO]):
             arena_config_id=createRequest.arena_config_id,
             current_round=1,
             player_positions=";".join(createRequest.player_positions),
-            status=ContestStatus.CREATED.value,
+            state=ContestState.CREATED.value,
             start_time=None,
             end_time=None,
             winner=None,
@@ -138,10 +138,8 @@ class ContestController(ModelController[ContestDTO]):
             boundlog.error("failed to get contest")
             raise HTTPException(status_code=404, detail=response.validation)
 
-        if contestDTO.status != ContestStatus.CREATED:
-            boundlog.error(
-                "contest is not in CREATED state, was: %s", contestDTO.status
-            )
+        if contestDTO.state != ContestState.CREATED:
+            boundlog.error("contest is not in CREATED state, was: %s", contestDTO.state)
             raise HTTPException(
                 status_code=422, detail="Contest is not in CREATED state"
             )
@@ -166,9 +164,9 @@ class ContestController(ModelController[ContestDTO]):
                     status_code=422, detail=f"Arena needs at least one {role} agent"
                 )
 
-        # Set contest status to STARTING
+        # Set contest state to STARTING
         # and update start time
-        # contestDTO.status = ContestStatus.STARTING
+        # contestDTO.state = ContestStatus.STARTING
         # contestDTO.start_time = int(datetime.now().timestamp())
         # model_service.update(contest_id, contestDTO)
 

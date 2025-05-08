@@ -8,7 +8,7 @@ import pytest
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.contest import Contest
-from agentarena.models.contest import ContestStatus
+from agentarena.models.contest import ContestState
 from agentarena.statemachines.setupmachine import SetupMachine
 
 
@@ -17,7 +17,7 @@ def contest():
     """Create a mock Contest object for testing."""
     mock = MagicMock(spec=Contest)
     mock.id = "test-contest-id"
-    mock.status = ContestStatus.CREATED
+    mock.state = ContestState.CREATED
     return mock
 
 

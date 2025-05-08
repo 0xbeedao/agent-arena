@@ -53,7 +53,7 @@ sequenceDiagram
     Arena ->>+ Judge: Determine results of actions
     Judge ->>- Arena: Player results
     Arena ->>+ Judge: Determine effect of results
-    Judge ->>- Arena: Player & Arena status updates
+    Judge ->>- Arena: Player & Arena state updates
     Arena ->>+ Announcer: Describe round results
     Announcer ->>- Arena: description of results
     Arena -->> Observer: Show compiled round results
