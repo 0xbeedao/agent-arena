@@ -33,7 +33,6 @@ class RequestMachine(StateMachine):
     state_failure = response.to(fail)
     state_complete = response.to(complete)
     state_pending = response.to(waiting)
-    wakeup = waiting.to(request)
 
     def __init__(self, job=None, logging=None):
         """

@@ -2,50 +2,62 @@
 Responder controller for Agent Response endpoints
 """
 
-from dependency_injector.wiring import Provide
-from dependency_injector.wiring import inject
 from fastapi import APIRouter
 from fastapi import Depends
+from pydantic import Field
 
-from agentarena.containers import Container
+from agentarena.factories.participant_factory import ParticipantFactory
 from agentarena.models.participant import Participant
 from agentarena.models.participant import ParticipantDTO
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
 from agentarena.services.model_service import ModelService
 
-# Create a router for agent endpoints
-router = APIRouter(tags=["Responder"])
 
+class ResponderController:
 
-@router.get(
-    "/responders/{participant_id}/health/{job_id}", response_model=HealthResponse
-)
-@inject
-async def healthcheck(
-    participant_id: str,
-    job_id: str,
-    participant_service: ModelService[ParticipantDTO] = Depends(
-        Provide[Container.participant_service]
-    ),
-    logging=Depends(Provide[Container.logging]),
-    participant_factory=Depends(Provide[Container.participant_factory]),
-) -> HealthResponse:
-    log = logging.get_logger("healthcheck")
-    log.info(f"make_participant: {participant_service}")
-    aa, response = await participant_service.get(participant_id)
+    def __init__(
+        self,
+        participant_factory: ParticipantFactory = Field(
+            description="The participant factory"
+        ),
+        participant_service: ModelService[ParticipantDTO] = Field(
+            description="the participant service"
+        ),
+        logging=None,
+    ):
+        self.participant_factory = participant_factory
+        self.participant_service = participant_service
+        self.log = logging.get_logger(module="responder_controller")
 
-    if not response.success:
+    # @router.get(
+    #    "/responders/{participant_id}/health/{job_id}", response_model=HealthResponse
+    # )
+    async def healthcheck(self, participant_id: str, job_id: str) -> HealthResponse:
+        log = self.log.bind(participant_id=participant_id)
+        aa, response = await self.participant_service.get(participant_id)
+
+        if not response.success:
+            return HealthResponse(
+                status="failed",
+                message=f"no such responder: #{participant_id}",
+                job_id=job_id,
+            )
+
+        participant: Participant = await self.participant_factory.build(aa)
+
         return HealthResponse(
-            status="failed",
-            message=f"no such responder: #{participant_id}",
+            status="completed",
             job_id=job_id,
+            data=HealthStatus(name=participant.name, status="OK", version="1"),
         )
 
-    agent: Participant = await participant_factory.build(aa)
+    def get_router(self):
 
-    return HealthResponse(
-        status="completed",
-        job_id=job_id,
-        data=HealthStatus(name=agent.name, status="OK", version="1"),
-    )
+        router = APIRouter(prefix="/responders", tags="Responders")
+
+        @router.get("/{participant_id}/health/{job_id}", response_model=HealthResponse)
+        async def health():
+            return await self.healthcheck()
+
+        return router

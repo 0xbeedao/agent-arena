@@ -1,9 +1,11 @@
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
+from pydantic import BaseModel
 import pytest
 
-from agentarena.controllers import arena_controller
+from agentarena.controllers.arena_controller import ArenaController
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.arena import ArenaCreateRequest
 from agentarena.services.model_service import ModelResponse
 
@@ -21,20 +23,50 @@ def mock_agent_service():
 
 
 @pytest.fixture
-def mock_logger():
-    logger = Mock()
-    logger.get_logger.return_value = logger
-    logger.info = Mock()
-    logger.debug = Mock()
-    logger.error = Mock()
-    logger.bind = Mock(return_value=logger)
-    return logger
+def mock_feature_service():
+    service = AsyncMock()
+    return service
+
+
+@pytest.fixture
+def mock_arena_factory():
+    service = AsyncMock()
+    return service
+
+
+@pytest.fixture
+def mock_participant_service():
+    service = AsyncMock()
+    return service
+
+
+@pytest.fixture
+def logging():
+    return LoggingService(True)
+
+
+class ArenaStub(BaseModel):
+    name: str
+    id: str
 
 
 @pytest.mark.asyncio
 async def test_create_arena_success(
-    mock_arena_service, mock_agent_service, mock_logger
+    mock_arena_service,
+    mock_agent_service,
+    logging,
+    mock_feature_service,
+    mock_participant_service,
+    mock_arena_factory,
 ):
+    arena_controller = ArenaController(
+        agent_service=mock_agent_service,
+        model_service=mock_arena_service,
+        feature_service=mock_feature_service,
+        participant_service=mock_participant_service,
+        arena_factory=mock_arena_factory,
+        logging=logging,
+    )
     # Arrange
     create_request = ArenaCreateRequest(
         name="Test Arena",
@@ -47,21 +79,21 @@ async def test_create_arena_success(
         features=[],
         agents=[],
     )
-    mock_arena_service.create.return_value = ["arena123", ModelResponse(success=True)]
-    mock_agent_service.get_by_ids.return_value = ([], [])
+
+    mock_arena = ArenaStub(name="test", id="testid")
+
+    mock_result_arena = ArenaStub(name="test", id="testid")
+
+    mock_arena_service.create.return_value = [mock_arena, ModelResponse(success=True)]
+    mock_arena_factory.build.return_value = mock_result_arena
+    mock_agent_service.get_by_ids.return_value = [[], []]
     # Act
     result = await arena_controller.create_arena(
         createRequest=create_request,
-        arena_service=mock_arena_service,
-        agent_service=mock_agent_service,
-        logging=mock_logger,
     )
     # Assert
-    assert result == {"id": "arena123"}
+    assert result == mock_result_arena
     mock_arena_service.create.assert_awaited_once()
-    mock_logger.get_logger.assert_called_with(
-        module="arena_controller", endpoint="create_arena"
-    )
 
 
 # Additional tests for error cases, get_arena, get_arena_list, update_arena, delete_arena, etc. should be added similarly.

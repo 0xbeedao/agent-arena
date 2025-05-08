@@ -3,7 +3,6 @@ Generic model service for the Agent Arena application.
 Provides a reusable service for CRUD operations on any model that inherits from DbBase.
 """
 
-import json
 import sqlite3
 from datetime import datetime
 from typing import Any
@@ -80,7 +79,7 @@ class ModelService(Generic[T]):
             model=self.model_name,
         )
 
-    async def create(self, obj: T) -> Tuple[str, ModelResponse]:
+    async def create(self, obj: T) -> Tuple[T, ModelResponse]:
         """
         Create a new model instance.
 
@@ -88,22 +87,22 @@ class ModelService(Generic[T]):
             obj: The model instance to create
 
         Returns:
-            The ID of the created instance
+            the object or None
+            the response detail
         """
         db_obj = obj.model_copy()
         # Always make a new ID
-        db_obj.id = ULID().hex
+        obj_id = ULID().hex
+        db_obj.id = obj_id
         # And set the timestamps
         isonow = int(datetime.now().timestamp())
         db_obj.created_at = isonow
         db_obj.updated_at = isonow
 
-        obj_id = str(db_obj.id)
-
         validation = obj.validateDTO()
         if not validation.success:
             self.log.error(f"Validation failed: %s", validation.data)
-            return "", ModelResponse(success=False, data=obj, validation=validation)
+            return None, ModelResponse(success=False, data=obj, validation=validation)
         try:
             # TODO: turn off alter=true for production
             self.table.insert(
@@ -117,14 +116,14 @@ class ModelService(Generic[T]):
             invalidation = ValidationResponse(
                 success=False, data=obj, message="Integrity error"
             )
-            return "", ModelResponse(success=False, validation=invalidation)
+            return None, ModelResponse(success=False, validation=invalidation)
         self.log.info(f"Added #{obj_id}")
         self.dbService.add_audit_log(f"Added {self.model_name}: {obj_id}")
-        return obj_id, ModelResponse(success=True, id=obj_id, validation=validation)
+        return db_obj, ModelResponse(success=True, id=obj_id, validation=validation)
 
     async def create_many(
         self, obj_list: List[T]
-    ) -> Tuple[List[str], List[ModelResponse]]:
+    ) -> Tuple[List[T], List[ModelResponse]]:
         """
         Create multiple model instances.
 
@@ -136,23 +135,24 @@ class ModelService(Generic[T]):
         """
         responses: List[str] = []
         problems: List[ModelResponse] = []
+        log = self.log.bind(method="create_many")
         for obj in obj_list:
             validation = obj.validateDTO()
             if not validation.success:
-                self.log.error(f"Validation failed: %s", validation.data)
+                log.error(f"Validation failed: {validation.data}")
                 problems.append(
                     ModelResponse(success=False, data=obj, validation=validation)
                 )
             else:
-                [id, response] = await self.create(obj)
+                [created, response] = await self.create(obj)
                 if not response.success:
-                    self.log.error(f"Failed to create: %s", response.error)
+                    log.error(f"Failed to create: %s", response.error)
                     problems.append(
                         ModelResponse(success=False, data=obj, error=response.error)
                     )
                 else:
-                    responses.append(id)
-                    self.log.info(f"Created: %s", id)
+                    responses.append(created)
+                    log.info(f"Created: %s", created.id)
 
         return responses, problems
 
@@ -166,7 +166,7 @@ class ModelService(Generic[T]):
         Returns:
             The model instance, or None if not found
         """
-        model_name = self.model_class.__name__
+        model_name = self.model_name
         boundlog = self.log.bind(get=obj_id)
         boundlog.info("Getting from DB")
         row = self.table.get(str(obj_id))
@@ -174,10 +174,10 @@ class ModelService(Generic[T]):
             boundlog.debug("validating model")
             obj = self.model_class.model_validate(row) if row is not None else None
         except Exception as e:
-            self.log.error("error when loading", e)
+            boundlog.error("error when loading", e)
             obj = None
         if obj is None:
-            self.log.warn(f"Not found #%s", obj_id)
+            boundlog.warn(f"Not found")
             return None, ModelResponse(
                 success=False,
                 id=obj_id,
@@ -185,26 +185,30 @@ class ModelService(Generic[T]):
             )
         return obj, ModelResponse(success=True, id=obj_id)
 
-    async def update(self, obj_id: str, obj: T) -> ModelResponse:
+    async def update(self, obj: T) -> Tuple[T, ModelResponse]:
         """
         Update a model instance.
 
         Args:
-            obj_id: The ID of the instance to update
-            obj: The updated instance data
+            obj: The updated instance data, must have an id
 
         Returns:
             modelresponse object
         """
+        if not obj.id:
+            self.log.warn(f"Invalid object to update, no ID: {obj}")
+            return obj, ModelResponse(success=False, data=obj, error="invalid object")
+
+        boundlog = self.log.bind(obj_id=obj.id)
         validation = obj.validateDTO()
         if not validation.success:
-            self.log.error(f"Validation failed: %s", validation.data)
-            return ModelResponse(success=False, data=obj, validation=validation)
+            boundlog.error(f"Validation failed: %s", validation.data)
+            return obj, ModelResponse(success=False, data=obj, validation=validation)
 
         # Check if the object exists to update
-        existing, response = await self.get(obj_id)
+        existing, response = await self.get(obj.id)
         if not response.success:
-            return ModelResponse(success=False, id=obj_id, error=response.error)
+            return obj, ModelResponse(success=False, data=obj, error=response.error)
 
         # sanity checks done, now we can update
         updated = obj.model_dump(exclude=["id", "created_at"])
@@ -222,14 +226,15 @@ class ModelService(Generic[T]):
         cleaned["updated_at"] = int(datetime.now().timestamp())
 
         try:
-            self.table.update(obj_id, cleaned)
+            self.table.update(obj.id, cleaned)
         except sqlite3.IntegrityError:
-            self.log.error(f"Integrity error while updating: %s", cleaned)
+            boundlog.error(f"Integrity error while updating: %s", cleaned)
             invalidation = ValidationResponse(success=False, message="Integrity error")
-            return ModelResponse(success=False, id=obj_id, validation=invalidation)
+            return obj, ModelResponse(success=False, id=obj.id, validation=invalidation)
 
-        self.dbService.add_audit_log(f"Updated {self.model_name}, #{obj_id}")
-        return ModelResponse(success=True, id=obj_id, data=cleaned)
+        self.dbService.add_audit_log(f"Updated {self.model_name}, #{obj.id}")
+
+        return await self.get(obj.id)
 
     async def delete(self, obj_id: str) -> ModelResponse:
         """
@@ -272,13 +277,26 @@ class ModelService(Generic[T]):
         responses = []
         problems = []
         for obj_id in obj_ids:
-            [obj, response] = await self.get(obj_id)
+            obj, response = await self.get(obj_id)
             if not response.success:
                 self.log.error(f"Failed to get: %s", response.error)
                 problems.append(response)
             else:
                 responses.append(obj)
         return responses, problems
+
+    def count_where(self, where: str, params: Dict, **kwargs) -> List[T]:
+        """
+        Count model instances by a WHERE clause.
+
+        Args:
+            where: The WHERE clause
+            params: The parameters for the WHERE clause
+
+        Returns:
+            count
+        """
+        return self.table.count_where(where, params, **kwargs)
 
     async def get_where(self, where: str, params: Dict, **kwargs) -> List[T]:
         """

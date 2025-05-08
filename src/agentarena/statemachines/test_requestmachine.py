@@ -88,18 +88,6 @@ def test_state_complete_transition():
     assert machine.current_state.final
 
 
-def test_state_pending_and_wakeup_transitions():
-    job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    machine.get_job()
-    machine.start_request()
-    machine.http_ok()
-    machine.state_pending()
-    assert machine.current_state.id == "waiting"
-    machine.wakeup()
-    assert machine.current_state.id == "request"
-
-
 def test_full_success_sequence():
     job = make_job()
     machine = RequestMachine(job=job, logging=logging())

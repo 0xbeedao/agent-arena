@@ -6,7 +6,6 @@ from agentarena.factories.db_factory import get_database
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.job import JobState, JsonRequestJob
 from agentarena.services.db_service import DbService
-from agentarena.services.job_service import JobService
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 

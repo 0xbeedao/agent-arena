@@ -1,9 +1,11 @@
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
+from pydantic import BaseModel
 import pytest
 
-from agentarena.controllers import responder_controller
+from agentarena.controllers.responder_controller import ResponderController
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.participant import ParticipantDTO
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
@@ -16,23 +18,29 @@ def mock_participant_service():
 
 
 @pytest.fixture
-def mock_logging():
-    logger = Mock()
-    logger.get_logger.return_value = logger
-    logger.info = Mock()
-    return logger
+def logging():
+    return LoggingService(True)
 
 
 @pytest.fixture
 def mock_participant_factory():
-    factory = AsyncMock()
-    return factory
+    service = AsyncMock()
+    return service
+
+
+class ParticipantStub(BaseModel):
+    name: str
 
 
 @pytest.mark.asyncio
 async def test_healthcheck_success(
-    mock_participant_service, mock_logging, mock_participant_factory
+    mock_participant_service, mock_participant_factory, logging
 ):
+    responder_controller = ResponderController(
+        participant_service=mock_participant_service,
+        logging=logging,
+        participant_factory=mock_participant_factory,
+    )
     # Arrange
     participant_id = "aa1"
     job_id = "job42"
@@ -40,17 +48,15 @@ async def test_healthcheck_success(
         arena_config_id="arena1", agent_id="agent1", role="player"
     )
     mock_participant_service.get.return_value = (agent_dto, Mock(success=True))
-    agent = Mock()
-    agent.name = "AgentName"
-    mock_participant_factory.build.return_value = agent
+
+    mock_participant_factory.build.return_value = ParticipantStub(
+        name="test participant"
+    )
 
     # Act
     result = await responder_controller.healthcheck(
         participant_id=participant_id,
         job_id=job_id,
-        participant_service=mock_participant_service,
-        logging=mock_logging,
-        participant_factory=mock_participant_factory,
     )
 
     # Assert
@@ -58,5 +64,5 @@ async def test_healthcheck_success(
     assert result.status == "completed"
     assert result.job_id == job_id
     assert isinstance(result.data, HealthStatus)
-    assert result.data.name == "AgentName"
+    assert result.data.name == "test participant"
     assert result.data.status == "OK"

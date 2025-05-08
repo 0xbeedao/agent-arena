@@ -13,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from agentarena.containers import Container
-from agentarena.controllers import routers
 
 # Initialize the container
 container = Container()
@@ -23,21 +22,6 @@ if os.path.exists(yamlFile):
     container.config.from_yaml(yamlFile)
 # Always initialize resources and wire the container
 container.init_resources()
-
-to_wire = [
-    "agentarena.controllers.%s_controller" % module
-    for module in [
-        "agent",
-        "arena",
-        "contest",
-        "feature",
-        "responder",
-        "roundstats",
-        "strategy",
-    ]
-]
-
-container.wire(modules=to_wire)
 
 # Create the FastAPI application
 app = FastAPI(
@@ -56,6 +40,13 @@ app.add_middleware(
 )
 
 # Include routers
+routers = [
+    container.contest_controller().get_router(),
+    container.agent_controller().get_router(),
+    container.arena_controller().get_router(),
+    container.strategy_controller().getRouter(),
+    container.responder_controller().getRouter(),
+]
 [app.include_router(router) for router in routers]
 
 

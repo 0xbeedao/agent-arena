@@ -2,6 +2,10 @@ import httpx
 from dependency_injector import containers
 from dependency_injector import providers
 
+from agentarena.controllers.arena_controller import ArenaController
+from agentarena.controllers.contest_controller import ContestController
+from agentarena.controllers.model_controller import ModelController
+from agentarena.controllers.responder_controller import ResponderController
 from agentarena.factories.arena_factory import ArenaFactory
 from agentarena.factories.contest_factory import ContestFactory
 from agentarena.factories.db_factory import get_database
@@ -165,4 +169,40 @@ class Container(containers.DeclarativeContainer):
         participant_factory=participant_factory,
         arena_factory=arena_factory,
         logging=logging,
+    )
+
+    # controllers
+
+    agent_controller = providers.Singleton(
+        ModelController[AgentDTO](
+            model_name="agent", model_service=agent_service, logging=logging
+        )
+    )
+
+    arena_controller = providers.Singleton(
+        ArenaController(
+            model_service=arena_service,
+            agent_service=agent_service,
+            feature_service=feature_service,
+            participant_service=participant_service,
+            arena_factory=arena_factory,
+            logging=logging,
+        )
+    )
+
+    contest_controller = providers.Singleton(
+        ContestController,
+        model_service=contest_service,
+        contest_factory=contest_factory,
+        logging=logging,
+    )
+
+    responder_controller = providers.Singleton(
+        ResponderController, participant_service=participant_service, logging=logging
+    )
+
+    strategy_controller = providers.Singleton(
+        ModelController[StrategyDTO](
+            model_name="strategy", model_service=strategy_service, logging=logging
+        )
     )
