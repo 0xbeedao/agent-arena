@@ -103,7 +103,7 @@ class Container(containers.DeclarativeContainer):
         ModelService[JsonRequestJob],
         model_class=JsonRequestJob,
         dbService=db_service,
-        table_name="jsonjobs",
+        table_name="jsonjob",
         logging=logging,
     )
 

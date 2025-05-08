@@ -59,10 +59,8 @@ class ContestDTO(DbBase):
         default=None, description="id of winning player agent"
     )
 
-    start_time: Optional[datetime] = Field(
-        default=None, description="Contest start time"
-    )
-    end_time: Optional[datetime] = Field(default=None, description="Contest end time")
+    start_time: Optional[int] = Field(default=None, description="Contest start time")
+    end_time: Optional[int] = Field(default=None, description="Contest end time")
 
     def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
         """
@@ -122,8 +120,6 @@ class Contest(BaseModel):
         description="A list of positions of players at start"
     )
     status: ContestStatus = Field(description="Contest status")
-    start_time: Optional[datetime] = Field(
-        default=None, description="Contest start time"
-    )
-    end_time: Optional[datetime] = Field(default=None, description="Contest end time")
+    start_time: Optional[int] = Field(default=None, description="Contest start time")
+    end_time: Optional[int] = Field(default=None, description="Contest end time")
     winner: Optional[Participant] = Field(description="winning player")

@@ -94,7 +94,7 @@ class ModelService(Generic[T]):
         # Always make a new ID
         db_obj.id = ULID().hex
         # And set the timestamps
-        isonow = datetime.now()
+        isonow = int(datetime.now().timestamp())
         db_obj.created_at = isonow
         db_obj.updated_at = isonow
 
@@ -218,7 +218,8 @@ class ModelService(Generic[T]):
                 cleaned[key] = updated[key]
                 updates[key] = updated[key]
 
-        cleaned["updated_at"] = datetime.now()
+        cleaned["id"] = obj.id
+        cleaned["updated_at"] = int(datetime.now().timestamp())
 
         try:
             self.table.update(obj_id, cleaned)
@@ -249,7 +250,9 @@ class ModelService(Generic[T]):
                 error=f"{self.model_name} with ID {obj_id} not found",
             )
 
-        self.table.update(obj_id, {"deleted_at": datetime.now(), "active": False})
+        self.table.update(
+            obj_id, {"deleted_at": int(datetime.now().timestamp()), "active": False}
+        )
         self.log.info(f"Deleted #%s", obj_id)
         self.dbService.add_audit_log(f"Deleted {self.model_name}: {obj_id}")
         return ModelResponse(success=True, id=obj_id, data=existing)

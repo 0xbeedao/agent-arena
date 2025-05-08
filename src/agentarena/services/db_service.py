@@ -38,5 +38,9 @@ class DbService:
         auditTable = self.db["audit"]
         self.log.info("Audit message: %s", message)
         auditTable.insert(
-            {"id": ULID().hex, "timestamp": datetime.now(), "message": message}
+            {
+                "id": ULID().hex,
+                "timestamp": int(datetime.now().timestamp()),
+                "message": message,
+            }
         )

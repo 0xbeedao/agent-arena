@@ -17,28 +17,22 @@ class DbBase(BaseModel):
 
     id: str = Field(default=None, description="Unique identifier (ULID)")
     active: bool = Field(default=True, description="Is the object active?")
-    created_at: Optional[datetime] = Field(
-        default=None, description="Creation timestamp"
-    )
-    updated_at: Optional[datetime] = Field(
-        default=None, description="Creation timestamp"
-    )
-    deleted_at: Optional[datetime] = Field(
-        default=None, description="Deletion timestamp"
-    )
+    created_at: Optional[int] = Field(default=0, description="Creation timestamp")
+    updated_at: Optional[int] = Field(default=0, description="Creation timestamp")
+    deleted_at: Optional[int] = Field(default=0, description="Deletion timestamp")
 
     def fill_defaults(self):
         if self.id is None or self.id.strip() == "":
             self.id = ULID().hex
 
         if self.created_at is None:
-            self.created_at = datetime.now()
+            self.created_at = int(datetime.now().timestamp())
 
         return self
 
     def touch(self):
         self.fill_defaults()
-        self.updated_at = datetime.now()
+        self.updated_at = int(datetime.now().timestamp())
         return self
 
     def get_foreign_keys(self) -> List[Tuple[str, str, str]]:

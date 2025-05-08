@@ -218,11 +218,49 @@ async def start_contest(
                 status_code=422, detail=f"Arena needs at least one {role} agent"
             )
 
-    # Set contest status to STARTING
-    # and update start time
-    # contestDTO.status = ContestStatus.STARTING
-    # contestDTO.start_time = datetime.now()
-    # contest_service.update(contest_id, contestDTO)
+        agent_roles = arena.agents_by_role()
+
+        for role in ParticipantRole:
+            if agent_roles[role] is None or len(agent_roles[role]) == 0:
+                boundlog.error("No agents in arena for role %s, raising error", role)
+                raise HTTPException(
+                    status_code=422, detail=f"Arena needs at least one {role} agent"
+                )
+
+        # Set contest status to STARTING
+        # and update start time
+        # contestDTO.status = ContestStatus.STARTING
+        # contestDTO.start_time = int(datetime.now().timestamp())
+        # model_service.update(contest_id, contestDTO)
+
+        # Populate the features if needed
+        # if arena.max_random_features > 0:
+        #     random_features = []
+
+        return {"id": contest_id}
+
+    async def get_router(self):
+        router = APIRouter(prefix=f"/{self.model_name}", tags=[self.model_name])
+
+        @router.post("/", response_model=Contest)
+        async def create(req: ContestDTO):
+            return await self.create_contest(req)
+
+        @router.get("/{obj_id}", response_model=Contest)
+        async def get(obj_id: str):
+            return await self.get_contest(obj_id)
+
+        @router.get("/", response_model=List[ContestDTO])
+        async def list_all():
+            return await self.get_model_list()
+
+        @router.get("/list", response_model=List[ContestDTO])
+        async def list_alias():
+            return await self.get_model_list()
+
+        @router.put("/", response_model=Dict[str, bool])
+        async def update(req_id: str, req: ContestDTO):
+            return await self.update_contest(req_id, req)
 
     # Populate the features if needed
     # if arena.max_random_features > 0:

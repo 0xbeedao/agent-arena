@@ -1,78 +1,100 @@
-import os.path
-from typing import Any
-from typing import Tuple
-
-from litequeue import LiteQueue
-
-from agentarena.models.job import JsonRequestJob
+from datetime import datetime
+from agentarena.models.job import JobState, JsonRequestJob
+from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
+
+
+FINAL_STATES = [JobState.WAITING.value, JobState.FAIL.value, JobState.COMPLETE.value]
+ALL_STATES = [state.value for state in JobState]
 
 
 class QueueService:
     """
-    Provides Queue services, and a handle to the queue itself.
+    Provides DB backed job queue services
     """
 
     def __init__(
         self,
-        projectroot: str,
-        dbfile: str,
-        get_queue=None,
+        db_service: DbService = None,
         job_service: ModelService[JsonRequestJob] = None,
         logging=None,
     ):
-        filename = dbfile.replace("<projectroot>", str(projectroot))
-        self.log = logging.get_logger(
-            "queueservice", module="queue_service", db=os.path.basename(filename)
-        )
+        self.db_service = db_service
         self.job_service = job_service
-        self.log.info("Setting up Job DB at %s", filename)
-        self.q: LiteQueue = get_queue(filename)
-        self.q.prune()
+        self.log = logging.get_logger(module="jobqueue_service")
 
-    def done(self, task, job, status="completed"):
-        if task is None:
+    async def drain(self, message=""):
+        log = self.log.bind(method="drain")
+        log.info("Draining queue")
+        job = await self.get_next()
+        while job is not None:
+            self.update_status(job.id, "complete", message=message)
+        log.info("drain complete")
+
+    async def send_job(self, job: JsonRequestJob):
+        if job.id is None:
+            job.attempt = 1
+            job.started_at = 0
+            job.finished_at = 0
+        created, response = await self.job_service.create(job)
+        if response.success:
+            return created
+        return None
+
+    async def get_next(self) -> JsonRequestJob:
+        next = await self.job_service.get_where(
+            "status = :idle and send_at < :now",
+            {"idle": JobState.IDLE.value, "now": int(datetime.now().timestamp())},
+            order_by="priority asc, created_at asc",
+            limit=1,
+        )
+        self.log.info(f"next: {next}")
+        if next is None or len(next) == 0:
+            return None
+        job = next[0]
+        job.started_at = int(datetime.now().timestamp())
+        job.status = JobState.REQUEST.value
+        startedJob, response = await self.job_service.update(job)
+        if response.success:
+            return startedJob
+        return None
+
+    async def update_status(
+        self, job_id: str, status: str, message: str = ""
+    ) -> JsonRequestJob:
+
+        if not status in ALL_STATES:
+            log.warn(f"Invalid status: {status}")
+            return False
+
+        log = self.log.bind(method="update_status", status=status, job_id=job_id)
+
+        job, response = await self.job_service.get(job_id)
+
+        if job is None or not response.success:
+            log.warn("No such job")
             return None
 
-        job_id = job.id
-        self.log.info(f"Task {status}: task# {task.message_id} job# {job_id}")
+        log = log.bind(attempt=job.attempt)
         job.status = status
-        self.job_service.update(job)
-        return self.q.done(task.message_id)
+        sent = None
+        if status in FINAL_STATES:
+            log.info("final status for job")
+            job.finished_at = int(datetime.now().timestamp())
+            job.final_message = message
+            _, response = await self.job_service.update(job)
 
-    def drain(self):
-        """
-        Clear the queue
-        """
-        self.log.warn("Draining the queue")
-        job, task = self.get_job()
-        while task is not None:
-            self.done(task, job)
-            job, task = self.get_job()
-
-    def get_job(self) -> Tuple[JsonRequestJob, Any]:
-        if self.q.qsize() == 0:
-            return None, None
+            if response.success:
+                again = job.make_attempt()
+                self.log.info("Requeue request for the new job")
+                sent = await self.send_job(again)
+                self.log.debug(f"Requeued: {sent}")
+            else:
+                log.info("Couldn't update the old job, so didn't make a new one")
         else:
-            task = self.q.pop()
-            if task is None:
-                return None, None
-            return JsonRequestJob.model_validate_json(task.data), task
-
-    def requeue_job(self, job: JsonRequestJob, task):
-        self.q.done(task.message_id, status="waiting")
-        self.send_job(job)
-
-    def send_job(self, job: JsonRequestJob):
-        if not job.id:
-            job.fill_defaults()
-            job.attempt = 1
-            _, response = self.job_service.create(job)
-        else:
-            job.attempt += 1
-            response = self.job_service.update(job)
-
-        if not response.success:
-            self.log.warn("Could not persist job: {job}")
-
-        self.q.put(job.model_dump_json())
+            log.info("job status updated to a non-final status, saving")
+            job.finished_at = int(datetime.now().timestamp())
+            sent, response = await self.job_service.update(job)
+            if not response.success:
+                sent = None
+        return sent

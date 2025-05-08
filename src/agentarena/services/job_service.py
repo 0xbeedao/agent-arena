@@ -39,7 +39,11 @@ class JobService:
     async def get(self) -> Optional[JsonRequestJob]:
         jobs: JsonRequestJob = await self.model_service.get_where(
             "status = :idle or status = :waiting and send_at <= :now",
-            {"idle": "IDLE", "waiting": "WAITING", "now": datetime.now()},
+            {
+                "idle": "IDLE",
+                "waiting": "WAITING",
+                "now": int(datetime.now().timestamp()),
+            },
             limit=1,
             order_by="created_at asc",
         )
@@ -47,9 +51,9 @@ class JobService:
             return jobs[0]
         return None
 
-    async def resend(self, job: JsonRequestJob, at=Optional[datetime]):
+    async def resend(self, job: JsonRequestJob, at=Optional[int]):
         job.attempt += 1
-        job.send_at = at if at is not None else datetime.now()
+        job.send_at = at if at is not None else int(datetime.now().timestamp())
         self.log.info("rescheduling", job=job.id, to=job.send_at)
         response = await self.model_service.update(job.id, job)
         return job.id, response

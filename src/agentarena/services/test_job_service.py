@@ -25,7 +25,7 @@ def model_service():
     return ModelService[JsonRequestJob](
         dbService=db_service(),
         model_class=JsonRequestJob,
-        table_name="jsonjobs",
+        table_name="jsonjob",
         logging=logging(),
     )
 
@@ -104,7 +104,7 @@ async def test_resend_increments_attempt_and_updates_send_at(model_service):
     await service.send(job)
     old_send_at = job.send_at
 
-    new_time = datetime.now()
+    new_time = int(datetime.now().timestamp())
 
     fresh = await service.get()
     job_id, response = await service.resend(fresh, at=new_time)

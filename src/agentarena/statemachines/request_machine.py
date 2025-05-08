@@ -20,7 +20,7 @@ class RequestMachine(StateMachine):
     request = State("REQUEST")
     requesting = State("REQUESTING")
     response = State("RESPONSE")
-    waiting = State("WAITING")
+    waiting = State("WAITING", final=True)
     fail = State("FAIL", final=True)
     complete = State("COMPLETE", final=True)
 
