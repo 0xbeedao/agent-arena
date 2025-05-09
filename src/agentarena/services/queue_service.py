@@ -1,8 +1,9 @@
 from datetime import datetime
-from agentarena.models.job import JobState, JsonRequestJob
+
+from agentarena.models.job import JobState
+from agentarena.models.job import JsonRequestJob
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
-
 
 FINAL_STATES = [JobState.WAITING.value, JobState.FAIL.value, JobState.COMPLETE.value]
 ALL_STATES = [state.value for state in JobState]
@@ -59,6 +60,18 @@ class QueueService:
             return startedJob
         return None
 
+    async def requeue_job(self, job_id: str, eta: int) -> JsonRequestJob:
+        log = self.log.bind(method="requeue_job", job=job_id)
+        orig_job, response = await self.job_service.get(job_id)
+        if not response.success:
+            log.info("No such job")
+            return None
+        again = orig_job.make_attempt(eta)
+        log.info("Requeue request for the new job")
+        sent = await self.send_job(again)
+        log.debug(f"Requeued", sent=sent.id)
+        return sent
+
     async def update_state(
         self, job_id: str, state: str, message: str = ""
     ) -> JsonRequestJob:
@@ -75,26 +88,17 @@ class QueueService:
             log.warn("No such job")
             return None
 
-        log = log.bind(attempt=job.attempt)
         job.state = state
+        log = log.bind(state=state)
         sent = None
         if state in FINAL_STATES:
             log.info("final state for job")
             job.finished_at = int(datetime.now().timestamp())
             job.final_message = message
-            _, response = await self.job_service.update(job)
-
-            if response.success:
-                again = job.make_attempt()
-                self.log.info("Requeue request for the new job")
-                sent = await self.send_job(again)
-                self.log.debug(f"Requeued: {sent}")
-            else:
-                log.info("Couldn't update the old job, so didn't make a new one")
         else:
             log.info("job state updated to a non-final state, saving")
-            job.finished_at = int(datetime.now().timestamp())
-            sent, response = await self.job_service.update(job)
-            if not response.success:
-                sent = None
+
+        sent, response = await self.job_service.update(job)
+        if not response.success:
+            sent = None
         return sent

@@ -1,10 +1,12 @@
-from httpx import Response
+from statemachine import State
 
 from agentarena.models.job import BaseAsyncJobResponse
+from agentarena.models.job import JobState
 from agentarena.models.job import JsonRequestJob
 from agentarena.services.queue_service import QueueService
 from agentarena.services.result_service import ResultService
 from agentarena.statemachines.request_machine import RequestMachine
+from agentarena.statemachines.request_machine import RequestState
 
 
 class RequestService:
@@ -28,7 +30,8 @@ class RequestService:
     ):
         self.queue_service = queue_service
         self.result_handler = result_handler
-        self.http_client = http_client_factory()
+        self.http_client_factory = http_client_factory
+        self.logging = logging
         self.log = logging.get_logger("requestservice")
 
     async def poll_and_process(self) -> bool:
@@ -41,94 +44,61 @@ class RequestService:
             return False
 
         self.log.info("Processing job", job_id=getattr(job, "id", None))
-        self.process_job(job)
+        await self.process_job(job)
         return True
 
-    def process_job(self, job: JsonRequestJob):
+    async def process_job(self, job: JsonRequestJob):
         """
         Process a single job using the request state machine.
         """
-        machine = RequestMachine(job=job)
-        machine.get_job()  # IDLE -> REQUEST
-        machine.start_request()  # REQUEST -> REQUESTING
+        log = self.log.bind(method="process_job", job=job.id)
+        machine = RequestMachine(
+            job, http_client=self.http_client_factory(), logging=self.logging
+        )
+        await machine.activate_initial_state()
+        await machine.start_request()
 
-        response: Response = None
-
-        # send the request
-        try:
-            method = job.method
-            response = self.http_client.request(method, job.url, data=job.payload)
-            if response.status_code >= 400:
-                machine.http_error()  # REQUESTING -> FAIL
-                self.handle_fail(job, task, response)
-                return
-            else:
-                machine.http_ok()  # REQUESTING -> RESPONSE
-        except Exception as e:
-            machine.http_error()
-            self.handle_fail(job, task, error=e)
-            return
-
-        # Process response
-        if not self.is_response_valid(response):
-            machine.malformed_response()  # RESPONSE -> FAIL
-            self.handle_fail(job, task, response)
-            return
-
-        state = self.get_response_state(response)
-        if state == "complete":
-            machine.state_complete()  # RESPONSE -> COMPLETE
-            self.handle_complete(job, task, response)
-        elif state == "pending":
-            machine.state_pending()  # RESPONSE -> WAITING
-            self.handle_waiting(job, task, response)
-        elif state == "failure":
-            machine.state_failure()  # RESPONSE -> FAIL
-            self.handle_fail(job, task, response)
+        # machine will now be in a final state
+        state: State = machine.current_state
+        if not state.final:
+            log.warn(f"Invalid final state: {state.value}")
+            return False
+        obj = machine.response_object
+        state = state.value
+        if state == RequestState.FAIL.value:
+            return await self.handle_fail(job, obj)
+        elif state == RequestState.WAITING.value:
+            return await self.handle_waiting(job, obj)
+        elif state == RequestState.COMPLETE.value:
+            return await self.handle_complete(job, obj)
         else:
-            machine.malformed_response()  # RESPONSE -> FAIL
-            self.handle_fail(job, task, response)
+            raise Exception(f"Invalid state {state.value}")
 
-    def handle_complete(self, job, task, response: Response):
+    async def handle_complete(self, job, response: BaseAsyncJobResponse):
         """
         Handle a completed job.
         """
-        self.log.info("Job complete", job_id=getattr(job, "id", None))
-        self.result_handler.send_payload(job, response.content)
-        self.queue_service.done(task, job)
+        self.log.info("Job complete", job=getattr(job, "id", None))
+        await self.result_handler.send_payload(job, response)
+        result = await self.queue_service.update_state(
+            job.id, JobState.COMPLETE.value, response.message
+        )
+        return result is not None
 
-    def handle_fail(self, job, task, response=None, error=None):
+    async def handle_fail(self, job, response: BaseAsyncJobResponse):
         """
         Handle a failed job.
         """
-        self.log.info("Job failed", job_id=getattr(job, "id", None), error=error)
-        self.result_handler.send_rejection(job, response, error)
+        self.log.info(
+            "Job failed", job=getattr(job, "id", None), error=response.message
+        )
+        result = await self.result_handler.send_rejection(job, response)
+        return result is not None
 
-    def handle_waiting(self, job, task, response):
+    async def handle_waiting(self, job, response: BaseAsyncJobResponse):
         """
         Handle a waiting job (requeue).
         """
-        self.log.info("Job waiting, requeueing", job_id=getattr(job, "id", None))
-        self.queue_service.requeue_job(job, task)
-
-    def is_response_valid(self, response):
-        """
-        Validate the response (placeholder).
-        """
-        # Implement actual validation logic
-        return response is not None
-
-    def get_response_state(self, response: BaseAsyncJobResponse):
-        """
-        Determine the state from the response (placeholder).
-        Should return one of: "complete", "pending", "failure"
-        """
-        return "failure" if response is None else response.status
-
-    def wakeup_job(self, job):
-        """
-        Handle a wakeup event for a waiting job.
-        """
-        machine = RequestMachine(job=job)
-        machine.wakeup()  # WAITING -> REQUEST
-        self.process_job(job)
+        self.log.info("Job waiting, requeueing", job=getattr(job, "id", None))
+        result = await self.queue_service.requeue_job(job, response.eta)
+        return result is not None

@@ -4,7 +4,8 @@ Provides models to manage aynchronous Jobs
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 from pydantic import BaseModel
 from pydantic import Field
@@ -73,16 +74,26 @@ class JsonRequestJob(DbBase):
     )
     url: str = Field(description="Url to Call")
 
-    def make_attempt(self):
+    def make_attempt(self, eta=None):
+        attempt = self.attempt
+        if attempt is None or attempt < 1:
+            attempt = 1
+        now = int(datetime.now().timestamp())
+        send_at = eta if eta is not None else now
+        if send_at < now:
+            send_at = now
+
         return JsonRequestJob(
-            attempt=self.attempt + 1,
+            attempt=attempt + 1,
             caller=self.caller,
             command=self.command,
             method=self.method,
             original_job=self.id,
             payload=self.payload,
             priority=self.priority,
-            send_at=int(datetime.now().timestamp()),
+            send_at=send_at,
             state=JobState.IDLE.value,
+            started_at=0,
+            finished_at=0,
             url=self.url,
-        )
+        ).fill_defaults()

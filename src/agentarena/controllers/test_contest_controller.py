@@ -5,7 +5,7 @@ import pytest
 
 from agentarena.controllers.contest_controller import ContestController
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.contest import Contest, ContestDTO
+from agentarena.models.contest import ContestDTO
 from agentarena.models.contest import ContestRequest
 from agentarena.models.contest import ContestState
 from agentarena.services.model_service import ModelResponse

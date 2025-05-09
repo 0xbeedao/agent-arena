@@ -1,14 +1,12 @@
 from enum import Enum
-from httpx import Client, Response
+
+from httpx import Client
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.models.job import (
-    BaseAsyncJobResponse,
-    JobResponseState,
-    JobState,
-    JsonRequestJob,
-)
+from agentarena.models.job import BaseAsyncJobResponse
+from agentarena.models.job import JobResponseState
+from agentarena.models.job import JsonRequestJob
 
 
 class RequestState(Enum):
@@ -107,15 +105,6 @@ class RequestMachine(StateMachine):
         else:
             self.log.warn(f"invalid state: {state}")
             self.malformed_response()
-
-    def on_enter_waiting(self):
-        """Called when entering the WAITING state."""
-
-    def on_enter_fail(self):
-        """Called when entering the FAIL state."""
-
-    def on_enter_complete(self):
-        """Called when entering the COMPLETE state."""
 
     def after_transition(self, event, source, target):
         self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")

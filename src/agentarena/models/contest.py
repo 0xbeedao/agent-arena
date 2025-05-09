@@ -2,7 +2,6 @@
 Contest model for the Agent Arena application.
 """
 
-from datetime import datetime
 from enum import Enum
 from typing import List
 from typing import Optional

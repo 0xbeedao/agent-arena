@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
-from pydantic import BaseModel
 import pytest
+from pydantic import BaseModel
 
 from agentarena.controllers.responder_controller import ResponderController
 from agentarena.factories.logger_factory import LoggingService

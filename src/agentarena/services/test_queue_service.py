@@ -1,10 +1,12 @@
+import time
 from datetime import datetime
 
 import pytest
 
 from agentarena.factories.db_factory import get_database
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import JobState, JsonRequestJob
+from agentarena.models.job import JobState
+from agentarena.models.job import JsonRequestJob
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
@@ -111,3 +113,42 @@ async def test_update_state(db_service, logging):
 
     no_job = await q.get_next()
     assert no_job is None
+
+
+@pytest.mark.asyncio
+async def test_requeue_job(db_service, logging):
+    job_service = make_job_service(db_service, logging)
+    q = QueueService(db_service=db_service, job_service=job_service, logging=logging)
+    # Create and send the original job
+    job = JsonRequestJob(
+        caller="test-requeue",
+        command="requeue-test",
+        method="POST",
+        payload='{"foo": "bar"}',
+        url="/requeue",
+    )
+    orig = await q.send_job(job)
+    assert orig is not None
+    orig_id = orig.id
+    orig_attempt = orig.attempt
+
+    # Mark the original job as complete so it's not in the queue
+    await q.update_state(orig_id, JobState.COMPLETE.value, "finishing original")
+
+    # Requeue the job
+    requeued = await q.requeue_job(orig_id, eta=0)
+    assert requeued is not None
+    assert requeued.attempt == orig_attempt + 1
+    assert getattr(requeued, "original_job", None) == orig_id
+    assert requeued.state == JobState.IDLE.value
+    assert (
+        abs(datetime.now().timestamp() - requeued.send_at) < 5
+    )  # should be approximately now
+    assert requeued.id != orig_id
+
+    time.sleep(1)
+    # The requeued job should appear on the queue as next job
+    picked = await q.get_next()
+    assert picked is not None
+    assert picked.id == requeued.id
+    assert picked.attempt == requeued.attempt

@@ -1,11 +1,12 @@
-from unittest.mock import AsyncMock, Mock
-from httpx import Response
-from pydantic import BaseModel
-import pytest
-from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import BaseAsyncJobResponse, JobResponseState, JobState
-from agentarena.statemachines.request_machine import RequestMachine, RequestState
 import httpx
+import pytest
+from pydantic import BaseModel
+
+from agentarena.factories.logger_factory import LoggingService
+from agentarena.models.job import BaseAsyncJobResponse
+from agentarena.models.job import JobResponseState
+from agentarena.statemachines.request_machine import RequestMachine
+from agentarena.statemachines.request_machine import RequestState
 
 
 class MockJob(BaseModel):
