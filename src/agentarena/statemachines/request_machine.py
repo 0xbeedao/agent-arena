@@ -4,7 +4,7 @@ from httpx import Client
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.models.job import BaseAsyncJobResponse
+from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JsonRequestJob
 
@@ -58,7 +58,7 @@ class RequestMachine(StateMachine):
         """
         self.job = job
         self.http_client = http_client
-        self.response_object: BaseAsyncJobResponse = None
+        self.response_object: JobResponse = None
         self.log = logging.get_logger("requestmachine", job=job.id)
         super().__init__()
 
@@ -83,7 +83,7 @@ class RequestMachine(StateMachine):
             return False
         try:
             json = response.json()
-            obj = BaseAsyncJobResponse.model_validate(json)
+            obj = JobResponse.model_validate(json)
             self.log.info(f"parsed correctly? {obj is not None}")
             return True
         except Exception as e:
@@ -93,7 +93,7 @@ class RequestMachine(StateMachine):
     def on_enter_response(self, response):
         """Called when entering the RESPONSE state."""
         json = response.json()
-        self.response_object = BaseAsyncJobResponse.model_validate(json)
+        self.response_object = JobResponse.model_validate(json)
         state = self.response_object.state
         self.log.info("responder state is", responder=state)
         if state == JobResponseState.FAIL.value:

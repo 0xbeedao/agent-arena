@@ -1,0 +1,93 @@
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+
+import pytest
+
+from agentarena.factories.logger_factory import LoggingService
+from agentarena.models.event import JobEvent
+from agentarena.services.event_bus import DbEventBus
+from agentarena.services.event_bus import InMemoryEventBus
+
+
+class DummyEvent:
+    pass
+
+
+@pytest.fixture
+def logging():
+    return LoggingService(True)
+
+
+@pytest.mark.asyncio
+async def test_inmemoryeventbus_publish_triggers_handler(logging):
+    bus = InMemoryEventBus(logging=logging)
+    handler = AsyncMock()
+    event = DummyEvent()
+    bus.subscribe(DummyEvent, handler)
+    await bus.publish(event)
+    handler.assert_awaited_once_with(event)
+
+
+@pytest.mark.asyncio
+async def test_inmemoryeventbus_no_handler_for_event_type(logging):
+    bus = InMemoryEventBus(logging=logging)
+    handler = AsyncMock()
+    bus.subscribe(str, handler)
+    await bus.publish(DummyEvent())  # Should not call handler
+    handler.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_inmemoryeventbus_multiple_handlers(logging):
+    bus = InMemoryEventBus(logging=logging)
+    handler1 = AsyncMock()
+    handler2 = AsyncMock()
+    event = DummyEvent()
+    bus.subscribe(DummyEvent, handler1)
+    bus.subscribe(DummyEvent, handler2)
+    await bus.publish(event)
+    handler1.assert_awaited_once_with(event)
+    handler2.assert_awaited_once_with(event)
+
+
+@pytest.mark.asyncio
+async def test_dbeventbus_publish_success_dispatches_and_logs(logging):
+    mock_inner = AsyncMock(spec=InMemoryEventBus)
+    mock_model_service = Mock()
+    # Simulate model_service.create returns (event, response)
+    mock_event = Mock(spec=JobEvent)
+    mock_event.id = "testid"
+    mock_response = Mock()
+    mock_response.success = True
+    mock_model_service.create.return_value = (mock_event, mock_response)
+
+    bus = DbEventBus(
+        model_service=mock_model_service, inner=mock_inner, logging=logging
+    )
+    await bus.publish(mock_event)
+    # Should call inner.publish (not awaited in the SUT, but should have been called)
+    mock_inner.publish.assert_called_once_with(mock_event)
+
+
+@pytest.mark.asyncio
+async def test_dbeventbus_publish_failure_logs_warn(logging):
+    mock_inner = AsyncMock(spec=InMemoryEventBus)
+    mock_model_service = Mock()
+    mock_event = Mock(spec=JobEvent)
+    mock_response = Mock()
+    mock_response.success = False
+    mock_model_service.create.return_value = (mock_event, mock_response)
+
+    bus = DbEventBus(
+        model_service=mock_model_service, inner=mock_inner, logging=logging
+    )
+    await bus.publish(mock_event)
+    mock_inner.publish.assert_not_called()
+
+
+def test_dbeventbus_subscribe_delegates_to_inner(logging):
+    mock_inner = Mock(spec=InMemoryEventBus)
+    handler = Mock()
+    bus = DbEventBus(model_service=None, inner=mock_inner, logging=logging)
+    bus.subscribe(str, handler)
+    mock_inner.subscribe.assert_called_once_with(str, handler)

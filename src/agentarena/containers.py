@@ -16,6 +16,7 @@ from agentarena.factories.queue_factory import get_queue
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.contest import ContestDTO
+from agentarena.models.event import JobEvent
 from agentarena.models.feature import FeatureDTO
 from agentarena.models.job import JsonRequestJob
 from agentarena.models.participant import ParticipantDTO
@@ -23,10 +24,10 @@ from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
 from agentarena.models.strategy import StrategyDTO
 from agentarena.services.db_service import DbService
+from agentarena.services.event_bus import DbEventBus
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 from agentarena.services.request_service import RequestService
-from agentarena.services.result_service import ResultService
 
 
 class Container(containers.DeclarativeContainer):
@@ -54,6 +55,20 @@ class Container(containers.DeclarativeContainer):
     )
 
     # model services
+
+    jobevent_service = providers.Singleton(
+        ModelService[JobEvent],
+        model_class=JobEvent,
+        DbService=db_service,
+        table_name="jobevent",
+        logging=logging,
+    )
+
+    event_bus = providers.Singleton(
+        DbEventBus,
+        model_service=jobevent_service,
+        logging=logging,
+    )
 
     agent_service = providers.Singleton(
         ModelService[AgentDTO],
@@ -107,7 +122,7 @@ class Container(containers.DeclarativeContainer):
         ModelService[JsonRequestJob],
         model_class=JsonRequestJob,
         dbService=db_service,
-        table_name="jsonjob",
+        table_name="jobs",
         logging=logging,
     )
 
@@ -132,16 +147,11 @@ class Container(containers.DeclarativeContainer):
         logging=logging,
     )
 
-    result_service = providers.Singleton(
-        ResultService,
-        logging=logging,
-    )
-
     request_service = providers.Singleton(
         RequestService,
         queue_service=job_q_service,
         http_client_factory=make_httpclient,
-        result_handler=result_service,
+        event_bus=event_bus,
         logging=logging,
     )
 

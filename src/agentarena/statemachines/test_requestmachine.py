@@ -3,7 +3,7 @@ import pytest
 from pydantic import BaseModel
 
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import BaseAsyncJobResponse
+from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.statemachines.request_machine import RequestMachine
 from agentarena.statemachines.request_machine import RequestState
@@ -30,18 +30,16 @@ def make_job():
     )
 
 
-def make_success_response() -> BaseAsyncJobResponse:
-    return BaseAsyncJobResponse(
+def make_success_response() -> JobResponse:
+    return JobResponse(
         job_id="test-response",
         state=JobResponseState.COMPLETED.value,
         data={"check": "yep"},
     )
 
 
-def make_pending_response() -> BaseAsyncJobResponse:
-    return BaseAsyncJobResponse(
-        job_id="test-response", state=JobResponseState.PENDING.value
-    )
+def make_pending_response() -> JobResponse:
+    return JobResponse(job_id="test-response", state=JobResponseState.PENDING.value)
 
 
 @pytest.mark.asyncio

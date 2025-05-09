@@ -1,17 +1,18 @@
 from statemachine import State
 
-from agentarena.models.job import BaseAsyncJobResponse
+from agentarena.models.event import JobEvent
+from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
 from agentarena.models.job import JsonRequestJob
+from agentarena.services.event_bus import IEventBus
 from agentarena.services.queue_service import QueueService
-from agentarena.services.result_service import ResultService
 from agentarena.statemachines.request_machine import RequestMachine
 from agentarena.statemachines.request_machine import RequestState
 
 
 class RequestService:
     """
-    Service for handling async requests using the RequestMachine state machine.
+    Service for handling queued async requests using the RequestMachine state machine.
 
     Flow:
     - Poll jobs from the queue.
@@ -23,14 +24,14 @@ class RequestService:
 
     def __init__(
         self,
+        event_bus: IEventBus,
         queue_service: QueueService = None,
-        result_handler: ResultService = None,
         http_client_factory=None,
         logging=None,
     ):
-        self.queue_service = queue_service
-        self.result_handler = result_handler
+        self.event_bus = event_bus
         self.http_client_factory = http_client_factory
+        self.queue_service = queue_service
         self.logging = logging
         self.log = logging.get_logger("requestservice")
 
@@ -74,28 +75,33 @@ class RequestService:
         else:
             raise Exception(f"Invalid state {state.value}")
 
-    async def handle_complete(self, job, response: BaseAsyncJobResponse):
+    async def handle_complete(self, job, response: JobResponse):
         """
         Handle a completed job.
         """
         self.log.info("Job complete", job=getattr(job, "id", None))
-        await self.result_handler.send_payload(job, response)
+        event = JobEvent.from_job_and_response(job, response)
         result = await self.queue_service.update_state(
             job.id, JobState.COMPLETE.value, response.message
         )
+        await self.event_bus.publish(event)
         return result is not None
 
-    async def handle_fail(self, job, response: BaseAsyncJobResponse):
+    async def handle_fail(self, job, response: JobResponse):
         """
         Handle a failed job.
         """
         self.log.info(
             "Job failed", job=getattr(job, "id", None), error=response.message
         )
-        result = await self.result_handler.send_rejection(job, response)
+        result = await self.queue_service.update_state(
+            job.id, JobState.FAIL.value, response.message
+        )
+        event = JobEvent.from_job_and_response(job, response)
+        await self.event_bus.publish(event)
         return result is not None
 
-    async def handle_waiting(self, job, response: BaseAsyncJobResponse):
+    async def handle_waiting(self, job, response: JobResponse):
         """
         Handle a waiting job (requeue).
         """

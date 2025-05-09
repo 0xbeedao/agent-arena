@@ -44,3 +44,11 @@ Pushed out to GitHub repo [agent-arena](https://github.com/0xbeedao/agent-arena?
 
 All tests pass
 
+## 2025-05-09 13:27:06
+
+The request_machine and service now works, and has tests.
+
+The next steps are to test the service that is handling the request service responses, currently
+named "result_service"
+
+After that, I'd like to wire up some end-to-end tests with endpoints that sometimes respond pending.

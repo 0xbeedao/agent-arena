@@ -26,7 +26,7 @@ def make_job_service(db_service, logging):
     return ModelService[JsonRequestJob](
         dbService=db_service,
         model_class=JsonRequestJob,
-        table_name="jsonjob",
+        table_name="jobs",
         logging=logging,
     )
 

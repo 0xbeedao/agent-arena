@@ -28,7 +28,7 @@ class JobResponseState(Enum):
     FAIL = "fail"
 
 
-class BaseAsyncJobResponse(BaseModel):
+class JobResponse(BaseModel):
     job_id: str = Field(description="ULID job ID")
     eta: Optional[int] = Field(
         default=0, description="Estimated time in milliseconds for job to complete"
@@ -73,6 +73,9 @@ class JsonRequestJob(DbBase):
         Field(default=0, description="When this job was picked up from queue"),
     )
     url: str = Field(description="Url to Call")
+
+    def get_foreign_keys(self):
+        return [("job_id", "jobs", "id")]
 
     def make_attempt(self, eta=None):
         attempt = self.attempt
