@@ -4,7 +4,7 @@ Provides models to manage aynchronous Jobs
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 from pydantic import Field
@@ -36,9 +36,9 @@ class BaseAsyncJobResponse(BaseModel):
         default="", description="Message regarding state, e.g. an error"
     )
     state: str = Field(
-        default=JobResponseState.COMPLETED.value,
         description="state field, one of ['completed', 'pending', 'fail']",
     )
+    data: Optional[Any] = Field(default="", description="payload")
 
 
 class JsonRequestJob(DbBase):

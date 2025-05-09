@@ -1,132 +1,104 @@
+from unittest.mock import AsyncMock, Mock
+from httpx import Response
+from pydantic import BaseModel
+import pytest
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.statemachines.request_machine import RequestMachine
+from agentarena.models.job import BaseAsyncJobResponse, JobResponseState, JobState
+from agentarena.statemachines.request_machine import RequestMachine, RequestState
+import httpx
 
 
-class MockJob:
-    def __init__(self, job_id="job1"):
-        self.id = job_id
+class MockJob(BaseModel):
+    id: str
+    url: str
+    method: str
+    payload: str
 
 
+@pytest.fixture
 def logging():
     return LoggingService(True)
 
 
-def make_job(job_id="job1"):
-    return MockJob(job_id)
+def make_job():
+    return MockJob(
+        id="testjob",
+        url="http://localhost:8000/test",
+        method="GET",
+        payload='{"test": "toast"}',
+    )
 
 
-def test_initial_state():
+def make_success_response() -> BaseAsyncJobResponse:
+    return BaseAsyncJobResponse(
+        job_id="test-response",
+        state=JobResponseState.COMPLETED.value,
+        data={"check": "yep"},
+    )
+
+
+def make_pending_response() -> BaseAsyncJobResponse:
+    return BaseAsyncJobResponse(
+        job_id="test-response", state=JobResponseState.PENDING.value
+    )
+
+
+@pytest.mark.asyncio
+async def test_initial_state(logging):
     job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    assert machine.current_state.id == "idle"
+    machine = RequestMachine(job, logging=logging)
+    await machine.activate_initial_state()
+    assert machine.current_state.id == RequestState.IDLE.value
 
 
-def test_get_job_transition():
+@pytest.mark.asyncio
+async def test_success_call(logging, httpx_mock):
     job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    machine.get_job()
-    assert machine.current_state.id == "request"
+    httpx_mock.add_response(
+        status_code=200,
+        method="GET",
+        url="http://localhost:8000/test",
+        content=make_success_response().model_dump_json(),
+    )
+
+    with httpx.Client() as client:
+        machine = RequestMachine(job, logging=logging, http_client=client)
+
+        await machine.activate_initial_state()
+        await machine.start_request()
+        assert machine.current_state.id == RequestState.COMPLETE.value
 
 
-def test_start_request_transition():
+@pytest.mark.asyncio
+async def test_fail_call(logging, httpx_mock):
     job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    machine.get_job()
-    machine.start_request()
-    assert machine.current_state.id == "requesting"
+    httpx_mock.add_response(
+        status_code=404,
+        method="GET",
+        url="http://localhost:8000/test",
+    )
+
+    with httpx.Client() as client:
+        machine = RequestMachine(job, logging=logging, http_client=client)
+
+        await machine.activate_initial_state()
+        await machine.start_request()
+        assert machine.current_state.id == RequestState.FAIL.value
 
 
-def test_http_error_transition():
+@pytest.mark.asyncio
+async def test_pending_call(logging, httpx_mock):
     job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    machine.get_job()
-    machine.start_request()
-    machine.http_error()
-    assert machine.current_state.id == "fail"
-    assert machine.current_state.final
+    httpx_mock.add_response(
+        status_code=200,
+        method="GET",
+        url="http://localhost:8000/test",
+        content=make_pending_response().model_dump_json(),
+    )
 
+    with httpx.Client() as client:
+        machine = RequestMachine(job, logging=logging, http_client=client)
 
-def test_http_ok_transition():
-    job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    machine.get_job()
-    machine.start_request()
-    machine.http_ok()
-    assert machine.current_state.id == "response"
-
-
-def test_malformed_response_transition():
-    job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    machine.get_job()
-    machine.start_request()
-    machine.http_ok()
-    machine.malformed_response()
-    assert machine.current_state.id == "fail"
-    assert machine.current_state.final
-
-
-def test_state_failure_transition():
-    job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    machine.get_job()
-    machine.start_request()
-    machine.http_ok()
-    machine.state_failure()
-    assert machine.current_state.id == "fail"
-    assert machine.current_state.final
-
-
-def test_state_complete_transition():
-    job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    machine.get_job()
-    machine.start_request()
-    machine.http_ok()
-    machine.state_complete()
-    assert machine.current_state.id == "complete"
-    assert machine.current_state.final
-
-
-def test_full_success_sequence():
-    job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    assert machine.current_state.id == "idle"
-    machine.get_job()
-    assert machine.current_state.id == "request"
-    machine.start_request()
-    assert machine.current_state.id == "requesting"
-    machine.http_ok()
-    assert machine.current_state.id == "response"
-    machine.state_complete()
-    assert machine.current_state.id == "complete"
-    assert machine.current_state.final
-
-
-def test_full_failure_sequence():
-    job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    assert machine.current_state.id == "idle"
-    machine.get_job()
-    assert machine.current_state.id == "request"
-    machine.start_request()
-    assert machine.current_state.id == "requesting"
-    machine.http_error()
-    assert machine.current_state.id == "fail"
-    assert machine.current_state.final
-
-
-def test_on_enter_methods_are_callable():
-    job = make_job()
-    machine = RequestMachine(job=job, logging=logging())
-    # These are empty, but we check they exist and are callable
-    for method in [
-        machine.on_enter_idle,
-        machine.on_enter_request,
-        machine.on_enter_requesting,
-        machine.on_enter_response,
-        machine.on_enter_waiting,
-        machine.on_enter_fail,
-        machine.on_enter_complete,
-    ]:
-        method()  # Should not raise
+        await machine.activate_initial_state()
+        await machine.start_request()
+        assert machine.current_state.id == RequestState.WAITING.value
