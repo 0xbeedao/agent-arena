@@ -52,3 +52,48 @@ The next steps are to test the service that is handling the request service resp
 named "result_service"
 
 After that, I'd like to wire up some end-to-end tests with endpoints that sometimes respond pending.
+
+## 2025-05-09 17:56:54
+
+After adding the new `ready_machine`, I don't like it, too hard to think through how it would work in
+a server environment.
+
+So I will instead move to adding different "types" to the job queue, allowing `get_next` to return only specified job types.
+
+that way, the flow for a request would be something like this:
+
+## Make a verify participant request
+
+```mermaid
+flowchart TD
+    V[verify endpoint] --> | POST | C[controller]
+    C -.-> | makes verify job | Q[Queue]
+    C --> | PENDING | V
+```
+
+## Get a verify job result
+
+```mermaid
+flowchart TD
+    V[verify endpoint] --> | GET with ID | C[controller]
+    C --> J[Check Job]
+    J --> | job not found - FAIL | V
+    J --> | job is waiting - PENDING | V
+    J --> | job is complete - COMPLETE | Complete
+    Complete --> | send COMPLETE with result | V
+
+```
+
+## Poller executing jobs
+
+```mermaid
+flowchart TD
+    P[Poller] --> |gets job| Q[Queue]
+    Q ---> C[check type]
+    C --> | is VERIFY | V[Verify Service]
+    C --> | is REQUEST | H[Request Service]
+    V -.-> | updates Job | DB
+    V -.-> | sends multiple REQUEST | Q
+    H -.-> | updates Job | DB
+    H --> | is COMPLETE | E[Event Bus]
+```
