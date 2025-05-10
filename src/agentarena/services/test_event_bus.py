@@ -51,6 +51,52 @@ async def test_inmemoryeventbus_multiple_handlers(logging):
 
 
 @pytest.mark.asyncio
+async def test_inmemoryeventbus_unsubscribe_removes_handler(logging):
+    bus = InMemoryEventBus(logging=logging)
+    handler = AsyncMock()
+    event = DummyEvent()
+
+    # Subscribe the handler
+    bus.subscribe(DummyEvent, handler)
+
+    # Unsubscribe the handler
+    result = bus.unsubscribe(DummyEvent, handler)
+    assert result is True
+
+    # Verify handler is not called when event is published
+    await bus.publish(event)
+    handler.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_inmemoryeventbus_unsubscribe_nonexistent_handler(logging):
+    bus = InMemoryEventBus(logging=logging)
+    handler1 = AsyncMock()
+    handler2 = AsyncMock()
+
+    # Subscribe only handler1
+    bus.subscribe(DummyEvent, handler1)
+
+    # Try to unsubscribe handler2 which wasn't subscribed
+    result = bus.unsubscribe(DummyEvent, handler2)
+    assert result is False
+
+    # Verify handler1 is still subscribed
+    event = DummyEvent()
+    await bus.publish(event)
+    handler1.assert_awaited_once_with(event)
+
+
+def test_inmemoryeventbus_unsubscribe_nonexistent_event(logging):
+    bus = InMemoryEventBus(logging=logging)
+    handler = AsyncMock()
+
+    # Try to unsubscribe from event type that has no handlers
+    result = bus.unsubscribe(DummyEvent, handler)
+    assert result is False
+
+
+@pytest.mark.asyncio
 async def test_dbeventbus_publish_success_dispatches_and_logs(logging):
     mock_inner = AsyncMock(spec=InMemoryEventBus)
     mock_model_service = Mock()
@@ -91,3 +137,17 @@ def test_dbeventbus_subscribe_delegates_to_inner(logging):
     bus = DbEventBus(model_service=None, inner=mock_inner, logging=logging)
     bus.subscribe(str, handler)
     mock_inner.subscribe.assert_called_once_with(str, handler)
+
+
+def test_dbeventbus_unsubscribe_delegates_to_inner(logging):
+    mock_inner = Mock(spec=InMemoryEventBus)
+    # Setup mock to return True when unsubscribe is called
+    mock_inner.unsubscribe.return_value = True
+
+    handler = Mock()
+    bus = DbEventBus(model_service=None, inner=mock_inner, logging=logging)
+
+    # Call unsubscribe and verify it delegates to inner
+    result = bus.unsubscribe(str, handler)
+    mock_inner.unsubscribe.assert_called_once_with(str, handler)
+    assert result is True
