@@ -1,5 +1,8 @@
 from datetime import datetime
 
+from pydantic import Field
+
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.job import JobState
 from agentarena.models.job import JsonRequestJob
 from agentarena.services.db_service import DbService
@@ -16,9 +19,11 @@ class QueueService:
 
     def __init__(
         self,
-        db_service: DbService = None,
-        job_service: ModelService[JsonRequestJob] = None,
-        logging=None,
+        db_service: DbService = Field(description="DB Service"),
+        job_service: ModelService[JsonRequestJob] = Field(
+            description="job model service"
+        ),
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
         self.db_service = db_service
         self.job_service = job_service

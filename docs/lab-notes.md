@@ -20,7 +20,7 @@ Doing so lets me avoid manual wiring, and more importantly, regularizes the resp
 
 I need to finish fixing the tests, then the fixture loader.
 
-At that point, I want to write some integration test/experiments to prove out the Request [[state-machine]].
+At that point, I want to write some integration test/experiments to prove out the Request [[contest-state-machines]].
 
 Next, I think I will work on getting a polling loop running for the queue
 

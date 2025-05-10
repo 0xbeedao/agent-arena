@@ -5,6 +5,7 @@ Responder controller for Agent Response endpoints
 from fastapi import APIRouter
 from pydantic import Field
 
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.factories.participant_factory import ParticipantFactory
 from agentarena.models.participant import Participant
 from agentarena.models.participant import ParticipantDTO
@@ -23,7 +24,7 @@ class ResponderController:
         participant_service: ModelService[ParticipantDTO] = Field(
             description="the participant service"
         ),
-        logging=None,
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
         self.participant_factory = participant_factory
         self.participant_service = participant_service
@@ -53,7 +54,7 @@ class ResponderController:
 
     def get_router(self):
 
-        router = APIRouter(prefix="/responders", tags="Responders")
+        router = APIRouter(prefix="/responders", tags=["Responders"])
 
         @router.get("/{participant_id}/health/{job_id}", response_model=HealthResponse)
         async def health():

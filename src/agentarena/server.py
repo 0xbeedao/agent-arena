@@ -44,8 +44,8 @@ routers = [
     container.contest_controller().get_router(),
     container.agent_controller().get_router(),
     container.arena_controller().get_router(),
-    container.strategy_controller().getRouter(),
-    container.responder_controller().getRouter(),
+    container.strategy_controller().get_router(),
+    container.responder_controller().get_router(),
 ]
 [app.include_router(router) for router in routers]
 

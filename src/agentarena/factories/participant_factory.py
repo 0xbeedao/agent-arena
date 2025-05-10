@@ -1,3 +1,6 @@
+from pydantic import Field
+
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.participant import Participant
 from agentarena.models.participant import ParticipantDTO
@@ -12,7 +15,7 @@ class ParticipantFactory:
         self,
         agent_service: ModelService[AgentDTO] = None,
         strategy_service: ModelService[StrategyDTO] = None,
-        logging=None,
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
         self.agent_service = agent_service
         self.strategy_service = strategy_service

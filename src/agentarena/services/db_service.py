@@ -1,8 +1,11 @@
 import os.path
 from datetime import datetime
 
+from pydantic import Field
 from sqlite_utils.db import Database
 from ulid import ULID
+
+from agentarena.factories.logger_factory import LoggingService
 
 
 class DbService:
@@ -15,8 +18,8 @@ class DbService:
         projectroot: str,
         dbfile: str,
         get_database=None,
-        logging=None,
         memory=False,
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
 
         if memory:

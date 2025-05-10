@@ -13,6 +13,7 @@ from pydantic import Field
 
 from agentarena.controllers.model_controller import ModelController
 from agentarena.factories.arena_factory import ArenaFactory
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaCreateRequest
@@ -38,7 +39,7 @@ class ArenaController(ModelController[ArenaDTO]):
             description="The participant service"
         ),
         arena_factory: ArenaFactory = Field(description="The arena builder factory"),
-        logging=None,
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
         self.agent_service = agent_service
         self.arena_factory = arena_factory

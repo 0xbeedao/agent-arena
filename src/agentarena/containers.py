@@ -184,20 +184,20 @@ class Container(containers.DeclarativeContainer):
     # controllers
 
     agent_controller = providers.Singleton(
-        ModelController[AgentDTO](
-            model_name="agent", model_service=agent_service, logging=logging
-        )
+        ModelController[AgentDTO],
+        model_name="agent",
+        model_service=agent_service,
+        logging=logging,
     )
 
     arena_controller = providers.Singleton(
-        ArenaController(
-            model_service=arena_service,
-            agent_service=agent_service,
-            feature_service=feature_service,
-            participant_service=participant_service,
-            arena_factory=arena_factory,
-            logging=logging,
-        )
+        ArenaController,
+        model_service=arena_service,
+        agent_service=agent_service,
+        feature_service=feature_service,
+        participant_service=participant_service,
+        arena_factory=arena_factory,
+        logging=logging,
     )
 
     contest_controller = providers.Singleton(
@@ -212,7 +212,8 @@ class Container(containers.DeclarativeContainer):
     )
 
     strategy_controller = providers.Singleton(
-        ModelController[StrategyDTO](
-            model_name="strategy", model_service=strategy_service, logging=logging
-        )
+        ModelController[StrategyDTO],
+        model_name="strategy",
+        model_service=strategy_service,
+        logging=logging,
     )

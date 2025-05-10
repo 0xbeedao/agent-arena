@@ -1,6 +1,8 @@
+from pydantic import Field
 from statemachine import State
 from statemachine import StateMachine
 
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.contest import Contest
 
 
@@ -39,7 +41,11 @@ class RoundMachine(StateMachine):
     effects_determined = applying_effects.to(describing_results)
     results_ready = describing_results.to(presenting_results)
 
-    def __init__(self, contest: Contest, logging=None):
+    def __init__(
+        self,
+        contest: Contest,
+        logging: LoggingService = Field(desciption="Logger factory"),
+    ):
         """Initialize the round machine."""
         self.contest = contest
         self.log = logging.get_logger(

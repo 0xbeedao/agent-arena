@@ -1,9 +1,11 @@
 from enum import Enum
 
 from httpx import Client
+from pydantic import Field
 from statemachine import State
 from statemachine import StateMachine
 
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JsonRequestJob
@@ -50,7 +52,12 @@ class RequestMachine(StateMachine):
     state_complete = response.to(complete)
     state_pending = response.to(waiting)
 
-    def __init__(self, job: JsonRequestJob, http_client: Client = None, logging=None):
+    def __init__(
+        self,
+        job: JsonRequestJob,
+        http_client: Client = None,
+        logging: LoggingService = Field(desciption="Logger factory"),
+    ):
         """
         Initialize the request machine.
 

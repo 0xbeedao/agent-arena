@@ -6,9 +6,11 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 
+from pydantic import Field
 from statemachine import State
 from statemachine import StateMachine
 
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.contest import Contest
 
 from .roundmachine import RoundMachine
@@ -43,7 +45,11 @@ class ContestMachine(StateMachine):
     end_condition_met = checking_end.to(completed)
     more_rounds_remain = checking_end.to(ready)
 
-    def __init__(self, contest: Contest, logging=None):
+    def __init__(
+        self,
+        contest: Contest,
+        logging: LoggingService = Field(desciption="Logger factory"),
+    ):
         """Initialize the contest machine."""
         self._setup_machine = None
         self._round_machine = None

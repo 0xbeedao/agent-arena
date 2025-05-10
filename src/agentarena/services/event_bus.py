@@ -2,6 +2,9 @@ from typing import Callable
 from typing import Protocol
 from typing import Type
 
+from pydantic import Field
+
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.event import JobEvent
 from agentarena.services.model_service import ModelService
 
@@ -12,7 +15,7 @@ class IEventBus(Protocol):
 
 
 class InMemoryEventBus(IEventBus):
-    def __init__(self, logging=None):
+    def __init__(self, logging: LoggingService = Field(desciption="Logger factory")):
         self.log = logging.get_logger(module="memory_eventbus")
         self._handlers: dict[str, list[Callable]] = {}
 
@@ -30,7 +33,7 @@ class DbEventBus(IEventBus):
         self,
         model_service: ModelService[JobEvent] = None,
         inner: IEventBus = None,
-        logging=None,
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
         self._inner = inner if inner is not None else InMemoryEventBus(logging=logger)
         self.model_service = model_service

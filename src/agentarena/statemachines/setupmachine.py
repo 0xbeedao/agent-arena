@@ -1,6 +1,8 @@
+from pydantic import Field
 from statemachine import State
 from statemachine import StateMachine
 
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.contest import Contest
 
 
@@ -26,7 +28,11 @@ class SetupMachine(StateMachine):
         describing_setup
     )
 
-    def __init__(self, contest: Contest, logging=None):
+    def __init__(
+        self,
+        contest: Contest,
+        logging: LoggingService = Field(desciption="Logger factory"),
+    ):
         """Initialize the setup machine."""
         self.contest = contest
         self.log = logging.get_logger(

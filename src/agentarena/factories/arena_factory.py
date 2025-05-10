@@ -2,6 +2,9 @@ from typing import Awaitable
 from typing import Callable
 from typing import List
 
+from pydantic import Field
+
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.feature import Feature
@@ -18,7 +21,7 @@ class ArenaFactory:
         participant_service: ModelService[ParticipantDTO] = None,
         feature_service: ModelService[FeatureDTO] = None,
         participant_factory: Callable[[ParticipantDTO], Awaitable[Participant]] = None,
-        logging=None,
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
         self.participant_service = participant_service
         self.feature_service = feature_service

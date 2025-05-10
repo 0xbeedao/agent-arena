@@ -12,6 +12,7 @@ from pydantic import Field
 
 from agentarena.controllers.model_controller import ModelController
 from agentarena.factories.contest_factory import ContestFactory
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestDTO
 from agentarena.models.contest import ContestRequest
@@ -30,7 +31,7 @@ class ContestController(ModelController[ContestDTO]):
         contest_factory: ContestFactory = Field(
             description="The contest builder factory"
         ),
-        logging=None,
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
         self.contest_factory = contest_factory
         super().__init__(
@@ -176,7 +177,7 @@ class ContestController(ModelController[ContestDTO]):
 
         return {"id": contest_id}
 
-    async def get_router(self):
+    def get_router(self):
         router = APIRouter(prefix=f"/{self.model_name}", tags=[self.model_name])
 
         @router.post("/", response_model=Contest)

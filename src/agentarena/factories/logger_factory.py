@@ -1,8 +1,15 @@
 import logging
+from typing import Protocol
 
 import structlog
 
 
+class ILogger(Protocol):
+    def bind(self, *args, **kwargs) -> "ILogger": ...
+    def debug(self, *args, **kwargs) -> None: ...
+    def info(self, *args, **kwargs) -> None: ...
+    def warn(self, *args, **kwargs) -> None: ...
+    def error(self, *args, **kwargs) -> None: ...
 class LoggingService:
 
     def __init__(self, capture=False):
@@ -42,7 +49,7 @@ class LoggingService:
                 )
             self._setup = True
 
-    def get_logger(self, *args, **kwargs):
+    def get_logger(self, *args, **kwargs) -> ILogger:
         """
         Get a Logging instance
         """

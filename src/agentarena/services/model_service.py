@@ -15,8 +15,10 @@ from typing import Type
 from typing import TypeVar
 
 from pydantic import BaseModel
+from pydantic import Field
 from ulid import ULID
 
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.dbbase import DbBase
 from agentarena.models.validation import ValidationResponse
 
@@ -53,7 +55,7 @@ class ModelService(Generic[T]):
         model_class: Type[T],
         dbService: DbService,
         table_name: str,
-        logging=None,
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
         """
         Initialize the model service.

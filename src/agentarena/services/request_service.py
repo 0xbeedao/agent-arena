@@ -1,5 +1,7 @@
+from pydantic import Field
 from statemachine import State
 
+from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.event import JobEvent
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
@@ -27,7 +29,7 @@ class RequestService:
         event_bus: IEventBus,
         queue_service: QueueService = None,
         http_client_factory=None,
-        logging=None,
+        logging: LoggingService = Field(desciption="Logger factory"),
     ):
         self.event_bus = event_bus
         self.http_client_factory = http_client_factory
