@@ -3,10 +3,9 @@ from statemachine import State
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.event import JobEvent
+from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
-from agentarena.models.job import JsonRequestJob
-from agentarena.services.event_bus import IEventBus
 from agentarena.services.queue_service import QueueService
 from agentarena.statemachines.request_machine import RequestMachine
 from agentarena.statemachines.request_machine import RequestState
@@ -26,12 +25,10 @@ class RequestService:
 
     def __init__(
         self,
-        event_bus: IEventBus,
         queue_service: QueueService = None,
         http_client_factory=None,
         logging: LoggingService = Field(desciption="Logger factory"),
     ):
-        self.event_bus = event_bus
         self.http_client_factory = http_client_factory
         self.queue_service = queue_service
         self.logging = logging
@@ -50,7 +47,7 @@ class RequestService:
         await self.process_job(job)
         return True
 
-    async def process_job(self, job: JsonRequestJob):
+    async def process_job(self, job: CommandJob):
         """
         Process a single job using the request state machine.
         """
@@ -82,11 +79,12 @@ class RequestService:
         Handle a completed job.
         """
         self.log.info("Job complete", job=getattr(job, "id", None))
-        event = JobEvent.from_job_and_response(job, response)
         result = await self.queue_service.update_state(
-            job.id, JobState.COMPLETE.value, response.message
+            job.id,
+            JobState.COMPLETE.value,
+            message=response.message,
+            data=response.model_dump_json(),
         )
-        await self.event_bus.publish(event)
         return result is not None
 
     async def handle_fail(self, job, response: JobResponse):
@@ -94,13 +92,14 @@ class RequestService:
         Handle a failed job.
         """
         self.log.info(
-            "Job failed", job=getattr(job, "id", None), error=response.message
+            "Job failed",
+            job=getattr(job, "id", None),
+            error=response.message if response else "none",
         )
         result = await self.queue_service.update_state(
-            job.id, JobState.FAIL.value, response.message
+            job.id, JobState.FAIL.value, response.message if response else "none"
         )
-        event = JobEvent.from_job_and_response(job, response)
-        await self.event_bus.publish(event)
+
         return result is not None
 
     async def handle_waiting(self, job, response: JobResponse):
@@ -108,5 +107,5 @@ class RequestService:
         Handle a waiting job (requeue).
         """
         self.log.info("Job waiting, requeueing", job=getattr(job, "id", None))
-        result = await self.queue_service.requeue_job(job, response.eta)
+        result = await self.queue_service.requeue_job(job, delay=response.delay)
         return result is not None

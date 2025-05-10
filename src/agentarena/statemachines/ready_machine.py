@@ -1,18 +1,19 @@
+import asyncio
 from enum import Enum
-from typing import Dict, List
+from typing import Dict
+from typing import List
+
 from pydantic import Field
 from statemachine import State
 from statemachine import StateMachine
 
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.contest import Contest
 from agentarena.models.event import JobEvent
-from agentarena.models.job import JobState, JsonRequestJob
+from agentarena.models.job import CommandJob
+from agentarena.models.job import JobState
 from agentarena.models.participant import Participant
 from agentarena.services.event_bus import IEventBus
 from agentarena.services.queue_service import QueueService
-
-import asyncio
 
 
 class ReadyState(Enum):
@@ -97,7 +98,7 @@ class ReadyMachine(StateMachine):
     async def on_enter_polling(self):
         self.log.info("Starting polling")
         for p in self.participants:
-            job: JsonRequestJob = self.make_health_request_job(p)
+            job: CommandJob = self.make_health_request_job(p)
             await self.q.send_job(job)
             self._jobs[job.id] = p
         self.log.info("Requests sent to queue")

@@ -20,3 +20,6 @@ lint:
     autoflake -r -v -i --remove-all-unused-imports ./*
     isort --sl .
     black .
+
+clean:
+    rm arena.db

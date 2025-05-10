@@ -6,24 +6,23 @@ import pytest
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.event import JobEvent
+from agentarena.models.job import CommandJob
+from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
-from agentarena.models.job import JsonRequestJob
 from agentarena.services.request_service import RequestService
 
 
 def make_job(name: str):
-    return JsonRequestJob(
+    return CommandJob(
         id=name,
-        attempt=1,
-        caller="test",
-        command="test",
+        command=JobCommandType.REQUEST.value,
         method="GET",
-        payload="{'test': 1}",
+        data="{'test': 1}",
         finished_at=0,
         send_at=0,
-        state=JobState.IDLE,
+        state=JobState.IDLE.value,
         started_at=int(datetime.now().timestamp()),
         url=f"http://localhost:8000/{name}",
     )
@@ -38,12 +37,6 @@ def logging():
 def queue_service():
     service = AsyncMock()
     return service
-
-
-@pytest.fixture
-def event_bus():
-    mock_bus = AsyncMock()
-    return mock_bus
 
 
 def make_success_response() -> JobResponse:
@@ -63,9 +56,8 @@ def make_pending_response() -> JobResponse:
 
 
 @pytest.mark.asyncio
-async def test_no_jobs(queue_service, event_bus, logging):
+async def test_no_jobs(queue_service, logging):
     svc = RequestService(
-        event_bus=event_bus,
         queue_service=queue_service,
         http_client_factory=httpx.Client,
         logging=logging,
@@ -74,14 +66,11 @@ async def test_no_jobs(queue_service, event_bus, logging):
     response = await svc.poll_and_process()
     assert response is False
     queue_service.get_next.assert_awaited_once()
-    # No event is published when there are no jobs
-    event_bus.publish.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_poll_job_success(queue_service, event_bus, logging, httpx_mock):
+async def test_poll_job_success(queue_service, logging, httpx_mock):
     svc = RequestService(
-        event_bus=event_bus,
         queue_service=queue_service,
         http_client_factory=httpx.Client,
         logging=logging,
@@ -100,17 +89,11 @@ async def test_poll_job_success(queue_service, event_bus, logging, httpx_mock):
 
     success = await svc.poll_and_process()
     assert success
-    event_bus.publish.assert_awaited_once()
-    # Check the event content/state
-    published_event = event_bus.publish.await_args.args[0]
-    assert isinstance(published_event, JobEvent)
-    assert published_event.state == JobResponseState.COMPLETED.value
 
 
 @pytest.mark.asyncio
-async def test_poll_job_pending(queue_service, event_bus, logging, httpx_mock):
+async def test_poll_job_pending(queue_service, logging, httpx_mock):
     svc = RequestService(
-        event_bus=event_bus,
         queue_service=queue_service,
         http_client_factory=httpx.Client,
         logging=logging,
@@ -129,5 +112,3 @@ async def test_poll_job_pending(queue_service, event_bus, logging, httpx_mock):
 
     success = await svc.poll_and_process()
     assert success
-    # No event is published for pending jobs (WAITING state)
-    event_bus.publish.assert_not_awaited()

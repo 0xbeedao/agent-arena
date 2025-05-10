@@ -97,3 +97,61 @@ flowchart TD
     H -.-> | updates Job | DB
     H --> | is COMPLETE | E[Event Bus]
 ```
+
+## Sequence of calls
+
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant T as Controller
+    participant Q as Queue
+    participant J as Job Svc
+    participant P as Poller
+    participant R as Request Svc
+    
+    C->>+T: POST
+    T->>+Q: add job
+    Q->>+J: create
+    J->>+Q: job
+    Q->>+T: job
+    T->>-C: return PENDING / ID
+    
+    C->>+T: GET ID
+    T->>+J: get job
+    J->>+T: job
+    T->>-C: return PENDING / ID
+    
+    P->>+Q: get next
+    Q->>+J: get job
+    J->>+Q: job
+    Q->>+P: job
+    P->>+R: process request
+    R->>+P: return COMPLETE / payload
+    P->>+Q: update
+    Q->>+J: update
+
+    C->>+T: GET ID
+    T->>+J: get job
+    J->>+T: job
+    T->>-C: return COMPLETE / payload
+
+```
+
+## 2025-05-10 11:45:14
+
+I've been excited about this all last night, and can't wait to get started today.
+
+I'm going to refactor the Job system to allow for batch calls.
+
+This job will allow for child jobs, and recursively.
+
+The goal is to always have the job reflect the status, so when a child-job is in a final state, it causes a recursive update of the state of parent jobs.
+
+Alright, I have the CommandJob in place, now to add methods for it in the Queue
+
+## 2025-05-10 16:05:37
+
+Done!
+
+Next, add tests for batches, and make sure the terminal events work nicely.
+Then, write a "participant check-in" workflow endpoint

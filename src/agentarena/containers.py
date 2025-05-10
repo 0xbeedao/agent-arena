@@ -18,7 +18,7 @@ from agentarena.models.arena import ArenaDTO
 from agentarena.models.contest import ContestDTO
 from agentarena.models.event import JobEvent
 from agentarena.models.feature import FeatureDTO
-from agentarena.models.job import JsonRequestJob
+from agentarena.models.job import CommandJob, CommandJobHistory
 from agentarena.models.participant import ParticipantDTO
 from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
@@ -48,10 +48,6 @@ class Container(containers.DeclarativeContainer):
         config.db.filename,
         get_database=get_database,
         logging=logging,
-    )
-
-    job_q_service = providers.Singleton(
-        QueueService, projectroot, config.queues.jobs.filename, get_q
     )
 
     # model services
@@ -118,9 +114,9 @@ class Container(containers.DeclarativeContainer):
         logging=logging,
     )
 
-    requestjob_service = providers.Singleton(
-        ModelService[JsonRequestJob],
-        model_class=JsonRequestJob,
+    commandjob_service = providers.Singleton(
+        ModelService[CommandJob],
+        model_class=CommandJob,
         dbService=db_service,
         table_name="jobs",
         logging=logging,
@@ -142,14 +138,25 @@ class Container(containers.DeclarativeContainer):
         logging=logging,
     )
 
-    job_service = providers.Singleton(
-        requestjob_service=requestjob_service,
+    jobhistory_service = providers.Singleton(
+        ModelService[CommandJobHistory],
+        model_class=CommandJobHistory,
+        DbService=db_service,
+        table_name="jobhistories",
+        logging=logging,
+    )
+
+    queue_service = providers.Singleton(
+        QueueService,
+        event_bus=event_bus,
+        history_service=jobhistory_service,
+        job_service=commandjob_service,
         logging=logging,
     )
 
     request_service = providers.Singleton(
         RequestService,
-        queue_service=job_q_service,
+        queue_service=queue_service,
         http_client_factory=make_httpclient,
         event_bus=event_bus,
         logging=logging,

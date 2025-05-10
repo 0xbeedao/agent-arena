@@ -6,9 +6,10 @@ from statemachine import State
 from statemachine import StateMachine
 
 from agentarena.factories.logger_factory import LoggingService
+from agentarena.models.job import CommandJob
+from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
-from agentarena.models.job import JsonRequestJob
 
 
 class RequestState(Enum):
@@ -54,7 +55,7 @@ class RequestMachine(StateMachine):
 
     def __init__(
         self,
-        job: JsonRequestJob,
+        job: CommandJob,
         http_client: Client = None,
         logging: LoggingService = Field(desciption="Logger factory"),
     ):
@@ -63,6 +64,7 @@ class RequestMachine(StateMachine):
 
         :param job: Optional job or context object for the request.
         """
+        assert job.command == JobCommandType.REQUEST.value
         self.job = job
         self.http_client = http_client
         self.response_object: JobResponse = None
@@ -74,7 +76,7 @@ class RequestMachine(StateMachine):
         method = self.job.method.lower()
         try:
             response = self.http_client.request(
-                method, self.job.url, data=self.job.payload
+                method, self.job.url, data=self.job.data
             )
             await self.receive_response(response)
         except Exception as e:

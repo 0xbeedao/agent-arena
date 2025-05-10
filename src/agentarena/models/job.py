@@ -5,12 +5,18 @@ Provides models to manage aynchronous Jobs
 from datetime import datetime
 from enum import Enum
 from typing import Any
+from typing import List
 from typing import Optional
 
 from pydantic import BaseModel
 from pydantic import Field
 
 from agentarena.models.dbbase import DbBase
+
+
+class JobCommandType(Enum):
+    REQUEST = "request"
+    BATCH = "batch"
 
 
 class JobState(Enum):
@@ -30,8 +36,8 @@ class JobResponseState(Enum):
 
 class JobResponse(BaseModel):
     job_id: str = Field(description="ULID job ID")
-    eta: Optional[int] = Field(
-        default=0, description="Estimated time in milliseconds for job to complete"
+    delay: Optional[int] = Field(
+        default=0, description="Request delay of x seconds before retry"
     )
     message: Optional[str] = Field(
         default="", description="Message regarding state, e.g. an error"
@@ -42,26 +48,28 @@ class JobResponse(BaseModel):
     data: Optional[Any] = Field(default="", description="payload")
 
 
-class JsonRequestJob(DbBase):
-    attempt: int = Field(default=1, description="Request attempt counter")
-    caller: str = Field(description="Name of calling service")
-    command: str = Field(description="job command")
+class JsonRequestSummary(BaseModel):
+    url: Optional[str] = Field(description="Url to Call")
     method: str = Field(description="HTTP method")
-    original_job: Optional[str] = Field(
-        default="", description="link to original job id for retries"
+    data: Optional[str] = Field(description="optional payload to send to Url")
+    delay: Optional[int] = Field(
+        default=0, description="Request delay of x seconds before retry"
     )
-    payload: object = Field(description="JSON payload")
+
+
+class CommandJob(DbBase):
+    parent_id: Optional[str] = Field(
+        default=None,
+        description="The parent CommandJob, can be null, indicating this is a top-level job",
+    )
+    command: str = Field(description="job command: batch, request")
+    data: Optional[str] = Field(description="optional payload to send to Url")
+    event: Optional[str] = Field(
+        default="", description="Optional event name to throw when complete"
+    )
+    method: str = Field(description="HTTP method")
     priority: Optional[int] = Field(
         default=5, description="priority on a scale from 1 to 10, 10 high"
-    )
-    final_message: Optional[str] = Field(
-        default="", description="Message sent with final state change"
-    )
-    finished_at: int = (
-        Field(
-            default=0,
-            description="When this job reached a final state ['complete', 'fail', 'waiting']",
-        ),
     )
     send_at: int = Field(
         default=0, description="Available in queue after what timestamp"
@@ -72,27 +80,30 @@ class JsonRequestJob(DbBase):
     started_at: int = (
         Field(default=0, description="When this job was picked up from queue"),
     )
-    url: str = Field(description="Url to Call")
+    finished_at: int = (
+        Field(
+            default=0,
+            description="When this job reached a final state ['complete', 'fail', 'waiting']",
+        ),
+    )
+    url: Optional[str] = Field(description="Url to Call")
 
     def get_foreign_keys(self):
-        return [("job_id", "jobs", "id")]
+        return [("parent_id", "jobs", "id")]
 
-    def make_attempt(self, eta=None):
-        attempt = self.attempt
-        if attempt is None or attempt < 1:
-            attempt = 1
-        now = int(datetime.now().timestamp())
-        send_at = eta if eta is not None else now
-        if send_at < now:
-            send_at = now
-
-        return JsonRequestJob(
-            attempt=attempt + 1,
-            caller=self.caller,
-            command=self.command,
-            method=self.method,
-            original_job=self.id,
-            payload=self.payload,
+    def make_child(self, req: JsonRequestSummary) -> "CommandJob":
+        """
+        convenience method to make a child job
+        """
+        send_at = int(datetime.now().timestamp())
+        if req.delay > 0:
+            send_at += req.delay
+        return CommandJob(
+            parent_id=self.id,
+            command=JobCommandType.REQUEST.value,
+            data=req.data,
+            event=req.event,
+            method=req.method,
             priority=self.priority,
             send_at=send_at,
             state=JobState.IDLE.value,
@@ -100,3 +111,21 @@ class JsonRequestJob(DbBase):
             finished_at=0,
             url=self.url,
         ).fill_defaults()
+
+    def make_batch_requests(
+        self, requests: List[JsonRequestSummary]
+    ) -> List["CommandJob"]:
+        """ """
+        return [self.make_child(req) for req in requests]
+
+
+class CommandJobHistory(DbBase):
+    job_id: str = Field(description="Initiating job")
+    from_state: str = Field(description="Original Job state, see JobState states")
+    to_state: str = Field(description="Updated Job state, see JobState states")
+    message: Optional[str] = Field(
+        default="", description="Message associated with state change"
+    )
+    data: Optional[str] = Field(
+        default="", description="Optional JSON object returned from request"
+    )

@@ -1,16 +1,18 @@
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
+from pydantic import BaseModel, Field
 import pytest
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.event import JobEvent
 from agentarena.services.event_bus import DbEventBus
 from agentarena.services.event_bus import InMemoryEventBus
+from ulid import ULID
 
 
-class DummyEvent:
-    pass
+class DummyEvent(BaseModel):
+    name: str = Field(default="test")
 
 
 @pytest.fixture
@@ -22,8 +24,9 @@ def logging():
 async def test_inmemoryeventbus_publish_triggers_handler(logging):
     bus = InMemoryEventBus(logging=logging)
     handler = AsyncMock()
-    event = DummyEvent()
-    bus.subscribe(DummyEvent, handler)
+    k = ULID().hex
+    event = DummyEvent(name=k)
+    bus.subscribe(k, handler)
     await bus.publish(event)
     handler.assert_awaited_once_with(event)
 
@@ -33,7 +36,8 @@ async def test_inmemoryeventbus_no_handler_for_event_type(logging):
     bus = InMemoryEventBus(logging=logging)
     handler = AsyncMock()
     bus.subscribe(str, handler)
-    await bus.publish(DummyEvent())  # Should not call handler
+    k = ULID().hex
+    await bus.publish(DummyEvent(name=k))  # Should not call handler
     handler.assert_not_awaited()
 
 
@@ -42,9 +46,10 @@ async def test_inmemoryeventbus_multiple_handlers(logging):
     bus = InMemoryEventBus(logging=logging)
     handler1 = AsyncMock()
     handler2 = AsyncMock()
-    event = DummyEvent()
-    bus.subscribe(DummyEvent, handler1)
-    bus.subscribe(DummyEvent, handler2)
+    k = ULID().hex
+    event = DummyEvent(name=k)
+    bus.subscribe(k, handler1)
+    bus.subscribe(k, handler2)
     await bus.publish(event)
     handler1.assert_awaited_once_with(event)
     handler2.assert_awaited_once_with(event)
@@ -54,13 +59,14 @@ async def test_inmemoryeventbus_multiple_handlers(logging):
 async def test_inmemoryeventbus_unsubscribe_removes_handler(logging):
     bus = InMemoryEventBus(logging=logging)
     handler = AsyncMock()
-    event = DummyEvent()
+    k = ULID().hex
+    event = DummyEvent(name=k)
 
     # Subscribe the handler
-    bus.subscribe(DummyEvent, handler)
+    bus.subscribe(k, handler)
 
     # Unsubscribe the handler
-    result = bus.unsubscribe(DummyEvent, handler)
+    result = bus.unsubscribe(k, handler)
     assert result is True
 
     # Verify handler is not called when event is published
@@ -74,15 +80,16 @@ async def test_inmemoryeventbus_unsubscribe_nonexistent_handler(logging):
     handler1 = AsyncMock()
     handler2 = AsyncMock()
 
+    k = ULID().hex
     # Subscribe only handler1
-    bus.subscribe(DummyEvent, handler1)
+    bus.subscribe(k, handler1)
 
     # Try to unsubscribe handler2 which wasn't subscribed
-    result = bus.unsubscribe(DummyEvent, handler2)
+    result = bus.unsubscribe(k, handler2)
     assert result is False
 
     # Verify handler1 is still subscribed
-    event = DummyEvent()
+    event = DummyEvent(name=k)
     await bus.publish(event)
     handler1.assert_awaited_once_with(event)
 
@@ -135,8 +142,9 @@ def test_dbeventbus_subscribe_delegates_to_inner(logging):
     mock_inner = Mock(spec=InMemoryEventBus)
     handler = Mock()
     bus = DbEventBus(model_service=None, inner=mock_inner, logging=logging)
-    bus.subscribe(str, handler)
-    mock_inner.subscribe.assert_called_once_with(str, handler)
+    k = ULID().hex
+    bus.subscribe(k, handler)
+    mock_inner.subscribe.assert_called_once_with(k, handler)
 
 
 def test_dbeventbus_unsubscribe_delegates_to_inner(logging):
@@ -148,6 +156,7 @@ def test_dbeventbus_unsubscribe_delegates_to_inner(logging):
     bus = DbEventBus(model_service=None, inner=mock_inner, logging=logging)
 
     # Call unsubscribe and verify it delegates to inner
-    result = bus.unsubscribe(str, handler)
-    mock_inner.unsubscribe.assert_called_once_with(str, handler)
+    k = ULID().hex
+    result = bus.unsubscribe(k, handler)
+    mock_inner.unsubscribe.assert_called_once_with(k, handler)
     assert result is True

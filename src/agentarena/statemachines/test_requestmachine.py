@@ -3,7 +3,7 @@ import pytest
 from pydantic import BaseModel
 
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import JobResponse
+from agentarena.models.job import JobCommandType, JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.statemachines.request_machine import RequestMachine
 from agentarena.statemachines.request_machine import RequestState
@@ -11,9 +11,10 @@ from agentarena.statemachines.request_machine import RequestState
 
 class MockJob(BaseModel):
     id: str
+    command: str
     url: str
     method: str
-    payload: str
+    data: str
 
 
 @pytest.fixture
@@ -24,9 +25,10 @@ def logging():
 def make_job():
     return MockJob(
         id="testjob",
+        command=JobCommandType.REQUEST.value,
         url="http://localhost:8000/test",
         method="GET",
-        payload='{"test": "toast"}',
+        data='{"test": "toast"}',
     )
 
 

@@ -11,9 +11,9 @@ from agentarena.services.model_service import ModelService
 
 class IEventBus(Protocol):
     async def publish(self, event: object) -> None: ...
-    def subscribe(self, event_type: str, handler: Callable[[object], None]) -> None: ...
+    def subscribe(self, event_name: str, handler: Callable[[object], None]) -> None: ...
     def unsubscribe(
-        self, event_type: str, handler: Callable[[object], None]
+        self, event_name: str, handler: Callable[[object], None]
     ) -> bool: ...
 
 
@@ -24,24 +24,24 @@ class InMemoryEventBus(IEventBus):
 
     async def publish(self, event: object) -> None:
 
-        for handler in self._handlers.get(type(event), []):
+        for handler in self._handlers.get(event.name, []):
             await handler(event)
 
-    def subscribe(self, event_type: str, handler: Callable[[JobEvent], None]) -> None:
-        self._handlers.setdefault(event_type, []).append(handler)
+    def subscribe(self, event_name: str, handler: Callable[[JobEvent], None]) -> None:
+        self._handlers.setdefault(event_name, []).append(handler)
 
-    def unsubscribe(self, event_type: str, handler: Callable[[JobEvent], None]) -> bool:
+    def unsubscribe(self, event_name: str, handler: Callable[[JobEvent], None]) -> bool:
         """
         Unsubscribe a handler from an event type.
         Returns True if the handler was found and removed, False otherwise.
         """
-        if event_type not in self._handlers:
+        if event_name not in self._handlers:
             return False
 
-        handlers = self._handlers[event_type]
+        handlers = self._handlers[event_name]
         if handler in handlers:
             handlers.remove(handler)
-            self.log.debug(f"Unsubscribed handler for {event_type}")
+            self.log.debug(f"Unsubscribed handler for {event_name}")
             return True
 
         return False
@@ -66,15 +66,15 @@ class DbEventBus(IEventBus):
             self.log.debug(f"Published event {ready.id}")
             self._inner.publish(ready)  # in-process dispatch
 
-    def subscribe(self, event_type: Type, handler: Callable[[JobEvent], None]) -> None:
-        self._inner.subscribe(event_type, handler)
+    def subscribe(self, event_name: str, handler: Callable[[JobEvent], None]) -> None:
+        self._inner.subscribe(event_name, handler)
 
     def unsubscribe(
-        self, event_type: Type, handler: Callable[[JobEvent], None]
+        self, event_name: Type, handler: Callable[[JobEvent], None]
     ) -> bool:
         """
         Unsubscribe a handler from an event type.
         Delegates to the inner event bus.
         Returns True if the handler was found and removed, False otherwise.
         """
-        return self._inner.unsubscribe(event_type, handler)
+        return self._inner.unsubscribe(event_name, handler)
