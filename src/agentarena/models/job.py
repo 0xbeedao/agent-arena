@@ -50,6 +50,7 @@ class JobResponse(BaseModel):
 
 class JsonRequestSummary(BaseModel):
     url: Optional[str] = Field(description="Url to Call")
+    event: Optional[str] = Field(default="", description="Event to send on complete")
     method: str = Field(description="HTTP method")
     data: Optional[str] = Field(description="optional payload to send to Url")
     delay: Optional[int] = Field(

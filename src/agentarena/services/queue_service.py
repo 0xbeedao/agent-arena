@@ -123,8 +123,8 @@ class QueueService:
         )
 
     async def revalidate_batch(self, batch: CommandJob):
-        if batch.command != JobCommandType.BATCH:
-            log.warn("Not a batch", batch=batch.id, command=batch.command)
+        if batch.command != JobCommandType.BATCH.value:
+            self.log.warn("Not a batch", batch=batch.id, command=batch.command)
             return False
 
         log = self.log.bind(batch=batch.id)
@@ -139,10 +139,10 @@ class QueueService:
             ct += 1
             if c.state == JobState.FAIL.value:
                 failed = True
-                info.push(f"Child #{c.id} in FAIL - batch fail")
+                info.append(f"Child #{c.id} in FAIL - batch fail")
             if c.state != JobState.COMPLETE.value:
                 complete = False
-                info.push(f"Child #{c.id} is in {c.state} - batch pending")
+                info.append(f"Child #{c.id} is in {c.state} - batch pending")
 
         if ct == 0:
             log.info("This is an invalid batch, as it has no children")
@@ -173,7 +173,7 @@ class QueueService:
         if not response.success:
             log.warn("Couldn't get parent, aborting")
             return False
-        if parent.command == "batch":
+        if parent.command == JobCommandType.BATCH.value:
             log.info("Parent is a batch, sending for revalidation")
             return await self.revalidate_batch(parent)
         return True

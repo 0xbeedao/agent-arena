@@ -6,7 +6,7 @@ import pytest
 
 from agentarena.factories.db_factory import get_database
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJob, JsonRequestSummary
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobState
@@ -193,3 +193,147 @@ async def test_requeue_job(job_service, history_service, event_bus, logging):
     picked = await q.get_next()
     assert picked is not None
     assert picked.id == requeued.id
+
+
+@pytest.mark.asyncio
+async def test_send_batch(job_service, history_service, event_bus, logging):
+    q = QueueService(
+        history_service=history_service,
+        event_bus=event_bus,
+        job_service=job_service,
+        logging=logging,
+    )
+    # Create a batch job
+    batch_job = CommandJob(
+        command=JobCommandType.BATCH.value,
+        method="POST",
+        data='{"batch": "data"}',
+        url="/batch",
+    )
+
+    # Create request summaries for child jobs
+    requests = [
+        JsonRequestSummary(
+            method="GET",
+            url="/request1",
+            data='{"req": "1"}',
+        ),
+        JsonRequestSummary(
+            method="GET",
+            url="/request2",
+            data='{"req": "2"}',
+        ),
+    ]
+
+    # Send the batch with child requests
+    result = await q.send_batch(batch_job, requests)
+    assert result is not None
+    assert result.command == JobCommandType.BATCH.value
+    assert result.state == JobState.REQUEST.value
+
+    # Get the child jobs
+    batch_id = result.id
+    children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
+    assert len(children) == 2
+
+    # Verify child jobs are correctly created
+    for child in children:
+        assert child.parent_id == batch_id
+        assert child.command == JobCommandType.REQUEST.value
+        assert child.state == JobState.IDLE.value
+
+
+@pytest.mark.asyncio
+async def test_batch_state_updates(job_service, history_service, event_bus, logging):
+    q = QueueService(
+        history_service=history_service,
+        event_bus=event_bus,
+        job_service=job_service,
+        logging=logging,
+    )
+    # Create a batch job
+    batch_job = CommandJob(
+        command=JobCommandType.BATCH.value,
+        method="POST",
+        data='{"batch": "data"}',
+        url="/batch",
+    )
+
+    # Create request summaries for child jobs
+    requests = [
+        JsonRequestSummary(
+            method="GET",
+            url="/request1",
+            data='{"req": "1"}',
+        ),
+        JsonRequestSummary(
+            method="GET",
+            url="/request2",
+            data='{"req": "2"}',
+        ),
+    ]
+
+    # Send the batch with child requests
+    batch = await q.send_batch(batch_job, requests)
+    batch_id = batch.id
+
+    # Get the child jobs
+    children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
+    assert len(children) == 2
+
+    # Process first child job
+    child1 = children[0]
+    await q.update_state(child1.id, JobState.COMPLETE.value, "Child 1 complete")
+
+    # Batch should still be in REQUEST state since one child is pending
+    batch_updated, _ = await job_service.get(batch_id)
+    assert batch_updated.state == JobState.REQUEST.value
+
+    # Process second child job
+    child2 = children[1]
+    await q.update_state(child2.id, JobState.COMPLETE.value, "Child 2 complete")
+
+    # Now batch should be COMPLETE since all children are complete
+    batch_final, _ = await job_service.get(batch_id)
+    assert batch_final.state == JobState.COMPLETE.value
+
+
+@pytest.mark.asyncio
+async def test_batch_with_failed_child(
+    job_service, history_service, event_bus, logging
+):
+    q = QueueService(
+        history_service=history_service,
+        event_bus=event_bus,
+        job_service=job_service,
+        logging=logging,
+    )
+    # Create a batch job
+    batch_job = CommandJob(
+        command=JobCommandType.BATCH.value, method="POST", url="/batch", data=""
+    )
+
+    # Create request summaries for child jobs
+    requests = [
+        JsonRequestSummary(method="GET", url="/request1", data=""),
+        JsonRequestSummary(method="GET", url="/request2", data=""),
+    ]
+
+    # Send the batch with child requests
+    batch = await q.send_batch(batch_job, requests)
+    batch_id = batch.id
+
+    # Get the child jobs
+    children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
+
+    # Complete first child job successfully
+    child1 = children[0]
+    await q.update_state(child1.id, JobState.COMPLETE.value, "Child 1 complete")
+
+    # Fail the second child job
+    child2 = children[1]
+    await q.update_state(child2.id, JobState.FAIL.value, "Child 2 failed")
+
+    # Batch should be in FAIL state since one child failed
+    batch_final, _ = await job_service.get(batch_id)
+    assert batch_final.state == JobState.FAIL.value
