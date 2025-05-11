@@ -134,7 +134,6 @@ sequenceDiagram
     T->>+J: get job
     J->>+T: job
     T->>-C: return COMPLETE / payload
-
 ```
 
 ## 2025-05-10 11:45:14

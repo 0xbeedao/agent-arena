@@ -18,21 +18,68 @@ flowchart TD
     WAITING --> | get wakeup | REQUEST
 ```
 
-Using a queue, the flow would then be
+## State machine - ending complete
+
+Ends complete after caller requests three times, the first time the polling loop hasn't piced it up yet
 
 ```mermaid
-flowchart TD
+sequenceDiagram
+    participant C as Caller
+    participant T as Controller
+    participant Q as Queue
+    participant J as Job Svc
+    participant P as Poller
+    participant R as Request Svc
+    
+    C->>+T: POST
+    T->>+Q: add job
+    Q->>+J: create
+    J->>+Q: job
+    Q->>+T: job
+    T->>-C: return PENDING / ID
+    
+    C->>+T: GET ID
+    T->>+J: get job
+    J->>+T: job
+    T->>-C: return PENDING / ID
+    
+    P->>+Q: get next
+    Q->>+J: get job
+    J->>+Q: job
+    Q->>+P: job
+    P->>+R: process request
+    R->>+P: return COMPLETE / payload
+    P->>+Q: update
+    Q->>+J: update
 
-C[[Calling Service]] --> | add job | Q[[Queue]]
-Poll[Poller] --> | gets job | Q
-Poll --> | sends job | R[[Request Service]]
-R ---> S{State Machine}
-S --> | COMPLETE | P[send payload]
-P --> C
-S --> | FAIL | F[send rejection]
-F --> C
-S --> | WAITING | J[reject job]
-J --> Q
-
+    C->>+T: GET ID
+    T->>+J: get job
+    J->>+T: job
+    T->>-C: return COMPLETE / payload
 ```
 
+## Sequence of a batch with 2 request jobs
+
+```mermaid
+sequenceDiagram
+
+    participant C as Controller
+    participant Q as Queue
+    participant P as Poller
+    participant R as Request Svc
+
+    C->>+Q: Add Batch, Requests
+    Q->>+Q: Add Batch Job
+    Q->>+Q: Add Request Jobs
+    P->>+Q: Poll and Process
+    Q->>+Q: Get Request Job
+    Q->>+R: perform Request
+    R->>+Q: Update state to COMPLETE
+    Q->>+Q: Revalidate Batch - REQUEST
+
+    P->>+Q: Poll and Process
+    Q->>+Q: Get Request Job
+    Q->>+R: perform Request
+    R->>+Q: Update state to COMPLETE
+    Q->>+Q: Revalidate Batch - COMPLETE
+```
