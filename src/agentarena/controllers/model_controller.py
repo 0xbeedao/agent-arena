@@ -138,8 +138,8 @@ class ModelController(Generic[T]):
             raise HTTPException(status_code=422, detail=response.validation)
         return {"success": response.success}
 
-    def get_router(self):
-        router = APIRouter(prefix=f"/{self.model_name}", tags=[self.model_name])
+    def get_router(self, base="/api"):
+        router = APIRouter(prefix=f"{base}/{self.model_name}", tags=[self.model_name])
 
         @router.post("/", response_model=T)
         async def create(req: T):

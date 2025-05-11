@@ -154,3 +154,11 @@ Done!
 
 Next, add tests for batches, and make sure the terminal events work nicely.
 Then, write a "participant check-in" workflow endpoint
+
+## 2025-05-10 20:16:08
+
+A little while watching TV.
+
+Wrapped up batch testing using Roo, nice job Claude.
+
+Moved api endpoints to `/api`

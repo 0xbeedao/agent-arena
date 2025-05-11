@@ -52,9 +52,8 @@ class ResponderController:
             data=HealthStatus(name=participant.name, state="OK", version="1"),
         )
 
-    def get_router(self):
-
-        router = APIRouter(prefix="/responders", tags=["Responders"])
+    def get_router(self, base="/api"):
+        router = APIRouter(prefix=f"{base}/responders", tags=["Responders"])
 
         @router.get("/{participant_id}/health/{job_id}", response_model=HealthResponse)
         async def health():

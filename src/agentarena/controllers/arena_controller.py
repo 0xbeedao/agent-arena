@@ -296,8 +296,8 @@ class ArenaController(ModelController[ArenaDTO]):
         # db.execute("COMMIT")
         return ModelResponse(success=True)
 
-    def get_router(self):
-        router = APIRouter(prefix="/arena", tags=["arena"])
+    def get_router(self, base="/api"):
+        router = APIRouter(prefix=f"{base}/arena", tags=["arena"])
 
         @router.post("/", response_model=Arena)
         async def create(req: ArenaCreateRequest):

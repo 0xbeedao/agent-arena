@@ -177,8 +177,8 @@ class ContestController(ModelController[ContestDTO]):
 
         return {"id": contest_id}
 
-    def get_router(self):
-        router = APIRouter(prefix=f"/{self.model_name}", tags=[self.model_name])
+    def get_router(self, base="/api"):
+        router = APIRouter(prefix=f"{base}/contest", tags=[self.model_name])
 
         @router.post("/", response_model=Contest)
         async def create(req: ContestDTO):
