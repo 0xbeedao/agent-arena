@@ -1,0 +1,9 @@
+ahoyapi: v2
+commands:
+  web:
+    cmd: "pnpm run dev"
+    usage: start the web server
+
+  serve:
+    cmd: "python -m agentarena.server"
+    usage: Start the server

@@ -53,7 +53,7 @@ class ModelService(Generic[T]):
     def __init__(
         self,
         model_class: Type[T],
-        dbService: DbService,
+        db_service: DbService,
         table_name: str,
         logging: LoggingService = Field(desciption="Logger factory"),
     ):
@@ -62,7 +62,7 @@ class ModelService(Generic[T]):
 
         Args:
             model_class: The Pydantic model class (must be a subclass of DbBase)
-            dbService: The database service
+            db_service: The database service
             table_name: Optional table name (if not provided, will be inferred from model_class name)
         """
         if not issubclass(model_class, DbBase):
@@ -71,9 +71,9 @@ class ModelService(Generic[T]):
             )
 
         self.model_class = model_class
-        self.dbService = dbService
+        self.db_service = db_service
         self.table_name = table_name
-        self.table = dbService.db[table_name]
+        self.table = db_service.db[table_name]
         self.model_name = model_class.__name__
         self.log = logging.get_logger(
             f"{self.model_name}service",
@@ -120,7 +120,7 @@ class ModelService(Generic[T]):
             )
             return None, ModelResponse(success=False, validation=invalidation)
         self.log.info(f"Added #{obj_id}")
-        self.dbService.add_audit_log(f"Added {self.model_name}: {obj_id}")
+        self.db_service.add_audit_log(f"Added {self.model_name}: {obj_id}")
         return db_obj, ModelResponse(success=True, id=obj_id, validation=validation)
 
     async def create_many(
@@ -234,7 +234,7 @@ class ModelService(Generic[T]):
             invalidation = ValidationResponse(success=False, message="Integrity error")
             return obj, ModelResponse(success=False, id=obj.id, validation=invalidation)
 
-        self.dbService.add_audit_log(f"Updated {self.model_name}, #{obj.id}")
+        self.db_service.add_audit_log(f"Updated {self.model_name}, #{obj.id}")
 
         return await self.get(obj.id)
 
@@ -261,7 +261,7 @@ class ModelService(Generic[T]):
             obj_id, {"deleted_at": int(datetime.now().timestamp()), "active": False}
         )
         self.log.info(f"Deleted #%s", obj_id)
-        self.dbService.add_audit_log(f"Deleted {self.model_name}: {obj_id}")
+        self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}")
         return ModelResponse(success=True, id=obj_id, data=existing)
 
     async def get_by_ids(

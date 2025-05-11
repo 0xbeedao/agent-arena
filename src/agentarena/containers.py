@@ -4,6 +4,7 @@ from dependency_injector import providers
 
 from agentarena.controllers.arena_controller import ArenaController
 from agentarena.controllers.contest_controller import ContestController
+from agentarena.controllers.debug_controller import DebugController
 from agentarena.controllers.model_controller import ModelController
 from agentarena.controllers.responder_controller import ResponderController
 from agentarena.factories.arena_factory import ArenaFactory
@@ -18,7 +19,8 @@ from agentarena.models.arena import ArenaDTO
 from agentarena.models.contest import ContestDTO
 from agentarena.models.event import JobEvent
 from agentarena.models.feature import FeatureDTO
-from agentarena.models.job import CommandJob, CommandJobHistory
+from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobHistory
 from agentarena.models.participant import ParticipantDTO
 from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
@@ -55,7 +57,7 @@ class Container(containers.DeclarativeContainer):
     jobevent_service = providers.Singleton(
         ModelService[JobEvent],
         model_class=JobEvent,
-        DbService=db_service,
+        db_service=db_service,
         table_name="jobevent",
         logging=logging,
     )
@@ -69,7 +71,7 @@ class Container(containers.DeclarativeContainer):
     agent_service = providers.Singleton(
         ModelService[AgentDTO],
         model_class=AgentDTO,
-        dbService=db_service,
+        db_service=db_service,
         table_name="agents",
         logging=logging,
     )
@@ -77,7 +79,7 @@ class Container(containers.DeclarativeContainer):
     arena_service = providers.Singleton(
         ModelService[ArenaDTO],
         model_class=ArenaDTO,
-        dbService=db_service,
+        db_service=db_service,
         table_name="arenas",
         logging=logging,
     )
@@ -85,7 +87,7 @@ class Container(containers.DeclarativeContainer):
     participant_service = providers.Singleton(
         ModelService[ParticipantDTO],
         model_class=ParticipantDTO,
-        dbService=db_service,
+        db_service=db_service,
         table_name="participants",
         logging=logging,
     )
@@ -93,7 +95,7 @@ class Container(containers.DeclarativeContainer):
     arenastate_service = providers.Singleton(
         ModelService[ArenaStateDTO],
         model_class=ArenaStateDTO,
-        dbService=db_service,
+        db_service=db_service,
         table_name="arena_states",
         logging=logging,
     )
@@ -101,7 +103,7 @@ class Container(containers.DeclarativeContainer):
     contest_service = providers.Singleton(
         ModelService[ContestDTO],
         model_class=ContestDTO,
-        dbService=db_service,
+        db_service=db_service,
         table_name="contests",
         logging=logging,
     )
@@ -109,7 +111,7 @@ class Container(containers.DeclarativeContainer):
     feature_service = providers.Singleton(
         ModelService[FeatureDTO],
         model_class=FeatureDTO,
-        dbService=db_service,
+        db_service=db_service,
         table_name="features",
         logging=logging,
     )
@@ -117,7 +119,7 @@ class Container(containers.DeclarativeContainer):
     commandjob_service = providers.Singleton(
         ModelService[CommandJob],
         model_class=CommandJob,
-        dbService=db_service,
+        db_service=db_service,
         table_name="jobs",
         logging=logging,
     )
@@ -125,7 +127,7 @@ class Container(containers.DeclarativeContainer):
     roundstats_service = providers.Singleton(
         ModelService[RoundStatsDTO],
         model_class=RoundStatsDTO,
-        dbService=db_service,
+        db_service=db_service,
         table_name="roundstats",
         logging=logging,
     )
@@ -133,7 +135,7 @@ class Container(containers.DeclarativeContainer):
     strategy_service = providers.Singleton(
         ModelService[StrategyDTO],
         model_class=StrategyDTO,
-        dbService=db_service,
+        db_service=db_service,
         table_name="strategies",
         logging=logging,
     )
@@ -141,7 +143,7 @@ class Container(containers.DeclarativeContainer):
     jobhistory_service = providers.Singleton(
         ModelService[CommandJobHistory],
         model_class=CommandJobHistory,
-        DbService=db_service,
+        db_service=db_service,
         table_name="jobhistories",
         logging=logging,
     )
@@ -222,5 +224,14 @@ class Container(containers.DeclarativeContainer):
         ModelController[StrategyDTO],
         model_name="strategy",
         model_service=strategy_service,
+        logging=logging,
+    )
+
+    debug_controller = providers.Singleton(
+        DebugController,
+        agent_service=agent_service,
+        event_bus=event_bus,
+        queue_service=queue_service,
+        job_service=commandjob_service,
         logging=logging,
     )

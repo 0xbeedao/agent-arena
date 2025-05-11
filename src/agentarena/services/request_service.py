@@ -2,7 +2,6 @@ from pydantic import Field
 from statemachine import State
 
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState

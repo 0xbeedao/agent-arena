@@ -6,10 +6,11 @@ import pytest
 
 from agentarena.factories.db_factory import get_database
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJob, JsonRequestSummary
+from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobState
+from agentarena.models.job import JsonRequestSummary
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
@@ -28,7 +29,7 @@ def db_service():
 @pytest.fixture
 def job_service(db_service, logging):
     return ModelService[CommandJob](
-        dbService=db_service,
+        db_service=db_service,
         model_class=CommandJob,
         table_name="jobs",
         logging=logging,
@@ -38,7 +39,7 @@ def job_service(db_service, logging):
 @pytest.fixture
 def history_service(db_service, logging):
     return ModelService[CommandJobHistory](
-        dbService=db_service,
+        db_service=db_service,
         model_class=CommandJobHistory,
         table_name="jobhistory",
         logging=logging,

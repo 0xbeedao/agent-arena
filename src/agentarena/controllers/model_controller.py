@@ -28,7 +28,7 @@ class ModelController(Generic[T]):
 
         Args:
             model_name: Name of model
-            dbService: The database service
+            db_service: The database service
             table_name: Optional table name (if not provided, will be inferred from model_class name)
         """
         self.model_name = model_name

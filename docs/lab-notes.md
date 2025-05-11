@@ -162,3 +162,8 @@ A little while watching TV.
 Wrapped up batch testing using Roo, nice job Claude.
 
 Moved api endpoints to `/api`
+
+## 2025-05-11 13:41:57
+
+Added the debug_controller to allow for quick creation of requests - to make sure it works live and watch all the states
+

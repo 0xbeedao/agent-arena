@@ -1,14 +1,15 @@
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
-from pydantic import BaseModel, Field
 import pytest
+from pydantic import BaseModel
+from pydantic import Field
+from ulid import ULID
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.event import JobEvent
 from agentarena.services.event_bus import DbEventBus
 from agentarena.services.event_bus import InMemoryEventBus
-from ulid import ULID
 
 
 class DummyEvent(BaseModel):

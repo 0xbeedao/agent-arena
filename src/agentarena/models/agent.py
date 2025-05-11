@@ -2,6 +2,7 @@
 Agent configuration model for the Agent Arena application.
 """
 
+import urllib.parse
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -28,6 +29,9 @@ class AgentDTO(DbBase):
     strategy_id: Optional[str] = Field(
         default="", description="Reference to StrategyDTO"
     )
+
+    def url(self, path: str = ""):
+        return urllib.parse.urljoin(self.endpoint, path)
 
     def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
         """

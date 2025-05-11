@@ -51,7 +51,7 @@ class JobResponse(BaseModel):
 class JsonRequestSummary(BaseModel):
     url: Optional[str] = Field(description="Url to Call")
     event: Optional[str] = Field(default="", description="Event to send on complete")
-    method: str = Field(description="HTTP method")
+    method: Optional[str] = Field(default="GET", description="HTTP method")
     data: Optional[str] = Field(description="optional payload to send to Url")
     delay: Optional[int] = Field(
         default=0, description="Request delay of x seconds before retry"
@@ -110,7 +110,7 @@ class CommandJob(DbBase):
             state=JobState.IDLE.value,
             started_at=0,
             finished_at=0,
-            url=self.url,
+            url=req.url,
         ).fill_defaults()
 
     def make_batch_requests(

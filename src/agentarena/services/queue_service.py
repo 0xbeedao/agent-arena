@@ -45,7 +45,9 @@ class QueueService:
             self.update_state(job.id, "fail", message=message)
         log.info("drain complete")
 
-    async def send_batch(self, job: CommandJob, requests: List[JsonRequestSummary]):
+    async def send_batch(
+        self, job: CommandJob, requests: List[JsonRequestSummary]
+    ) -> CommandJob:
         batch_job = await self.send_job(job)
         jobs = batch_job.make_batch_requests(requests)
         # set this job to "BATCH" - which makes it not respond to "get_next" requests

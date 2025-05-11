@@ -75,9 +75,9 @@ class RequestMachine(StateMachine):
         """Called when entering the REQUEST state."""
         method = self.job.method.lower()
         try:
-            response = self.http_client.request(
-                method, self.job.url, data=self.job.data
-            )
+            url = self._resolve_url()
+            self.log.info("requesting", url=url)
+            response = self.http_client.request(method, url, data=self.job.data)
             await self.receive_response(response)
         except Exception as e:
             self.log.error(
@@ -124,3 +124,9 @@ class RequestMachine(StateMachine):
             self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
         else:
             self.log.debug(f"{self.name} enter: {target.id} from {event}")
+
+    def _resolve_url(self) -> str:
+        """Expand url, if needed"""
+        url = self.job.url
+        url = url.replace("$JOB$", self.job.id)
+        return url

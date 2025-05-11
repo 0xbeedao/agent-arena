@@ -46,6 +46,7 @@ routers = [
     container.arena_controller().get_router(),
     container.strategy_controller().get_router(),
     container.responder_controller().get_router(),
+    container.debug_controller().get_router(),
 ]
 [app.include_router(router) for router in routers]
 
@@ -85,6 +86,6 @@ if __name__ == "__main__":
     log = container.logging().get_logger("server", module="server")
     log.info("path: %s", container.projectroot())
     log.info("Starting app")
-    dbService = container.db_service().add_audit_log("startup")
+    db_service = container.db_service().add_audit_log("startup")
 
     uvicorn.run("agentarena.server:app", host="0.0.0.0", port=8000, reload=True)
