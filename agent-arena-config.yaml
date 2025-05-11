@@ -3,3 +3,5 @@ db:
 queues:
   jobs:
     filename: <projectroot>/queue.db
+scheduler:
+  delay: 1

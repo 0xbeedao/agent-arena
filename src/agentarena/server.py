@@ -20,15 +20,47 @@ parentDir = Path(__file__).parent.parent.parent
 yamlFile = os.path.join(parentDir, "agent-arena-config.yaml")
 if os.path.exists(yamlFile):
     container.config.from_yaml(yamlFile)
-# Always initialize resources and wire the container
-container.init_resources()
-
 # Create the FastAPI application
 app = FastAPI(
     title="Agent Arena API",
     description="API for the Agent Arena application",
     version="0.1.0",
 )
+
+
+async def startup_event():
+    """Initialize resources on application startup."""
+    await container.init_resources()
+    # Wire the container after resources are initialized
+    # Note: wiring might be better suited after specific resource initialization if dependencies exist
+    # For now, global wiring after all init should be fine.
+    container.wire(
+        modules=[
+            sys.modules[__name__],  # wire current module
+            "agentarena.controllers.arena_controller",
+            "agentarena.controllers.contest_controller",
+            "agentarena.controllers.debug_controller",
+            "agentarena.controllers.model_controller",
+            "agentarena.controllers.responder_controller",
+        ]
+    )
+    # Add initial audit log after resources (like db_service) are ready
+    db_service = container.db_service()
+    await db_service.add_audit_log("startup_complete")
+    log = container.logging().get_logger("server", module="server")
+    log.info("Application startup complete, resources initialized and container wired.")
+
+
+async def shutdown_event():
+    """Shutdown resources on application stop."""
+    log = container.logging().get_logger("server", module="server")
+    log.info("Application shutting down...")
+    await container.shutdown_resources()
+    log.info("Application shutdown complete, resources de-initialized.")
+
+
+app.add_event_handler("startup", startup_event)
+app.add_event_handler("shutdown", shutdown_event)
 
 # Add CORS middleware
 app.add_middleware(
@@ -85,7 +117,7 @@ if __name__ == "__main__":
         sys.exit(1)
     log = container.logging().get_logger("server", module="server")
     log.info("path: %s", container.projectroot())
-    log.info("Starting app")
-    db_service = container.db_service().add_audit_log("startup")
+    log.info("Starting app with uvicorn")
+    # db_service call moved to startup_event to ensure resources are initialized
 
     uvicorn.run("agentarena.server:app", host="0.0.0.0", port=8000, reload=True)

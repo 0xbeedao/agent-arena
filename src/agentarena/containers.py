@@ -30,6 +30,7 @@ from agentarena.services.event_bus import DbEventBus
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 from agentarena.services.request_service import RequestService
+from agentarena.services.scheduler_service import SchedulerService
 
 
 class Container(containers.DeclarativeContainer):
@@ -161,6 +162,13 @@ class Container(containers.DeclarativeContainer):
         queue_service=queue_service,
         http_client_factory=make_httpclient,
         event_bus=event_bus,
+        logging=logging,
+    )
+
+    scheduler_service = providers.Resource(
+        SchedulerService,
+        delay=config.scheduler.delay,
+        queue_service=queue_service,
         logging=logging,
     )
 

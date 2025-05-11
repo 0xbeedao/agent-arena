@@ -25,6 +25,7 @@ dependencies = [
     "dependency-injector>=4.46.0",
     "python-statemachine>=2.5.0",
     "asyncio>=3.4.3",
+    "apscheduler>=3.11.0",
 ]
 
 [project.optional-dependencies]
