@@ -25,13 +25,11 @@ class RequestService:
     def __init__(
         self,
         queue_service: QueueService = None,
-        http_client_factory=None,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
-        self.http_client_factory = http_client_factory
         self.queue_service = queue_service
         self.logging = logging
-        self.log = logging.get_logger("requestservice")
+        self.log = logging.get_logger(module="request_service")
 
     async def poll_and_process(self) -> bool:
         """
@@ -39,7 +37,7 @@ class RequestService:
         """
         job = await self.queue_service.get_next()
         if job is None:
-            self.log.debug("No job found in queue")
+            # self.log.debug("No job found in queue")
             return False
 
         self.log.info("Processing job", job_id=getattr(job, "id", None))
@@ -51,9 +49,8 @@ class RequestService:
         Process a single job using the request state machine.
         """
         log = self.log.bind(method="process_job", job=job.id)
-        machine = RequestMachine(
-            job, http_client=self.http_client_factory(), logging=self.logging
-        )
+        log.info("processing")
+        machine = RequestMachine(job, logging=self.logging)
         await machine.activate_initial_state()
         await machine.start_request()
 

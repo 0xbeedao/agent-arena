@@ -79,13 +79,13 @@ class QueueService:
             order_by="priority asc, updated_at asc, created_at asc",
             limit=1,
         )
-        self.log.info(f"next: {next}")
-        if next is None or len(next) == 0:
+        if not next:
             return None
         job = next[0]
         updated_job = await self.update_state(
             job.id, JobState.REQUEST.value, "picked up from queue"
         )
+        self.log.info("returning next job", job=updated_job.id)
         return updated_job
 
     async def publish_final_event(self, job: CommandJob, message: str, data: str):

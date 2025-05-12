@@ -5,3 +5,7 @@ queues:
     filename: <projectroot>/queue.db
 scheduler:
   delay: 1
+  max_concurrent: 5
+server:
+  workers: 4
+  

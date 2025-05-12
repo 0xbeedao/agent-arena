@@ -1,16 +1,17 @@
 from datetime import datetime
-from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+from fastapi import HTTPException
 from pydantic import Field
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
-from agentarena.models.job import CommandJob, JobState
+from agentarena.models.job import CommandJob, JobResponseState
 from agentarena.models.job import JobCommandType
-from agentarena.models.job import JobResponse
-from agentarena.models.job import JobResponseState
+from agentarena.models.job import JobState
 from agentarena.models.job import JsonRequestSummary
+from agentarena.models.requests import HealthResponse
+from agentarena.models.requests import HealthStatus
 from agentarena.services.event_bus import IEventBus
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
@@ -61,6 +62,14 @@ class DebugController:
             raise HTTPException(status_code="500", detail="Invalid queue response")
         return sent
 
+    async def healthOK(self):
+        return HealthResponse(
+            job_id="1",
+            state=JobResponseState.COMPLETED.value,
+            message="test",
+            data=HealthStatus(name="debug_controller", state="OK", version="1"),
+        )
+
     def get_router(self, base="/api"):
         router = APIRouter(prefix=f"{base}/debug", tags=["debug"])
 
@@ -71,5 +80,9 @@ class DebugController:
         @router.post("/request", response_model=CommandJob)
         async def send_request(req: JsonRequestSummary):
             return await self.send_request_job(req)
+
+        @router.get("/health", response_model=HealthResponse)
+        async def health():
+            return await self.healthOK()
 
         return router

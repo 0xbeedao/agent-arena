@@ -1,5 +1,5 @@
 meta {
-  name: Make Request Job
+  name: Make Request Job OK
   type: http
   seq: 30
 }
@@ -12,7 +12,7 @@ post {
 
 body:json {
   {
-    "url": "{{host}}/api/responders/health/$JOB$",
+    "url": "http://localhost:8080/health_ok.json",
     "method": "GET",
     "delay": 0,
     "data": ""

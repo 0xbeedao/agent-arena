@@ -4,7 +4,7 @@ web:
 
 [working-directory: "src"]
 server: checkvenv
-    python -m agentarena.server
+    python ../etc/bin/agentarena.server
 
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"

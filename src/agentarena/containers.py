@@ -1,4 +1,3 @@
-import httpx
 from dependency_injector import containers
 from dependency_injector import providers
 
@@ -33,6 +32,23 @@ from agentarena.services.request_service import RequestService
 from agentarena.services.scheduler_service import SchedulerService
 
 
+async def get_scheduler(
+    delay: int = 1,
+    max_concurrent: int = 5,
+    request_service: RequestService = None,
+    logging: LoggingService = None,
+):
+    scheduler = SchedulerService(
+        delay=delay,
+        max_concurrent=max_concurrent,
+        request_service=request_service,
+        logging=logging,
+    )
+    await scheduler.start()
+    yield scheduler
+    scheduler.shutdown()
+
+
 class Container(containers.DeclarativeContainer):
 
     config = providers.Configuration()
@@ -40,8 +56,6 @@ class Container(containers.DeclarativeContainer):
     projectroot = providers.Resource(get_project_root)
 
     logging = providers.Singleton(LoggingService)
-
-    make_httpclient = providers.Factory(httpx.Client)
 
     get_q = providers.Factory(get_queue)
 
@@ -160,15 +174,14 @@ class Container(containers.DeclarativeContainer):
     request_service = providers.Singleton(
         RequestService,
         queue_service=queue_service,
-        http_client_factory=make_httpclient,
-        event_bus=event_bus,
         logging=logging,
     )
 
     scheduler_service = providers.Resource(
-        SchedulerService,
+        get_scheduler,
         delay=config.scheduler.delay,
-        queue_service=queue_service,
+        max_concurrent=config.scheduler.max_concurrent,
+        request_service=request_service,
         logging=logging,
     )
 

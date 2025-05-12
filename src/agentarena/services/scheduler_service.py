@@ -1,15 +1,14 @@
-from pydantic import Field
-from agentarena.factories.logger_factory import LoggingService
-from dependency_injector import resources
 import typing
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from pydantic import Field
 
-from agentarena.services.queue_service import QueueService
+from agentarena.factories.logger_factory import LoggingService
+from agentarena.services.request_service import RequestService
 
 
-class SchedulerService(resources.AsyncResource):
+class SchedulerService:
     """
     Provides our polling loop using APScheduler.
     This service is managed as a resource by dependency_injector.
@@ -18,14 +17,22 @@ class SchedulerService(resources.AsyncResource):
     def __init__(
         self,
         delay: int = Field(default=1, description="Delay in seconds between polls"),
-        queue_service: QueueService = Field(),
+        max_concurrent: int = Field(
+            default=1, description="Maximum concurrent polling runs"
+        ),
+        request_service: RequestService = Field(description="Request Service"),
         logging: LoggingService = Field(description="Logging Service"),
     ):
-        self.q = queue_service
         self.delay = delay
+        self.max_concurrent = max_concurrent
+        self.request_service = request_service
+        self.logging = logging
+        self.scheduler: AsyncIOScheduler = None
         self.log = logging.get_logger(module="scheduler")
 
-    async def init(self) -> typing.AsyncIterator[AsyncIOScheduler]:
+    async def start(
+        self,
+    ) -> typing.AsyncIterator[AsyncIOScheduler]:
         """
         Initializes and starts the APScheduler.
         This method is called by the dependency_injector container.
@@ -33,28 +40,32 @@ class SchedulerService(resources.AsyncResource):
         self.log.info(
             f"Initializing scheduler with polling interval: {self.delay} seconds"
         )
-        scheduler = AsyncIOScheduler()
+        self.scheduler = AsyncIOScheduler()
 
-        scheduler.add_job(
-            self.q.poll_and_process,
+        self.scheduler.add_job(
+            self.request_service.poll_and_process,
             IntervalTrigger(seconds=self.delay),
             id="poll_and_process_job",
             replace_existing=True,
+            max_instances=self.max_concurrent,
         )
 
-        scheduler.start()
-        self.log.info("Scheduler started successfully.")
-        yield scheduler
+        try:
+            self.scheduler.start()
+            self.log.info("Scheduler started successfully.")
+        except Exception as e:
+            self.log.error(e)
+        return self.scheduler
 
-    async def shutdown(self, scheduler: AsyncIOScheduler):
+    async def shutdown(self):
         """
         Shuts down the APScheduler.
         This method is called by the dependency_injector container.
         The 'scheduler' argument is the instance yielded by the init() method.
         """
         self.log.info("Shutting down scheduler...")
-        if scheduler and scheduler.running:
-            scheduler.shutdown()
+        if self.scheduler and self.scheduler.running:
+            self.scheduler.shutdown()
             self.log.info("Scheduler shut down successfully.")
         else:
             self.log.info(

@@ -45,8 +45,8 @@ async def startup_event():
         ]
     )
     # Add initial audit log after resources (like db_service) are ready
-    db_service = container.db_service()
-    await db_service.add_audit_log("startup_complete")
+    # db_service = container.db_service()
+    # await db_service.add_audit_log("startup_complete")
     log = container.logging().get_logger("server", module="server")
     log.info("Application startup complete, resources initialized and container wired.")
 

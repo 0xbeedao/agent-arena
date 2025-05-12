@@ -43,7 +43,7 @@ class JobResponse(BaseModel):
         default="", description="Message regarding state, e.g. an error"
     )
     state: str = Field(
-        description="state field, one of ['completed', 'pending', 'fail']",
+        description="JobResponseState field, one of ['completed', 'pending', 'fail']",
     )
     data: Optional[Any] = Field(default="", description="payload")
 

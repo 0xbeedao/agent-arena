@@ -1,0 +1,21 @@
+meta {
+  name: Make Request Job internal
+  type: http
+  seq: 33
+}
+
+post {
+  url: {{host}}/api/debug/request
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "url": "http://localhost:8000/api/debug/health",
+    "method": "GET",
+    "delay": 0,
+    "data": ""
+  }
+  
+}

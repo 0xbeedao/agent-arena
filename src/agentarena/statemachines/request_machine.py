@@ -1,6 +1,6 @@
 from enum import Enum
 
-from httpx import Client
+import httpx
 from pydantic import Field
 from statemachine import State
 from statemachine import StateMachine
@@ -56,7 +56,6 @@ class RequestMachine(StateMachine):
     def __init__(
         self,
         job: CommandJob,
-        http_client: Client = None,
         logging: LoggingService = Field(desciption="Logger factory"),
     ):
         """
@@ -66,7 +65,6 @@ class RequestMachine(StateMachine):
         """
         assert job.command == JobCommandType.REQUEST.value
         self.job = job
-        self.http_client = http_client
         self.response_object: JobResponse = None
         self.log = logging.get_logger("requestmachine", job=job.id)
         super().__init__()
@@ -77,7 +75,7 @@ class RequestMachine(StateMachine):
         try:
             url = self._resolve_url()
             self.log.info("requesting", url=url)
-            response = self.http_client.request(method, url, data=self.job.data)
+            response = httpx.Client().request(method, url, data=self.job.data)
             await self.receive_response(response)
         except Exception as e:
             self.log.error(
@@ -99,21 +97,21 @@ class RequestMachine(StateMachine):
             self.log.error(f"message could not be parsed: {e}")
         return False
 
-    def on_enter_response(self, response):
+    async def on_enter_response(self, response):
         """Called when entering the RESPONSE state."""
         json = response.json()
         self.response_object = JobResponse.model_validate(json)
         state = self.response_object.state
         self.log.info("responder state is", responder=state)
         if state == JobResponseState.FAIL.value:
-            self.state_failure()
+            await self.state_failure()
         elif state == JobResponseState.PENDING.value:
-            self.state_pending()
+            await self.state_pending()
         elif state == JobResponseState.COMPLETED.value:
-            self.state_complete()
+            await self.state_complete()
         else:
             self.log.warn(f"invalid state: {state}")
-            self.malformed_response()
+            await self.malformed_response()
 
     def after_transition(self, event, source, target):
         self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
@@ -129,4 +127,5 @@ class RequestMachine(StateMachine):
         """Expand url, if needed"""
         url = self.job.url
         url = url.replace("$JOB$", self.job.id)
+        self.log.info(f"resolved url is {url} from {self.job.url}")
         return url
