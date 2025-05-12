@@ -32,7 +32,7 @@ class SchedulerService:
 
     async def start(
         self,
-    ) -> typing.AsyncIterator[AsyncIOScheduler]:
+    ):
         """
         Initializes and starts the APScheduler.
         This method is called by the dependency_injector container.
@@ -43,7 +43,7 @@ class SchedulerService:
         self.scheduler = AsyncIOScheduler()
 
         self.scheduler.add_job(
-            self.request_service.poll_and_process,
+            self.poll,
             IntervalTrigger(seconds=self.delay),
             id="poll_and_process_job",
             replace_existing=True,
@@ -71,3 +71,7 @@ class SchedulerService:
             self.log.info(
                 "Scheduler was not running or not provided/initialized correctly."
             )
+
+    async def poll(self):
+        self.log.debug("poll")
+        await self.request_service.poll_and_process()

@@ -34,7 +34,6 @@ class ResponderController:
     #    "/responders/{participant_id}/health/{job_id}", response_model=HealthResponse
     # )
     async def healthcheck(self, participant_id: str, job_id: str) -> HealthResponse:
-        log = self.log.bind(participant_id=participant_id)
         aa, response = await self.participant_service.get(participant_id)
 
         if not response.success:

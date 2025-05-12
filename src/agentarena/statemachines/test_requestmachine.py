@@ -63,12 +63,11 @@ async def test_success_call(logging, httpx_mock):
         content=make_success_response().model_dump_json(),
     )
 
-    with httpx.Client() as client:
-        machine = RequestMachine(job, logging=logging, http_client=client)
+    machine = RequestMachine(job, logging=logging)
 
-        await machine.activate_initial_state()
-        await machine.start_request()
-        assert machine.current_state.id == RequestState.COMPLETE.value
+    await machine.activate_initial_state()
+    await machine.start_request()
+    assert machine.current_state.id == RequestState.COMPLETE.value
 
 
 @pytest.mark.asyncio
@@ -80,12 +79,11 @@ async def test_fail_call(logging, httpx_mock):
         url="http://localhost:8000/test",
     )
 
-    with httpx.Client() as client:
-        machine = RequestMachine(job, logging=logging, http_client=client)
+    machine = RequestMachine(job, logging=logging)
 
-        await machine.activate_initial_state()
-        await machine.start_request()
-        assert machine.current_state.id == RequestState.FAIL.value
+    await machine.activate_initial_state()
+    await machine.start_request()
+    assert machine.current_state.id == RequestState.FAIL.value
 
 
 @pytest.mark.asyncio
@@ -98,9 +96,8 @@ async def test_pending_call(logging, httpx_mock):
         content=make_pending_response().model_dump_json(),
     )
 
-    with httpx.Client() as client:
-        machine = RequestMachine(job, logging=logging, http_client=client)
+    machine = RequestMachine(job, logging=logging)
 
-        await machine.activate_initial_state()
-        await machine.start_request()
-        assert machine.current_state.id == RequestState.WAITING.value
+    await machine.activate_initial_state()
+    await machine.start_request()
+    assert machine.current_state.id == RequestState.WAITING.value

@@ -58,7 +58,6 @@ def make_pending_response() -> JobResponse:
 async def test_no_jobs(queue_service, logging):
     svc = RequestService(
         queue_service=queue_service,
-        http_client_factory=httpx.Client,
         logging=logging,
     )
     queue_service.get_next.return_value = None
@@ -71,7 +70,6 @@ async def test_no_jobs(queue_service, logging):
 async def test_poll_job_success(queue_service, logging, httpx_mock):
     svc = RequestService(
         queue_service=queue_service,
-        http_client_factory=httpx.Client,
         logging=logging,
     )
     job = make_job("xxx")
@@ -94,7 +92,6 @@ async def test_poll_job_success(queue_service, logging, httpx_mock):
 async def test_poll_job_pending(queue_service, logging, httpx_mock):
     svc = RequestService(
         queue_service=queue_service,
-        http_client_factory=httpx.Client,
         logging=logging,
     )
     job = make_job("xxx")

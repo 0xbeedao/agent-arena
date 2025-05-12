@@ -171,20 +171,6 @@ class Container(containers.DeclarativeContainer):
         logging=logging,
     )
 
-    request_service = providers.Singleton(
-        RequestService,
-        queue_service=queue_service,
-        logging=logging,
-    )
-
-    scheduler_service = providers.Resource(
-        get_scheduler,
-        delay=config.scheduler.delay,
-        max_concurrent=config.scheduler.max_concurrent,
-        request_service=request_service,
-        logging=logging,
-    )
-
     # factory services
 
     participant_factory = providers.Singleton(
@@ -254,5 +240,63 @@ class Container(containers.DeclarativeContainer):
         event_bus=event_bus,
         queue_service=queue_service,
         job_service=commandjob_service,
+        logging=logging,
+    )
+
+
+class SchedulerContainer(containers.DeclarativeContainer):
+    config = providers.Configuration()
+
+    projectroot = providers.Resource(get_project_root)
+
+    logging = providers.Singleton(LoggingService)
+
+    get_q = providers.Factory(get_queue)
+
+    db_service = providers.Singleton(
+        DbService,
+        projectroot,
+        config.db.filename,
+        get_database=get_database,
+        logging=logging,
+    )
+
+    # model services
+
+    commandjob_service = providers.Singleton(
+        ModelService[CommandJob],
+        model_class=CommandJob,
+        db_service=db_service,
+        table_name="jobs",
+        logging=logging,
+    )
+
+    jobhistory_service = providers.Singleton(
+        ModelService[CommandJobHistory],
+        model_class=CommandJobHistory,
+        db_service=db_service,
+        table_name="jobhistories",
+        logging=logging,
+    )
+
+    queue_service = providers.Singleton(
+        QueueService,
+        event_bus=None,
+        history_service=jobhistory_service,
+        job_service=commandjob_service,
+        logging=logging,
+    )
+
+    request_service = providers.Singleton(
+        RequestService,
+        queue_service=queue_service,
+        logging=logging,
+    )
+
+    scheduler_service = providers.Resource(
+        get_scheduler,
+        delay=config.scheduler.delay,
+        max_concurrent=config.scheduler.max_concurrent,
+        request_service=request_service,
         logging=logging,
     )

@@ -30,7 +30,7 @@ app = FastAPI(
 
 async def startup_event():
     """Initialize resources on application startup."""
-    await container.init_resources()
+    container.init_resources()
     # Wire the container after resources are initialized
     # Note: wiring might be better suited after specific resource initialization if dependencies exist
     # For now, global wiring after all init should be fine.
