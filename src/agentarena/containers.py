@@ -30,6 +30,7 @@ from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 from agentarena.services.request_service import RequestService
 from agentarena.services.scheduler_service import SchedulerService
+import os
 
 
 async def get_scheduler(
@@ -55,7 +56,13 @@ class Container(containers.DeclarativeContainer):
 
     projectroot = providers.Resource(get_project_root)
 
-    logging = providers.Singleton(LoggingService)
+    logging = providers.Singleton(
+        LoggingService,
+        capture=config.logging.core.capture,
+        level=config.logging.core.level,
+        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
+        name="core",
+    )
 
     get_q = providers.Factory(get_queue)
 
@@ -249,7 +256,13 @@ class SchedulerContainer(containers.DeclarativeContainer):
 
     projectroot = providers.Resource(get_project_root)
 
-    logging = providers.Singleton(LoggingService)
+    logging = providers.Singleton(
+        LoggingService,
+        capture=config.logging.scheduler.capture,
+        level=config.logging.scheduler.level,
+        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
+        name="scheduler",
+    )
 
     get_q = providers.Factory(get_queue)
 

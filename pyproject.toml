@@ -26,6 +26,9 @@ dependencies = [
     "python-statemachine>=2.5.0",
     "asyncio>=3.4.3",
     "apscheduler>=3.11.0",
+    "rich",
+    "better-exceptions>=0.3.3",
+    "asgi-correlation-id>=4.3.4"
 ]
 
 [project.optional-dependencies]

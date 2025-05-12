@@ -63,6 +63,7 @@ class DebugController:
         return sent
 
     async def healthOK(self):
+        self.log.info("health OK")
         return HealthResponse(
             job_id="1",
             state=JobResponseState.COMPLETED.value,

@@ -10,7 +10,7 @@ import secrets
 app = typer.Typer(help="CLI tool to load fixtures into a FastAPI application")
 
 # Base URL of your FastAPI server
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8000/api"
 
 
 def load_fixture_file(file_path: Path) -> dict:
@@ -20,9 +20,6 @@ def load_fixture_file(file_path: Path) -> dict:
         return None
     with open(file_path, "r") as f:
         return json.load(f)
-
-
-# TODO: have it create tha agents at the same time - with each strategy
 
 
 def load_strategy_fixture(fixture_file: Path):

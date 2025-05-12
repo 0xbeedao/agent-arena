@@ -1,5 +1,12 @@
 db:
   filename: <projectroot>/arena.db
+logging:
+  core:
+    level: DEBUG  
+    capture: False
+  scheduler:
+    level: DEBUG  
+    capture: False
 queues:
   jobs:
     filename: <projectroot>/queue.db
@@ -8,3 +15,7 @@ scheduler:
   max_concurrent: 5
 server:
   workers: 4
+prod:
+  better_exceptions: False
+dev:
+  better_exceptions: True

@@ -5,6 +5,7 @@ FastAPI server for the Agent Arena application.
 import os
 import sys
 from pathlib import Path
+import better_exceptions
 
 import uvicorn
 from fastapi import FastAPI
@@ -13,6 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from agentarena.containers import Container
+from agentarena.core.middleware import add_logging_middleware
+
+better_exceptions.MAX_LENGTH = None
 
 # Initialize the container
 container = Container()
@@ -47,7 +51,8 @@ async def startup_event():
     # Add initial audit log after resources (like db_service) are ready
     # db_service = container.db_service()
     # await db_service.add_audit_log("startup_complete")
-    log = container.logging().get_logger("server", module="server")
+    logger = container.logging()
+    log = logger.get_logger("server", module="server")
     log.info("Application startup complete, resources initialized and container wired.")
 
 
@@ -55,7 +60,7 @@ async def shutdown_event():
     """Shutdown resources on application stop."""
     log = container.logging().get_logger("server", module="server")
     log.info("Application shutting down...")
-    await container.shutdown_resources()
+    container.shutdown_resources()
     log.info("Application shutdown complete, resources de-initialized.")
 
 
@@ -70,6 +75,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+add_logging_middleware(app)
 
 # Include routers
 routers = [

@@ -1,15 +1,28 @@
+all: roll-logs
+    just server & just poller & wait
+
 [working-directory: "frontend"]
 web:
     pnpm run dev
 
-[working-directory: "src"]
+roll-log FILE ARCHIVE_DIR:
+    if [ -f "{{FILE}}" ]; then \
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S); \
+        mv "{{FILE}}" "{{ARCHIVE_DIR}}/{{FILE}}-${TIMESTAMP}"; \
+        echo "Log rolled successfully: {{FILE}} moved to {{ARCHIVE_DIR}}/{{FILE}}-${TIMESTAMP}"; \
+    else \
+        echo "Error: File {{FILE}} does not exist."; \
+    fi
+
+roll-logs:
+    just roll-log agentarena-core.log logs
+    just roll-log agentarena-poller.log logs
+
 server: checkvenv
-    python ../etc/bin/agentarena.server
+    BETTER_EXCEPTIONS=1 python etc/bin/agentarena.server | tee agentarena-core.log
 
-[working-directory: "src"]
 poller: checkvenv
-    python ../etc/bin/agentarena.poller
-
+    BETTER_EXCEPTIONS=1 python etc/bin/agentarena.poller | tee agentarena-poller.log
 
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"
