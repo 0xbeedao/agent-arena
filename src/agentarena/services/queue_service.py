@@ -150,7 +150,6 @@ class QueueService:
             return False
 
         state = batch.state
-        data = batch.data
         if failed:
             state = JobState.FAIL.value
         elif complete:

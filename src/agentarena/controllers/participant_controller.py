@@ -22,9 +22,7 @@ class ParticipantController:
 
     def __init__(
         self,
-        base_path: str = Field(
-            default="/api/participant", description="The base api route"
-        ),
+        base_path: str = "/api",
         agent_service: ModelService[AgentDTO] = Field(
             description="The Agent DTO Service"
         ),
@@ -35,10 +33,10 @@ class ParticipantController:
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
-        self.base_path = base_path
+        self.base_path = f"{base_path}/participant"
         self.participant_service = participant_service
         self.q = queue_service
-        self.log = logging.get_logger(module="participant_controller")
+        self.log = logging.get_logger("controller", path=self.base_path)
 
     def _validate_participant_ids(self, participant_ids: List[str]) -> None:
         """Checks if the participant_ids list is empty and raises HTTPException if it is."""
@@ -235,7 +233,7 @@ class ParticipantController:
         return True
 
     def get_router(self):
-        router = APIRouter(prefix=f"{self.base}", tags=["participant"])
+        router = APIRouter(prefix=self.base_path, tags=["participant"])
 
         @router.post("/flow/readiness", response_model=JobResponse)
         async def start_readiness_check_flow(req: List[str]):

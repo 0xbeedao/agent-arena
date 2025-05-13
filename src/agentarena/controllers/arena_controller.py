@@ -30,6 +30,7 @@ class ArenaController(ModelController[ArenaDTO]):
 
     def __init__(
         self,
+        base_path: str = "/api",
         model_service: ModelService[ArenaDTO] = Field(description="The arena service"),
         agent_service: ModelService[AgentDTO] = Field(description="The agent service"),
         feature_service: ModelService[FeatureDTO] = Field(
@@ -46,7 +47,10 @@ class ArenaController(ModelController[ArenaDTO]):
         self.feature_service = feature_service
         self.participant_service = participant_service
         super().__init__(
-            model_service=model_service, model_name="arena", logging=logging
+            base_path=base_path,
+            model_service=model_service,
+            model_name="arena",
+            logging=logging,
         )
 
     # @router.post("/arena", response_model=Arena)
@@ -297,8 +301,9 @@ class ArenaController(ModelController[ArenaDTO]):
         # db.execute("COMMIT")
         return ModelResponse(success=True)
 
-    def get_router(self, base="/api"):
-        router = APIRouter(prefix=f"{base}/arena", tags=["arena"])
+    def get_router(self):
+        self.log.info("getting router")
+        router = APIRouter(prefix=self.base_path, tags=["arena"])
 
         @router.post("/", response_model=Arena)
         async def create(req: ArenaCreateRequest):

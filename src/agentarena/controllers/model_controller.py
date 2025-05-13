@@ -17,6 +17,7 @@ T = TypeVar("T", bound=DbBase)
 class ModelController(Generic[T]):
     def __init__(
         self,
+        base_path: str = "/api",
         model_name: str = Field("The model name"),
         model_service: ModelService[T] = Field(
             description="The model service for this model"
@@ -31,12 +32,11 @@ class ModelController(Generic[T]):
             db_service: The database service
             table_name: Optional table name (if not provided, will be inferred from model_class name)
         """
+        self.base_path = f"{base_path}/{model_name}"
         self.model_name = model_name
         self.model_service = model_service
         self.log = logging.get_logger(
-            f"{model_name}_controller",
-            module=f"{model_name}_controller",
-            model=model_name,
+            "controller", model=model_name, path=self.base_path
         )
 
     async def create_model(
@@ -54,6 +54,7 @@ class ModelController(Generic[T]):
         Raises:
             HttpException for validation errors
         """
+        self.log.info("create request")
         obj, response = await self.model_service.create(req)
         if not response.success:
             raise HTTPException(status_code=422, detail=response.validation)
@@ -138,8 +139,9 @@ class ModelController(Generic[T]):
             raise HTTPException(status_code=422, detail=response.validation)
         return {"success": response.success}
 
-    def get_router(self, base="/api"):
-        router = APIRouter(prefix=f"{base}/{self.model_name}", tags=[self.model_name])
+    def get_router(self):
+        self.log.info("getting router")
+        router = APIRouter(prefix=self.base_path, tags=[self.model_name])
 
         @router.post("/", response_model=T)
         async def create(req: T):

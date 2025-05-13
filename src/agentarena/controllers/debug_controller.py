@@ -24,6 +24,7 @@ class DebugController:
 
     def __init__(
         self,
+        base_path: str = "/api",
         agent_service: ModelService[AgentDTO] = Field(
             description="The Agent DTO Service"
         ),
@@ -32,9 +33,10 @@ class DebugController:
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
+        self.base_path = f"{base_path}/debug"
         self.job_service = job_service
         self.q = queue_service
-        self.log = logging.get_logger(module="participant_controller")
+        self.log = logging.get_logger("controller", path=self.base_path)
 
     async def get_job(self, job_id: str = Field(description="job ID to fetch")):
         job, response = await self.job_service.get(job_id)
@@ -69,8 +71,9 @@ class DebugController:
             data=HealthStatus(name="debug_controller", state="OK", version="1"),
         )
 
-    def get_router(self, base="/api"):
-        router = APIRouter(prefix=f"{base}/debug", tags=["debug"])
+    def get_router(self):
+        self.log.info("getting router")
+        router = APIRouter(prefix=self.base_path, tags=["debug"])
 
         @router.get("/job/{job_id}", response_model=CommandJob)
         async def get_job(job_id: str):

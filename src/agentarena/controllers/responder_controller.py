@@ -18,6 +18,7 @@ class ResponderController:
 
     def __init__(
         self,
+        base_path: str = "/api",
         participant_factory: ParticipantFactory = Field(
             description="The participant factory"
         ),
@@ -26,9 +27,10 @@ class ResponderController:
         ),
         logging: LoggingService = Field(description="Logger factory"),
     ):
+        self.base_path = f"{base_path}/responder"
         self.participant_factory = participant_factory
         self.participant_service = participant_service
-        self.log = logging.get_logger(module="responder_controller")
+        self.log = logging.get_logger("controller", path=self.base_path)
 
     # @router.get(
     #    "/responders/{participant_id}/health/{job_id}", response_model=HealthResponse
@@ -51,8 +53,9 @@ class ResponderController:
             data=HealthStatus(name=participant.name, state="OK", version="1"),
         )
 
-    def get_router(self, base="/api"):
-        router = APIRouter(prefix=f"{base}/responders", tags=["Responders"])
+    def get_router(self):
+        self.log.info("getting router")
+        router = APIRouter(prefix=self.base_path, tags=["Responders"])
 
         @router.get("/{participant_id}/health/{job_id}", response_model=HealthResponse)
         async def health():

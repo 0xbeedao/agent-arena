@@ -365,3 +365,46 @@ async def test_batch_with_failed_child(job_service, history_service, logging):
     # Batch should be in FAIL state since one child failed
     batch_final, _ = await job_service.get(batch_id)
     assert batch_final.state == JobState.FAIL.value
+
+
+@pytest.mark.asyncio
+async def test_batch_send_1(job_service, history_service, logging):
+    q = QueueService(
+        history_service=history_service,
+        job_service=job_service,
+        logging=logging,
+    )
+    job = CommandJob(
+        command=JobCommandType.BATCH.value,
+        event="CALLBACK_TEST",
+        method="GET",
+        data='{"test": "toast"}',
+        url="/test",
+    )
+    reqs = [JsonRequestSummary(url="/test/1", event="", method="GET", data="", delay=0)]
+    batch = await q.send_batch(job, reqs)
+    assert batch is not None
+    assert batch.started_at == 0
+    assert batch.state == JobState.REQUEST.value
+
+    child = await q.get_next()
+    assert child.id != batch.id
+    assert child.url == "/test/1"
+    assert child.state == JobState.REQUEST.value
+    assert child.started_at > 0
+
+    # child is in request, batch is in request - nothing in q
+    should_be_empty = await q.get_next()
+    assert should_be_empty is None
+
+    # complete the child, should trigger parent updates
+    updated = await q.update_state(child.id, JobState.COMPLETE.value, "success")
+    assert updated is not None
+    assert updated.id == child.id
+
+    # parent should now be idle, and ready to get picket up from q
+
+    ready_batch = await q.get_next()
+    assert ready_batch is not None
+    assert ready_batch.id == batch.id
+    assert ready_batch.state == JobState.REQUEST.value

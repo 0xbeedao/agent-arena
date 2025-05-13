@@ -58,10 +58,7 @@ async def startup_event():
 
 async def shutdown_event():
     """Shutdown resources on application stop."""
-    log = container.logging().get_logger("server", module="server")
-    log.info("Application shutting down...")
     container.shutdown_resources()
-    log.info("Application shutdown complete, resources de-initialized.")
 
 
 app.add_event_handler("startup", startup_event)

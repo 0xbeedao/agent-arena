@@ -25,6 +25,7 @@ class ContestController(ModelController[ContestDTO]):
 
     def __init__(
         self,
+        base_path: str = "/api",
         model_service: ModelService[ContestDTO] = Field(
             description="The contest service"
         ),
@@ -35,7 +36,10 @@ class ContestController(ModelController[ContestDTO]):
     ):
         self.contest_factory = contest_factory
         super().__init__(
-            model_service=model_service, model_name="contest", logging=logging
+            base_path=base_path,
+            model_service=model_service,
+            model_name="contest",
+            logging=logging,
         )
 
     # @router.post("/contest", response_model=Dict[str, str])
@@ -177,8 +181,9 @@ class ContestController(ModelController[ContestDTO]):
 
         return {"id": contest_id}
 
-    def get_router(self, base="/api"):
-        router = APIRouter(prefix=f"{base}/contest", tags=[self.model_name])
+    def get_router(self):
+        self.log.info("getting router")
+        router = APIRouter(prefix=self.base_path, tags=[self.model_name])
 
         @router.post("/", response_model=Contest)
         async def create(req: ContestDTO):
