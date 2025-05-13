@@ -74,6 +74,12 @@ class LoggingService:
             handler.setFormatter(ProcessorFormatter(processor=baserenderer))
             uvicorn_logger.addHandler(handler)
             uvicorn_logger.setLevel(getattr(logging, self.level.upper()))
+            # Turn down logging for APScheduler to avoid excessive logs
+            aps_logger = logging.getLogger("apscheduler")
+            aps_logger.setLevel(logging.WARNING)
+            # Optionally clear handlers to avoid duplicate output
+            # if aps_logger.handlers:
+            #    aps_logger.handlers = []
             self._setup = True
 
     def get_logger(self, *args, **kwargs) -> ILogger:

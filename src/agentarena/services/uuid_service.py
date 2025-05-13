@@ -17,7 +17,21 @@ class UUIDService:
         word_list: List[str] = Field(description="The word list to use"),
         prod: bool = False,
     ):
-        self.word_list = word_list
+        words = [word.lower() for word in word_list]
+        more = [
+            f"{word}s" for word in words if not word.endswith("s") or word.endswith("y")
+        ]
+        words.extend(more)
+        leet = [word.replace("i", "1") for word in words if "i" in word]
+        leet.extend([word.replace("o", "0") for word in words if "o" in word])
+        words.extend(leet)
+        caps = [word.upper() for word in words]
+        proper = [word.capitalize() for word in words]
+        words.extend(caps)
+        words.extend(proper)
+        revcap = [f"{word[:-1].lower()}{word[-1].upper()}" for word in words]
+        words.extend(revcap)
+        self.word_list = words
         self.prod = prod
 
     def make_id(self):
