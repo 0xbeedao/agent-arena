@@ -1,5 +1,3 @@
-import typing
-
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from pydantic import Field
@@ -73,5 +71,4 @@ class SchedulerService:
             )
 
     async def poll(self):
-        self.log.debug("poll")
         await self.request_service.poll_and_process()

@@ -56,7 +56,7 @@ class RequestMachine(StateMachine):
     def __init__(
         self,
         job: CommandJob,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         """
         Initialize the request machine.

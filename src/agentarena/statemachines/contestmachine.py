@@ -48,7 +48,7 @@ class ContestMachine(StateMachine):
     def __init__(
         self,
         contest: Contest,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         """Initialize the contest machine."""
         self._setup_machine = None

@@ -1,12 +1,13 @@
-from fastapi import FastAPI, Request
-from structlog import get_logger
-from asgi_correlation_id import CorrelationIdMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from structlog.contextvars import bind_contextvars, clear_contextvars
 import time
-from ulid import ULID
 
-from agentarena.factories.logger_factory import LoggingService
+from asgi_correlation_id import CorrelationIdMiddleware
+from fastapi import FastAPI
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+from structlog import get_logger
+from structlog.contextvars import bind_contextvars
+from structlog.contextvars import clear_contextvars
+from ulid import ULID
 
 
 class StructLogMiddleware(BaseHTTPMiddleware):

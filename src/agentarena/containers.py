@@ -1,3 +1,5 @@
+import os
+
 from dependency_injector import containers
 from dependency_injector import providers
 
@@ -30,7 +32,7 @@ from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 from agentarena.services.request_service import RequestService
 from agentarena.services.scheduler_service import SchedulerService
-import os
+from agentarena.services.uuid_service import UUIDService
 
 
 async def get_scheduler(
@@ -50,11 +52,23 @@ async def get_scheduler(
     scheduler.shutdown()
 
 
+def get_wordlist(
+    projectroot: str,
+    word_file: str,
+):
+    filename = word_file.replace("<projectroot>", str(projectroot))
+    with open(filename, "r") as file:
+        lines = file.readlines()
+        words = [word.replace("\n", "") for word in lines]
+        return words
+
+
 class Container(containers.DeclarativeContainer):
 
     config = providers.Configuration()
 
     projectroot = providers.Resource(get_project_root)
+    wordlist = providers.Resource(get_wordlist, projectroot, config.uuid.wordlist)
 
     logging = providers.Singleton(
         LoggingService,
@@ -64,6 +78,12 @@ class Container(containers.DeclarativeContainer):
         name="core",
     )
 
+    uuid_service = providers.Singleton(
+        UUIDService,
+        word_list=wordlist,
+        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
+    )
+
     get_q = providers.Factory(get_queue)
 
     db_service = providers.Singleton(
@@ -71,6 +91,8 @@ class Container(containers.DeclarativeContainer):
         projectroot,
         config.db.filename,
         get_database=get_database,
+        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -255,13 +277,20 @@ class SchedulerContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
 
     projectroot = providers.Resource(get_project_root)
+    wordlist = providers.Resource(get_wordlist, projectroot, config.uuid.wordlist)
 
     logging = providers.Singleton(
         LoggingService,
-        capture=config.logging.scheduler.capture,
-        level=config.logging.scheduler.level,
+        capture=config.logging.core.capture,
+        level=config.logging.core.level,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
         name="scheduler",
+    )
+
+    uuid_service = providers.Singleton(
+        UUIDService,
+        word_list=wordlist,
+        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
     )
 
     get_q = providers.Factory(get_queue)
@@ -271,6 +300,8 @@ class SchedulerContainer(containers.DeclarativeContainer):
         projectroot,
         config.db.filename,
         get_database=get_database,
+        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
+        uuid_service=uuid_service,
         logging=logging,
     )
 

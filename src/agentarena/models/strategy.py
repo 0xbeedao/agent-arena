@@ -85,7 +85,7 @@ class Strategy(BaseModel):
     Strategy model for the Agent Arena application.
     """
 
-    id: str = Field(description="Unique identifier (ULID)")
+    id: str = Field(description="Unique identifier")
     name: str = Field(description="Strategy name")
     personality: str = Field(description="Personality description")
     instructions: str = Field(description="Strategy instructions")

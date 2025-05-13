@@ -15,7 +15,7 @@ class ParticipantFactory:
         self,
         agent_service: ModelService[AgentDTO] = None,
         strategy_service: ModelService[StrategyDTO] = None,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
         self.strategy_service = strategy_service

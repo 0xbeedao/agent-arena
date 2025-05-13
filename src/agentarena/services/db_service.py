@@ -1,11 +1,14 @@
 import os.path
 from datetime import datetime
+from typing import List
 
 from pydantic import Field
 from sqlite_utils.db import Database
-from ulid import ULID
 
 from agentarena.factories.logger_factory import LoggingService
+from agentarena.models.dbbase import DbBase
+from agentarena.models.validation import ValidationResponse
+from agentarena.services.uuid_service import UUIDService
 
 
 class DbService:
@@ -19,7 +22,9 @@ class DbService:
         dbfile: str,
         get_database=None,
         memory=False,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        prod=False,
+        uuid_service: UUIDService = Field(description="UUID Service"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
 
         if memory:
@@ -36,14 +41,51 @@ class DbService:
         self.db: Database = get_database(filename)
         self.db.ensure_autocommit_off()
         self.db.execute("PRAGMA foreign_keys=ON")
+        self.prod = prod
+        self.uuid_service = uuid_service
 
     def add_audit_log(self, message):
         auditTable = self.db["audit"]
         self.log.info("Audit message: %s", message)
         auditTable.insert(
             {
-                "id": ULID().hex,
+                "id": self.uuid_service.make_id(),
                 "timestamp": int(datetime.now().timestamp()),
                 "message": message,
             }
         )
+
+    def fill_defaults(self, obj: DbBase):
+        obj = self.uuid_service.ensure_id(obj)
+        c = getattr(obj, "created_at", None)
+        if c is None or c == 0 or c == "":
+            obj.created_at = int(datetime.now().timestamp())
+        return obj
+
+    def validateDTO(self, obj: DbBase) -> ValidationResponse:
+        """
+        Validate the model.
+
+        Returns:
+            ValidationResponse: The validation response.
+        """
+        self.fill_defaults(obj)
+        return obj.validateDTO()
+
+    def validate_list(self, obj_list: List[DbBase]) -> List[ValidationResponse]:
+        """
+        Validate a list of models.
+
+        Args:
+            obj_list: The list of models to validate.
+
+        Returns:
+            ValidationResponse: The validation response for errors.
+        """
+        messages = []
+        for obj in obj_list:
+            validation = self.validateDTO(obj)
+            if not validation.success:
+                messages.extend(validation)
+
+        return messages

@@ -85,6 +85,7 @@ async def test_create_arena_success(
 
     mock_arena_service.create.return_value = [mock_arena, ModelResponse(success=True)]
     mock_arena_factory.build.return_value = mock_result_arena
+    mock_feature_service.validate_list.return_value = []
     mock_agent_service.get_by_ids.return_value = [[], []]
     # Act
     result = await arena_controller.create_arena(

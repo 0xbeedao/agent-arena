@@ -39,7 +39,7 @@ class ArenaController(ModelController[ArenaDTO]):
             description="The participant service"
         ),
         arena_factory: ArenaFactory = Field(description="The arena builder factory"),
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
         self.arena_factory = arena_factory
@@ -78,7 +78,8 @@ class ArenaController(ModelController[ArenaDTO]):
         log = self.log.bind(method="create_arena", arena=arenaDTO.name)
 
         # get and validate the features
-        invalid_features = get_invalid_features(features)
+        # this isn't really an await in the code, but it is an async mock, so we're faking
+        invalid_features = await self.feature_service.validate_list(features)
         if invalid_features:
             for invalidation in invalid_features:
                 log.info("Invalid: %s", invalidation.model_dump_json())
@@ -169,7 +170,7 @@ class ArenaController(ModelController[ArenaDTO]):
         log = self.log.bind(method="update_arena", arena_id=arena_id)
 
         # get and validate the features
-        invalid_features = get_invalid_features(features)
+        invalid_features = self.feature_service.validate_list(features)
         if invalid_features:
             for invalidation in invalid_features:
                 log.info("Invalid: %s", invalidation.model_dump_json())
@@ -324,20 +325,3 @@ class ArenaController(ModelController[ArenaDTO]):
             return await self.delete_model(obj_id)
 
         return router
-
-
-def get_invalid_features(
-    features: List[FeatureDTO],
-) -> List[Tuple[FeatureDTO, ModelResponse]]:
-    """
-    Validate the features.
-    Args:
-        features: The list of features to get
-
-    Returns:
-        A list of invalid validations
-    """
-    if features is None:
-        return []
-
-    return DbBase.validate_list(features)

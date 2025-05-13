@@ -35,7 +35,7 @@ class JobResponseState(Enum):
 
 
 class JobResponse(BaseModel):
-    job_id: str = Field(description="ULID job ID")
+    job_id: str = Field(description="Job ID")
     delay: Optional[int] = Field(
         default=0, description="Request delay of x seconds before retry"
     )
@@ -102,6 +102,7 @@ class CommandJob(DbBase):
         return CommandJob(
             parent_id=self.id,
             command=JobCommandType.REQUEST.value,
+            created_at=int(datetime.now().timestamp()),
             data=req.data,
             event=req.event,
             method=req.method,
@@ -111,7 +112,7 @@ class CommandJob(DbBase):
             started_at=0,
             finished_at=0,
             url=req.url,
-        ).fill_defaults()
+        )
 
     def make_batch_requests(
         self, requests: List[JsonRequestSummary]

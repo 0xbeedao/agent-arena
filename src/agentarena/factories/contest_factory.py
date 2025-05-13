@@ -23,7 +23,7 @@ class ContestFactory:
         participant_service: ModelService[ParticipantDTO] = None,
         participant_factory=Callable[[ParticipantDTO], Awaitable[Participant]],
         arena_factory=Callable[[ArenaDTO], Awaitable[Arena]],
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self.arena_service = arena_service
         self.participant_service = participant_service

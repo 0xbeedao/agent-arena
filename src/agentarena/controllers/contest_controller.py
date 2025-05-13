@@ -31,7 +31,7 @@ class ContestController(ModelController[ContestDTO]):
         contest_factory: ContestFactory = Field(
             description="The contest builder factory"
         ),
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self.contest_factory = contest_factory
         super().__init__(

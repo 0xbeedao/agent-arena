@@ -30,7 +30,7 @@ class ParticipantController:
             description="The participant DTO service"
         ),
         queue_service: QueueService = Field(description="Job Queue service"),
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
         self.participant_service = participant_service

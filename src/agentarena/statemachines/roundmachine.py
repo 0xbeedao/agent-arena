@@ -44,7 +44,7 @@ class RoundMachine(StateMachine):
     def __init__(
         self,
         contest: Contest,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         """Initialize the round machine."""
         self.contest = contest

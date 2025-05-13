@@ -6,8 +6,9 @@ from pydantic import Field
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
-from agentarena.models.job import CommandJob, JobResponseState
+from agentarena.models.job import CommandJob
 from agentarena.models.job import JobCommandType
+from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
 from agentarena.models.job import JsonRequestSummary
 from agentarena.models.requests import HealthResponse
@@ -30,7 +31,7 @@ class DebugController:
         event_bus: IEventBus = Field(description="Event Bus"),
         queue_service: QueueService = Field(description="queue service"),
         job_service: ModelService[CommandJob] = Field(description="Job Model service"),
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
         self.event_bus = event_bus

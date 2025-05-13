@@ -1,7 +1,6 @@
 from datetime import datetime
 from unittest.mock import AsyncMock
 
-import httpx
 import pytest
 
 from agentarena.factories.logger_factory import LoggingService

@@ -31,7 +31,7 @@ class SetupMachine(StateMachine):
     def __init__(
         self,
         contest: Contest,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         """Initialize the setup machine."""
         self.contest = contest

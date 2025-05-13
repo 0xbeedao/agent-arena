@@ -1,10 +1,11 @@
-from rich.logging import RichHandler
 import logging
 from typing import Protocol
-from structlog.stdlib import ProcessorFormatter
-from structlog.processors import JSONRenderer
-from structlog.dev import ConsoleRenderer
+
 import structlog
+from rich.logging import RichHandler
+from structlog.dev import ConsoleRenderer
+from structlog.processors import JSONRenderer
+from structlog.stdlib import ProcessorFormatter
 
 
 class ILogger(Protocol):

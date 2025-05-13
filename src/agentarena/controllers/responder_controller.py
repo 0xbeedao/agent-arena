@@ -24,7 +24,7 @@ class ResponderController:
         participant_service: ModelService[ParticipantDTO] = Field(
             description="the participant service"
         ),
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self.participant_factory = participant_factory
         self.participant_service = participant_service

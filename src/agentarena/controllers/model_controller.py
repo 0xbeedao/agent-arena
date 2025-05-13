@@ -21,7 +21,7 @@ class ModelController(Generic[T]):
         model_service: ModelService[T] = Field(
             description="The model service for this model"
         ),
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         """
         Initialize the model controller.

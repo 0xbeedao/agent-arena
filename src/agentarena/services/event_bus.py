@@ -18,7 +18,7 @@ class IEventBus(Protocol):
 
 
 class InMemoryEventBus(IEventBus):
-    def __init__(self, logging: LoggingService = Field(desciption="Logger factory")):
+    def __init__(self, logging: LoggingService = Field(description="Logger factory")):
         self.log = logging.get_logger(module="memory_eventbus")
         self._handlers: dict[str, list[Callable]] = {}
 
@@ -52,7 +52,7 @@ class DbEventBus(IEventBus):
         self,
         model_service: ModelService[JobEvent] = None,
         inner: IEventBus = None,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self._inner = inner if inner is not None else InMemoryEventBus(logging=logging)
         self.model_service = model_service

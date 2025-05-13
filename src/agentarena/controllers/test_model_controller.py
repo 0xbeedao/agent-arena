@@ -1,10 +1,13 @@
+from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
+import ulid
 
 from agentarena.controllers.model_controller import ModelController
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
+from agentarena.models.dbbase import DbBase
 from agentarena.models.feature import FeatureDTO
 from agentarena.models.strategy import StrategyDTO
 from agentarena.models.strategy import StrategyType
@@ -22,6 +25,11 @@ def mock_service():
     return service
 
 
+def fill_defaults(obj: DbBase):
+    obj.id = ulid.ULID().hex
+    obj.created_at = int(datetime.now().timestamp() - 1)
+
+
 @pytest.mark.asyncio
 async def test_create_success(mock_service, logging):
     feature_controller = ModelController[FeatureDTO](
@@ -37,7 +45,7 @@ async def test_create_success(mock_service, logging):
         origin="REQUIRED",
     )
     fresh = feature.model_copy()
-    fresh.fill_defaults()
+    fill_defaults(fresh)
     mock_service.create.return_value = (fresh, ModelResponse(success=True))
     # Act
     result = await feature_controller.create_model(feature)
@@ -59,7 +67,7 @@ async def test_update_success(mock_service, logging):
         role=StrategyType.ANNOUNCER.value,
     )
     fresh = strategy.model_copy()
-    fresh.fill_defaults()
+    fill_defaults(fresh)
     mock_service.update.return_value = (fresh, ModelResponse(success=True))
     # Act
     await stategy_controller.update_model("test", strategy)
@@ -92,7 +100,7 @@ async def test_get_success(mock_service, logging):
         role=StrategyType.ANNOUNCER.value,
     )
     fresh = strategy.model_copy()
-    fresh.fill_defaults()
+    fill_defaults(fresh)
     mock_service.get.return_value = [fresh, ModelResponse(success=True)]
     retrieved = await stategy_controller.get_model("test")
     assert retrieved.id is not None

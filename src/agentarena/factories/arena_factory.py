@@ -21,7 +21,7 @@ class ArenaFactory:
         participant_service: ModelService[ParticipantDTO] = None,
         feature_service: ModelService[FeatureDTO] = None,
         participant_factory: Callable[[ParticipantDTO], Awaitable[Participant]] = None,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self.participant_service = participant_service
         self.feature_service = feature_service

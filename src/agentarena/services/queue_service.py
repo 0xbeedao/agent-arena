@@ -30,7 +30,7 @@ class QueueService:
             description="Job History Service"
         ),
         job_service: ModelService[CommandJob] = Field(description="job model service"),
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         self.event_bus = event_bus
         self.history_service = history_service

@@ -16,11 +16,11 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 from pydantic import Field
-from ulid import ULID
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.dbbase import DbBase
 from agentarena.models.validation import ValidationResponse
+from agentarena.services.uuid_service import UUIDService
 
 from .db_service import DbService
 
@@ -55,7 +55,7 @@ class ModelService(Generic[T]):
         model_class: Type[T],
         db_service: DbService,
         table_name: str,
-        logging: LoggingService = Field(desciption="Logger factory"),
+        logging: LoggingService = Field(description="Logger factory"),
     ):
         """
         Initialize the model service.
@@ -93,25 +93,20 @@ class ModelService(Generic[T]):
             the response detail
         """
         db_obj = obj.model_copy()
-        # Always make a new ID
-        obj_id = ULID().hex
-        db_obj.id = obj_id
-        # And set the timestamps
+        # set the timestamps
         isonow = int(datetime.now().timestamp())
-        db_obj.created_at = isonow
         db_obj.updated_at = isonow
 
-        validation = obj.validateDTO()
+        validation = self.db_service.validateDTO(db_obj)
         if not validation.success:
             self.log.error(f"Validation failed: %s", validation.data)
             return None, ModelResponse(success=False, data=obj, validation=validation)
         try:
-            # TODO: turn off alter=true for production
             self.table.insert(
                 db_obj.model_dump(),
                 pk="id",
                 foreign_keys=obj.get_foreign_keys(),
-                alter=True,
+                alter=not self.db_service.prod,
             )
         except sqlite3.IntegrityError as e:
             self.log.error(f"Integrity error while inserting: %s", e)
@@ -119,9 +114,9 @@ class ModelService(Generic[T]):
                 success=False, data=obj, message="Integrity error"
             )
             return None, ModelResponse(success=False, validation=invalidation)
-        self.log.info(f"Added #{obj_id}")
-        self.db_service.add_audit_log(f"Added {self.model_name}: {obj_id}")
-        return db_obj, ModelResponse(success=True, id=obj_id, validation=validation)
+        self.log.info(f"Added #{obj.id}")
+        self.db_service.add_audit_log(f"Added {self.model_name}: {obj.id}")
+        return db_obj, ModelResponse(success=True, id=obj.id, validation=validation)
 
     async def create_many(
         self, obj_list: List[T]
@@ -139,7 +134,7 @@ class ModelService(Generic[T]):
         problems: List[ModelResponse] = []
         log = self.log.bind(method="create_many")
         for obj in obj_list:
-            validation = obj.validateDTO()
+            validation = self.db_service.validateDTO(obj)
             if not validation.success:
                 log.error(f"Validation failed: {validation.data}")
                 problems.append(
@@ -202,7 +197,7 @@ class ModelService(Generic[T]):
             return obj, ModelResponse(success=False, data=obj, error="invalid object")
 
         boundlog = self.log.bind(obj_id=obj.id)
-        validation = obj.validateDTO()
+        validation = self.db_service.validateDTO(obj)
         if not validation.success:
             boundlog.error(f"Validation failed: %s", validation.data)
             return obj, ModelResponse(success=False, data=obj, validation=validation)
@@ -332,3 +327,8 @@ class ModelService(Generic[T]):
             A list of all model instances
         """
         return [self.model_class.model_validate(row) for row in self.table.rows]
+
+    def validate_list(self, obj_list: List[T]) -> List[ModelResponse]:
+        if not obj_list:
+            return []
+        return self.db_service.validate_list(obj_list)

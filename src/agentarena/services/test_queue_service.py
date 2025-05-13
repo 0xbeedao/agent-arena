@@ -14,6 +14,7 @@ from agentarena.models.job import JsonRequestSummary
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
+from agentarena.services.uuid_service import UUIDService
 
 
 @pytest.fixture
@@ -21,9 +22,20 @@ def logging():
     return LoggingService(True)
 
 
+def uuid_service():
+    return UUIDService(word_list=None)
+
+
 @pytest.fixture
 def db_service():
-    return DbService("", "", get_database, logging=LoggingService(True), memory=True)
+    return DbService(
+        "",
+        "",
+        get_database,
+        logging=LoggingService(True),
+        uuid_service=uuid_service(),
+        memory=True,
+    )
 
 
 @pytest.fixture
