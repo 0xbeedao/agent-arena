@@ -1,17 +1,17 @@
 from typing import List
 
-from fastapi import HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import Field
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
+from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JsonRequestSummary
 from agentarena.models.participant import ParticipantDTO
-from agentarena.services.event_bus import IEventBus
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 
@@ -22,10 +22,12 @@ class ParticipantController:
 
     def __init__(
         self,
+        base_path: str = Field(
+            default="/api/participant", description="The base api route"
+        ),
         agent_service: ModelService[AgentDTO] = Field(
             description="The Agent DTO Service"
         ),
-        event_bus: IEventBus = Field(description="Event Bus"),
         participant_service: ModelService[ParticipantDTO] = Field(
             description="The participant DTO service"
         ),
@@ -33,10 +35,10 @@ class ParticipantController:
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
+        self.base_path = base_path
         self.participant_service = participant_service
         self.q = queue_service
         self.log = logging.get_logger(module="participant_controller")
-        event_bus.subscribe(READINESS_CHECK_BATCH, self.readiness_check_batch)
 
     def _validate_participant_ids(self, participant_ids: List[str]) -> None:
         """Checks if the participant_ids list is empty and raises HTTPException if it is."""
@@ -154,8 +156,8 @@ class ParticipantController:
             command=JobCommandType.BATCH.value,
             data="",
             event=READINESS_CHECK_BATCH,
-            method="",
-            url="",
+            method="POST",
+            url=f"$ARENA${self.base_path}/event",
         )
 
         requests_summaries = [
@@ -227,3 +229,18 @@ class ParticipantController:
             state=JobResponseState.PENDING.value,
             data="",
         )
+
+    async def receive_event(self, event: JobEvent):
+        self.log.info("Received event payload", event=event)
+        return True
+
+    def get_router(self):
+        router = APIRouter(prefix=f"{self.base}", tags=["participant"])
+
+        @router.post("/flow/readiness", response_model=JobResponse)
+        async def start_readiness_check_flow(req: List[str]):
+            return await self.start_readiness_check_flow(req)
+
+        @router.post("/flow/event", response_model=bool)
+        async def receive_event(event: JobEvent):
+            return await self.receive_event(event)

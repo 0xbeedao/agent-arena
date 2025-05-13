@@ -16,7 +16,7 @@ class ILogger(Protocol):
     def error(self, *args, **kwargs) -> None: ...
 class LoggingService:
 
-    def __init__(self, capture=False, prod=False, level="DEBUG", name="core"):
+    def __init__(self, capture=False, prod=False, level="DEBUG", name="arena"):
         self.capture = capture
         self.name = name
         self.prod = prod

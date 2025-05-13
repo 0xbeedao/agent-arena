@@ -12,7 +12,6 @@ from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobState
 from agentarena.models.participant import Participant
-from agentarena.services.event_bus import IEventBus
 from agentarena.services.queue_service import QueueService
 
 
@@ -47,14 +46,12 @@ class ReadyMachine(StateMachine):
     def __init__(
         self,
         participants: List[Participant] = Field(description="Particants to poll"),
-        event_bus: IEventBus = Field("Event bus"),
         queue_service: QueueService = Field(description="the queue service"),
         timeout_seconds: int = Field(
             description="seconds to wait for all player response"
         ),
         logging: LoggingService = Field(description="Logging factory"),
     ):
-        event_bus.subscribe(READY_CHECK, self.ready_check)
         self.participants = participants
         self.q = queue_service
         self.timeout_seconds = timeout_seconds

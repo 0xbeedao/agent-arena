@@ -68,6 +68,7 @@ async def test_no_jobs(queue_service, logging):
 @pytest.mark.asyncio
 async def test_poll_job_success(queue_service, logging, httpx_mock):
     svc = RequestService(
+        arena_url="http://localhost:8000",
         queue_service=queue_service,
         logging=logging,
     )
@@ -90,6 +91,7 @@ async def test_poll_job_success(queue_service, logging, httpx_mock):
 @pytest.mark.asyncio
 async def test_poll_job_pending(queue_service, logging, httpx_mock):
     svc = RequestService(
+        arena_url="http://localhost:8000",
         queue_service=queue_service,
         logging=logging,
     )

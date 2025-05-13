@@ -62,7 +62,7 @@ async def test_success_call(logging, httpx_mock):
         content=make_success_response().model_dump_json(),
     )
 
-    machine = RequestMachine(job, logging=logging)
+    machine = RequestMachine(job, logging=logging, arena_url="http://localhost:8000")
 
     await machine.activate_initial_state()
     await machine.start_request()
@@ -78,7 +78,7 @@ async def test_fail_call(logging, httpx_mock):
         url="http://localhost:8000/test",
     )
 
-    machine = RequestMachine(job, logging=logging)
+    machine = RequestMachine(job, logging=logging, arena_url="http://localhost:8000")
 
     await machine.activate_initial_state()
     await machine.start_request()
@@ -95,7 +95,7 @@ async def test_pending_call(logging, httpx_mock):
         content=make_pending_response().model_dump_json(),
     )
 
-    machine = RequestMachine(job, logging=logging)
+    machine = RequestMachine(job, logging=logging, arena_url="http://localhost:8000")
 
     await machine.activate_initial_state()
     await machine.start_request()

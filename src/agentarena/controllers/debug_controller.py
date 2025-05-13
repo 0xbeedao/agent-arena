@@ -13,7 +13,6 @@ from agentarena.models.job import JobState
 from agentarena.models.job import JsonRequestSummary
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
-from agentarena.services.event_bus import IEventBus
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 
@@ -28,13 +27,11 @@ class DebugController:
         agent_service: ModelService[AgentDTO] = Field(
             description="The Agent DTO Service"
         ),
-        event_bus: IEventBus = Field(description="Event Bus"),
         queue_service: QueueService = Field(description="queue service"),
         job_service: ModelService[CommandJob] = Field(description="Job Model service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
-        self.event_bus = event_bus
         self.job_service = job_service
         self.q = queue_service
         self.log = logging.get_logger(module="participant_controller")

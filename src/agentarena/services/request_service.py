@@ -24,9 +24,12 @@ class RequestService:
 
     def __init__(
         self,
+        arena_url: str = Field(description="url of arena server"),
         queue_service: QueueService = None,
         logging: LoggingService = Field(description="Logger factory"),
     ):
+        assert arena_url
+        self.arena_url = arena_url
         self.queue_service = queue_service
         self.logging = logging
         self.log = logging.get_logger(module="request_service")
@@ -50,7 +53,7 @@ class RequestService:
         """
         log = self.log.bind(method="process_job", job=job.id)
         log.info("processing")
-        machine = RequestMachine(job, logging=self.logging)
+        machine = RequestMachine(job, logging=self.logging, arena_url=self.arena_url)
         await machine.activate_initial_state()
         await machine.start_request()
 

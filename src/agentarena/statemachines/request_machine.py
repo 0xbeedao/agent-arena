@@ -56,6 +56,7 @@ class RequestMachine(StateMachine):
     def __init__(
         self,
         job: CommandJob,
+        arena_url: str = Field(description="url of arena server"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         """
@@ -64,6 +65,7 @@ class RequestMachine(StateMachine):
         :param job: Optional job or context object for the request.
         """
         assert job.command == JobCommandType.REQUEST.value
+        self.arena_url = arena_url
         self.job = job
         self.response_object: JobResponse = None
         self.log = logging.get_logger("requestmachine", job=job.id)
@@ -127,5 +129,6 @@ class RequestMachine(StateMachine):
         """Expand url, if needed"""
         url = self.job.url
         url = url.replace("$JOB$", self.job.id)
+        url = url.replace("$ARENA", self.arena_url)
         self.log.info(f"resolved url is {url} from {self.job.url}")
         return url

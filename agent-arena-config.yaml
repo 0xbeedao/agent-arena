@@ -1,7 +1,9 @@
+arena:
+  url: http://localhost:8000
 db:
   filename: <projectroot>/arena.db
 logging:
-  core:
+  arena:
     level: DEBUG  
     capture: False
   scheduler:
@@ -15,9 +17,11 @@ queues:
 scheduler:
   delay: 1
   max_concurrent: 5
+  url: http://localhost:8080
 server:
   workers: 4
 prod:
   better_exceptions: False
 dev:
   better_exceptions: True
+  

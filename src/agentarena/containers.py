@@ -27,7 +27,6 @@ from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
 from agentarena.models.strategy import StrategyDTO
 from agentarena.services.db_service import DbService
-from agentarena.services.event_bus import DbEventBus
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 from agentarena.services.request_service import RequestService
@@ -72,10 +71,10 @@ class Container(containers.DeclarativeContainer):
 
     logging = providers.Singleton(
         LoggingService,
-        capture=config.logging.core.capture,
-        level=config.logging.core.level,
+        capture=config.logging.arena.capture,
+        level=config.logging.arena.level,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
-        name="core",
+        name="arena",
     )
 
     uuid_service = providers.Singleton(
@@ -103,12 +102,6 @@ class Container(containers.DeclarativeContainer):
         model_class=JobEvent,
         db_service=db_service,
         table_name="jobevent",
-        logging=logging,
-    )
-
-    event_bus = providers.Singleton(
-        DbEventBus,
-        model_service=jobevent_service,
         logging=logging,
     )
 
@@ -194,7 +187,6 @@ class Container(containers.DeclarativeContainer):
 
     queue_service = providers.Singleton(
         QueueService,
-        event_bus=event_bus,
         history_service=jobhistory_service,
         job_service=commandjob_service,
         logging=logging,
@@ -266,7 +258,6 @@ class Container(containers.DeclarativeContainer):
     debug_controller = providers.Singleton(
         DebugController,
         agent_service=agent_service,
-        event_bus=event_bus,
         queue_service=queue_service,
         job_service=commandjob_service,
         logging=logging,
@@ -281,8 +272,8 @@ class SchedulerContainer(containers.DeclarativeContainer):
 
     logging = providers.Singleton(
         LoggingService,
-        capture=config.logging.core.capture,
-        level=config.logging.core.level,
+        capture=config.logging.arena.capture,
+        level=config.logging.arena.level,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
         name="scheduler",
     )
@@ -325,7 +316,6 @@ class SchedulerContainer(containers.DeclarativeContainer):
 
     queue_service = providers.Singleton(
         QueueService,
-        event_bus=None,
         history_service=jobhistory_service,
         job_service=commandjob_service,
         logging=logging,
@@ -333,6 +323,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
 
     request_service = providers.Singleton(
         RequestService,
+        arena_url=config.arena.url,
         queue_service=queue_service,
         logging=logging,
     )

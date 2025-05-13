@@ -23,7 +23,7 @@ def logging():
 
 
 def uuid_service():
-    return UUIDService(word_list=None)
+    return UUIDService(word_list=[])
 
 
 @pytest.fixture
@@ -58,16 +58,9 @@ def history_service(db_service, logging):
     )
 
 
-@pytest.fixture
-def event_bus():
-    service = AsyncMock()
-    return service
-
-
 @pytest.mark.asyncio
 async def test_get_when_empty(job_service, logging):
     q = QueueService(
-        event_bus=None,
         history_service=None,
         job_service=job_service,
         logging=logging,
@@ -77,10 +70,9 @@ async def test_get_when_empty(job_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_get(job_service, history_service, event_bus, logging):
+async def test_get(job_service, history_service, logging):
     q = QueueService(
         history_service=history_service,
-        event_bus=event_bus,
         job_service=job_service,
         logging=logging,
     )
@@ -102,10 +94,9 @@ async def test_get(job_service, history_service, event_bus, logging):
 
 
 @pytest.mark.asyncio
-async def test_get_unique(job_service, history_service, event_bus, logging):
+async def test_get_unique(job_service, history_service, logging):
     q = QueueService(
         history_service=history_service,
-        event_bus=event_bus,
         job_service=job_service,
         logging=logging,
     )
@@ -129,10 +120,9 @@ async def test_get_unique(job_service, history_service, event_bus, logging):
 
 
 @pytest.mark.asyncio
-async def test_update_state(job_service, history_service, event_bus, logging):
+async def test_update_state(job_service, history_service, logging):
     q = QueueService(
         history_service=history_service,
-        event_bus=event_bus,
         job_service=job_service,
         logging=logging,
     )
@@ -172,10 +162,9 @@ async def test_update_state(job_service, history_service, event_bus, logging):
 
 
 @pytest.mark.asyncio
-async def test_requeue_job(job_service, history_service, event_bus, logging):
+async def test_requeue_job(job_service, history_service, logging):
     q = QueueService(
         history_service=history_service,
-        event_bus=event_bus,
         job_service=job_service,
         logging=logging,
     )
@@ -209,10 +198,9 @@ async def test_requeue_job(job_service, history_service, event_bus, logging):
 
 
 @pytest.mark.asyncio
-async def test_send_batch(job_service, history_service, event_bus, logging):
+async def test_send_batch(job_service, history_service, logging):
     q = QueueService(
         history_service=history_service,
-        event_bus=event_bus,
         job_service=job_service,
         logging=logging,
     )
@@ -257,16 +245,40 @@ async def test_send_batch(job_service, history_service, event_bus, logging):
 
 
 @pytest.mark.asyncio
-async def test_batch_state_updates(job_service, history_service, event_bus, logging):
+async def test_get_idle_batch(job_service, history_service, logging):
     q = QueueService(
         history_service=history_service,
-        event_bus=event_bus,
+        job_service=job_service,
+        logging=logging,
+    )
+    job = CommandJob(
+        command=JobCommandType.BATCH.value,
+        method="GET",
+        data='{"test": "toast"}',
+        url="/test",
+    )
+    next = await q.send_job(job)
+    assert next is not None
+    assert next.started_at == 0
+    assert next.state == JobState.IDLE.value
+
+    retrieved = await q.get_next()
+    assert retrieved.id == next.id
+    assert retrieved.state == JobState.REQUEST.value
+    assert retrieved.started_at > 0
+
+
+@pytest.mark.asyncio
+async def test_batch_state_updates(job_service, history_service, logging):
+    q = QueueService(
+        history_service=history_service,
         job_service=job_service,
         logging=logging,
     )
     # Create a batch job
     batch_job = CommandJob(
         command=JobCommandType.BATCH.value,
+        event="TEST",
         method="POST",
         data='{"batch": "data"}',
         url="/batch",
@@ -306,18 +318,21 @@ async def test_batch_state_updates(job_service, history_service, event_bus, logg
     child2 = children[1]
     await q.update_state(child2.id, JobState.COMPLETE.value, "Child 2 complete")
 
-    # Now batch should be COMPLETE since all children are complete
+    # Now batch should be IDLE since all children are complete
     batch_final, _ = await job_service.get(batch_id)
-    assert batch_final.state == JobState.COMPLETE.value
+    assert batch_final.state == JobState.IDLE.value
+
+    # check that we get the batch to process now
+    batch_check = await q.get_next()
+    assert batch_check.id == batch.id
+    assert batch_check.url == batch.url
+    assert batch_check.state == JobState.REQUEST.value
 
 
 @pytest.mark.asyncio
-async def test_batch_with_failed_child(
-    job_service, history_service, event_bus, logging
-):
+async def test_batch_with_failed_child(job_service, history_service, logging):
     q = QueueService(
         history_service=history_service,
-        event_bus=event_bus,
         job_service=job_service,
         logging=logging,
     )

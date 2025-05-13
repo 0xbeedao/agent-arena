@@ -11,7 +11,6 @@ from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobState
 from agentarena.models.job import JsonRequestSummary
-from agentarena.services.event_bus import IEventBus
 from agentarena.services.model_service import ModelService
 
 FINAL_STATES = [JobState.FAIL.value, JobState.COMPLETE.value]
@@ -25,14 +24,12 @@ class QueueService:
 
     def __init__(
         self,
-        event_bus: IEventBus = Field(description="Event Bus"),
         history_service: ModelService[CommandJobHistory] = Field(
             description="Job History Service"
         ),
         job_service: ModelService[CommandJob] = Field(description="job model service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
-        self.event_bus = event_bus
         self.history_service = history_service
         self.job_service = job_service
         self.log = logging.get_logger(module="queue_service")
@@ -48,16 +45,15 @@ class QueueService:
     async def send_batch(
         self, job: CommandJob, requests: List[JsonRequestSummary]
     ) -> CommandJob:
+        # ensure this doesn't get picked up - set to REQUESTING
+        # later, when we revalidate, if all children are done,
+        # we go to back to IDLE to execute the final call
+        job.state = JobState.REQUEST.value
         batch_job = await self.send_job(job)
         jobs = batch_job.make_batch_requests(requests)
-        # set this job to "BATCH" - which makes it not respond to "get_next" requests
-        # and allows us to identify which jobs need updating when children complete
-        updated_job = await self.update_state(
-            batch_job.id, JobState.REQUEST.value, message="queuing batch"
-        )
         for job in jobs:
             await self.send_job(job)
-        return updated_job
+        return batch_job
 
     async def send_job(self, job: CommandJob):
         if job.id is None:
@@ -68,11 +64,10 @@ class QueueService:
             return created
         return None
 
-    async def get_next(self, command=JobCommandType.REQUEST.value) -> CommandJob:
+    async def get_next(self) -> CommandJob:
         next = await self.job_service.get_where(
-            "state = :idle and send_at < :now and command=:cmd",
+            "state = :idle and send_at <= :now",
             {
-                "cmd": command,
                 "idle": JobState.IDLE.value,
                 "now": int(datetime.now().timestamp()),
             },
@@ -128,6 +123,10 @@ class QueueService:
         if batch.command != JobCommandType.BATCH.value:
             self.log.warn("Not a batch", batch=batch.id, command=batch.command)
             return False
+        current_state = batch.state
+        if current_state == JobState.IDLE.value:
+            # this batch is waiting to be picked up for final run
+            return False
 
         log = self.log.bind(batch=batch.id)
         pid = batch.id
@@ -151,10 +150,13 @@ class QueueService:
             return False
 
         state = batch.state
+        data = batch.data
         if failed:
             state = JobState.FAIL.value
         elif complete:
-            state = JobState.COMPLETE.value
+            if batch.event and batch.url:
+                # this will kick off the final request
+                state = JobState.IDLE.value
 
         log.debug("info from validation", info=info, state=state)
         if state != batch.state:
