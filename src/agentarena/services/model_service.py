@@ -77,7 +77,6 @@ class ModelService(Generic[T]):
         self.model_name = model_class.__name__
         self.log = logging.get_logger(
             f"{self.model_name}service",
-            module=f"{self.model_name}service",
             model=self.model_name,
         )
 

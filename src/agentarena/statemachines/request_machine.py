@@ -113,15 +113,15 @@ class RequestMachine(StateMachine):
             self.log.warn(f"invalid state: {state}")
             await self.malformed_response()
 
-    def after_transition(self, event, source, target):
-        self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
+    # def after_transition(self, event, source, target):
+    #     self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
 
     def on_enter_state(self, target, event):
         self.log = self.log.bind(state=target.id)
         if target.final:
             self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
-        else:
-            self.log.debug(f"{self.name} enter: {target.id} from {event}")
+        # else:
+        #     self.log.debug(f"{self.name} enter: {target.id} from {event}")
 
     def _resolve_url(self) -> str:
         """Expand url, if needed"""
