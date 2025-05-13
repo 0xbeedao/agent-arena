@@ -7,6 +7,7 @@ from typing import Dict
 from typing import List
 
 from fastapi import APIRouter
+from fastapi import Body
 from fastapi import HTTPException
 from pydantic import Field
 
@@ -186,7 +187,7 @@ class ContestController(ModelController[ContestDTO]):
         router = APIRouter(prefix=self.base_path, tags=[self.model_name])
 
         @router.post("/", response_model=Contest)
-        async def create(req: ContestDTO):
+        async def create(req: ContestRequest = Body(...)):
             return await self.create_contest(req)
 
         @router.get("/{obj_id}", response_model=Contest)
@@ -202,7 +203,7 @@ class ContestController(ModelController[ContestDTO]):
             return await self.get_model_list()
 
         @router.put("/", response_model=Dict[str, bool])
-        async def update(req_id: str, req: ContestDTO):
+        async def update(req_id: str, req: ContestDTO = Body(...)):
             return await self.update_contest(req_id, req)
 
         @router.delete("/{obj_id}", response_model=Dict[str, bool])

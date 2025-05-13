@@ -58,7 +58,7 @@ class ResponderController:
         router = APIRouter(prefix=self.base_path, tags=["Responders"])
 
         @router.get("/{participant_id}/health/{job_id}", response_model=HealthResponse)
-        async def health():
-            return await self.healthcheck()
+        async def health(participant_id: str, job_id: str):
+            return await self.healthcheck(participant_id, job_id)
 
         return router

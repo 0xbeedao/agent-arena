@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 from pydantic import Field
 
 from agentarena.factories.logger_factory import LoggingService
@@ -236,9 +236,9 @@ class ParticipantController:
         router = APIRouter(prefix=self.base_path, tags=["participant"])
 
         @router.post("/flow/readiness", response_model=JobResponse)
-        async def start_readiness_check_flow(req: List[str]):
+        async def start_readiness_check_flow(req: List[str] = Body(...)):
             return await self.start_readiness_check_flow(req)
 
         @router.post("/flow/event", response_model=bool)
-        async def receive_event(event: JobEvent):
+        async def receive_event(event: JobEvent = Body(...)):
             return await self.receive_event(event)

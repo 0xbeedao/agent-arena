@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter
+from fastapi import Body
 from fastapi import HTTPException
 from pydantic import Field
 
@@ -80,7 +81,7 @@ class DebugController:
             return await self.get_job(job_id)
 
         @router.post("/request", response_model=CommandJob)
-        async def send_request(req: JsonRequestSummary):
+        async def send_request(req: JsonRequestSummary = Body(...)):
             return await self.send_request_job(req)
 
         @router.get("/health", response_model=HealthResponse)

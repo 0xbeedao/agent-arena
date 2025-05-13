@@ -4,6 +4,7 @@ from typing import List
 from typing import TypeVar
 
 from fastapi import APIRouter
+from fastapi import Body
 from fastapi import HTTPException
 from pydantic import Field
 
@@ -144,7 +145,7 @@ class ModelController(Generic[T]):
         router = APIRouter(prefix=self.base_path, tags=[self.model_name])
 
         @router.post("/", response_model=T)
-        async def create(req: T):
+        async def create(req: T = Body(...)):
             return await self.create_model(req)
 
         @router.get("/{obj_id}", response_model=T)
@@ -160,7 +161,7 @@ class ModelController(Generic[T]):
             return await self.get_model_list()
 
         @router.put("/", response_model=T)
-        async def update(req_id: str, req: T):
+        async def update(req_id: str, req: T = Body(...)):
             return await self.update_model(req_id, req)
 
         @router.delete("/{obj_id}", response_model=Dict[str, bool])

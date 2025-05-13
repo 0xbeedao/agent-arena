@@ -8,6 +8,7 @@ from typing import List
 from typing import Tuple
 
 from fastapi import APIRouter
+from fastapi import Body
 from fastapi import HTTPException
 from pydantic import Field
 
@@ -306,7 +307,7 @@ class ArenaController(ModelController[ArenaDTO]):
         router = APIRouter(prefix=self.base_path, tags=["arena"])
 
         @router.post("/", response_model=Arena)
-        async def create(req: ArenaCreateRequest):
+        async def create(req: ArenaCreateRequest = Body(...)):
             return await self.create_arena(req)
 
         @router.get("/{obj_id}", response_model=Arena)
@@ -322,7 +323,7 @@ class ArenaController(ModelController[ArenaDTO]):
             return await self.get_model_list()
 
         @router.put("/", response_model=ArenaCreateRequest)
-        async def update(req_id: str, req: ArenaCreateRequest):
+        async def update(req_id: str, req: ArenaCreateRequest = Body(...)):
             return await self.update_arena(req_id, req)
 
         @router.delete("/{obj_id}", response_model=Dict[str, bool])
