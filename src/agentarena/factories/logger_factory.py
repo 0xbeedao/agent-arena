@@ -29,7 +29,7 @@ class LoggingService:
             # will be formatting
             # Configure Rich for standard library logging
             logging.basicConfig(
-                handlers=[RichHandler(rich_tracebacks=True, markup=True)],
+                handlers=[RichHandler(rich_tracebacks=False, markup=True)],
                 format="%(message)s",
                 level=getattr(logging, self.level.upper()),
             )

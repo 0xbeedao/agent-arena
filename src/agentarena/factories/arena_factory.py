@@ -60,9 +60,9 @@ class ArenaFactory:
         )
 
         builder = self.participant_factory.build
-        participantResponses: List[Participant] = [
-            await builder(participant) for participant in participants
-        ]
+        participantResponses: List[Participant] = []
+        for participant in participants:
+            participantResponses.append(await builder(participant))
 
         return Arena(
             id=arena_config.id,

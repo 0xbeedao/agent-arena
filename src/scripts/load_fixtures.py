@@ -1,16 +1,52 @@
-import sys
-import typer
-import httpx
 import json
-from pathlib import Path
-from glob import glob
+import os
 import os.path
 import secrets
+import sys
+from glob import glob
+from pathlib import Path
+
+import httpx
+import typer
+
+# Determine the project root directory
+script_path = Path(__file__)
+project_root = script_path.parent.parent.parent
+
+# Change working directory to project root
+os.chdir(project_root)
+
+# Check for config file
+config_file = os.path.join(project_root, "agent-arena-config.yaml")
+if not os.path.exists(config_file):
+    print(f"Cannot find the config file: {config_file}")
+    sys.exit(1)
+
+src_dir = os.path.join(project_root, "src")
+sys.path.append(src_dir)
+print(f"added path: {src_dir}")
+
+from agentarena.models.contest import ContestState
 
 app = typer.Typer(help="CLI tool to load fixtures into a FastAPI application")
 
 # Base URL of your FastAPI server
 BASE_URL = "http://localhost:8000/api"
+
+# Determine the project root directory
+script_path = Path(__file__)
+project_root = script_path.parent.parent.parent
+
+# Change working directory to project root
+os.chdir(project_root)
+
+# Check for config file
+config_file = os.path.join(project_root, "agent-arena-config.yaml")
+if not os.path.exists(config_file):
+    print(f"Cannot find the config file: {config_file}")
+    sys.exit(1)
+
+sys.path.append(os.path.abspath("./src"))
 
 
 def load_fixture_file(file_path: Path) -> dict:
@@ -25,14 +61,14 @@ def load_fixture_file(file_path: Path) -> dict:
 def load_strategy_fixture(fixture_file: Path):
     fixture_data = load_fixture_file(Path(fixture_file))
     try:
-        response = httpx.post(f"{BASE_URL}/strategy", json=fixture_data)
+        response = httpx.post(f"{BASE_URL}/strategy/", json=fixture_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
             typer.echo(f"Successfully created strategy from {fixture_file}: #{obj_id}")
             return obj_id, fixture_data["role"]
         else:
             typer.echo(
-                f"Error loading fixtures: {response.status_code} - {response.text}",
+                f"Error loading fixtures: {response.status_code} - {response}",
                 err=True,
             )
             return None, None
@@ -58,7 +94,7 @@ def make_agent(strategy_id: str, fname: str):
     json_data = json.dumps(agent_data)
 
     try:
-        response = httpx.post(f"{BASE_URL}/agent", json=agent_data)
+        response = httpx.post(f"{BASE_URL}/agent/", json=agent_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
             typer.echo(f"Successfully created agent from strategy {fname}: #{obj_id}")
@@ -113,7 +149,7 @@ def load_arena_fixture(fname: str, players=2, agents={}):
     fixture_json = json.dumps(fixture_data)
 
     try:
-        response = httpx.post(f"{BASE_URL}/arena", json=fixture_data)
+        response = httpx.post(f"{BASE_URL}/arena/", json=fixture_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
             typer.echo(f"Successfully created arena from {fname}: #{obj_id}")
@@ -134,12 +170,13 @@ def load_contest_fixture(fname: str, arena_id: str):
     contest_req = {
         "player_positions": fixture_data["player_positions"],
         "arena_config_id": arena_id,
+        "current_round": 1,
     }
 
     fixture_json = json.dumps(contest_req)
 
     try:
-        response = httpx.post(f"{BASE_URL}/contest", json=contest_req)
+        response = httpx.post(f"{BASE_URL}/contest/", json=contest_req)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
             typer.echo(f"Successfully created contest from {fname}: #{obj_id}")
@@ -161,9 +198,11 @@ def load_fixtures(
 ):
     """Load fixtures from a JSON file into the FastAPI application."""
     # Load fixture data
-    fdir = not Path(fixture_dir)
+    norm_dir = os.path.abspath(fixture_dir)
+    fdir = Path(norm_dir)
+    typer.echo(f"Checking {norm_dir}")
     if not os.path.exists(fdir):
-        typer.echo(f"Cannot find fixture dir: {fixture_dir}")
+        typer.echo(f"Cannot find fixture dir: {norm_dir}")
         raise typer.Exit(code=1)
 
     files = glob(os.path.join(fixture_dir, "*strategy-*.json"))
@@ -205,9 +244,9 @@ def load_fixtures(
             contest_id = load_contest_fixture(Path(contest_fixture), arena_id)
             typer.echo(f"Created contest: #{contest_id}")
 
-    contest = httpx.get((f"{BASE_URL}/contest/{contest_id}"))
-    c = json.loads(contest.content)
-    print(json.dumps(c, indent=4, sort_keys=True))
+            contest = httpx.get((f"{BASE_URL}/contest/{contest_id}"))
+            c = json.loads(contest.content)
+            print(json.dumps(c, indent=4, sort_keys=True))
 
 
 if __name__ == "__main__":

@@ -6,13 +6,13 @@ from typing import TypeVar
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.dbbase import DbBase
 from agentarena.services.model_service import ModelService
 
-T = TypeVar("T", bound=DbBase)
+T = TypeVar("T", bound=BaseModel)
 
 
 class ModelController(Generic[T]):
@@ -114,7 +114,7 @@ class ModelController(Generic[T]):
         obj, response = await self.model_service.update(to_update)
         if not response.success:
             self.log.info(
-                "Failed to update object: %s", response.validation.model_dump_json()
+                f"Failed to update object: {response.validation.model_dump_json()}"
             )
             raise HTTPException(status_code=422, detail=response.validation)
         return obj
@@ -152,7 +152,7 @@ class ModelController(Generic[T]):
         async def get(obj_id: str):
             return await self.get_model(obj_id)
 
-        @router.get("/", response_model=List[T])
+        @router.get("", response_model=List[T])
         async def list_all():
             return await self.get_model_list()
 

@@ -3,10 +3,11 @@
 Script to start the Agent Arena server using uvicorn.
 """
 
-import uvicorn
 import os
 import sys
 from pathlib import Path
+
+import uvicorn
 
 # Determine the project root directory
 script_path = Path(__file__)
@@ -21,14 +22,12 @@ if not os.path.exists(config_file):
     print(f"Cannot find the config file: {config_file}")
     sys.exit(1)
 
-sys.path.append(os.path.abspath('./src'))
+src_dir = os.path.join(project_root, "src")
+sys.path.append(src_dir)
+print(f"added path: {src_dir}")
 # Run the server
 if __name__ == "__main__":
-    print(f"Starting Agent Arena server from {project_root}")
+    print(f"Starting Agent Arena server")
     uvicorn.run(
-        "agentarena.server:app", 
-        host="0.0.0.0", 
-        port=8000, 
-        reload=True,
-        workers=4
+        "agentarena.server:app", host="0.0.0.0", port=8000, reload=True, workers=4
     )

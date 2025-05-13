@@ -36,7 +36,7 @@ class DbService:
             self.log = logging.get_logger(
                 "dbservice", module="dbservice", db=os.path.basename(filename)
             )
-            self.log.info("Setting up DB at %s", filename)
+            self.log.info("Setting up DB")
 
         self.db: Database = get_database(filename)
         self.db.ensure_autocommit_off()
@@ -46,7 +46,7 @@ class DbService:
 
     def add_audit_log(self, message):
         auditTable = self.db["audit"]
-        self.log.info("Audit message: %s", message)
+        self.log.info(message)
         auditTable.insert(
             {
                 "id": self.uuid_service.make_id(),

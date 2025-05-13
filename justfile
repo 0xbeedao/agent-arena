@@ -18,17 +18,20 @@ roll-logs:
     just roll-log agentarena-core.log logs
     just roll-log agentarena-poller.log logs
 
+[working-directory: "src"]
 server: checkvenv
-    BETTER_EXCEPTIONS=1 python etc/bin/agentarena.server | tee agentarena-core.log
+    python scripts/agentarena.server | tee agentarena-core.log
 
+[working-directory: "src"]
 poller: checkvenv
-    BETTER_EXCEPTIONS=1 python etc/bin/agentarena.poller | tee agentarena-poller.log
+    python scripts/agentarena.poller | tee agentarena-poller.log
 
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"
 
+[working-directory: "src"]
 load: checkvenv
-    python etc/bin/load_fixtures.py etc/fixtures
+    python scripts/load_fixtures.py etc/fixtures
 
 test: checkvenv
     PYTHONPATH=src pytest

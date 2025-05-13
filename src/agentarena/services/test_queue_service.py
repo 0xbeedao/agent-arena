@@ -1,6 +1,5 @@
 import time
 from datetime import datetime
-from unittest.mock import AsyncMock
 
 import pytest
 

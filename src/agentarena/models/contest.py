@@ -53,7 +53,9 @@ class ContestDTO(DbBase):
     player_positions: str = Field(
         description="A semicolon delimited list of player positions"
     )
-    state: str = Field(default=ContestState.CREATED, description="Contest state")
+    state: str = (
+        Field(default=ContestState.CREATED.value, description="Contest state"),
+    )
     winner: Optional[str] = Field(
         default=None, description="id of winning player agent"
     )

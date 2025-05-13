@@ -20,7 +20,6 @@ from pydantic import Field
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.dbbase import DbBase
 from agentarena.models.validation import ValidationResponse
-from agentarena.services.uuid_service import UUIDService
 
 from .db_service import DbService
 
@@ -98,7 +97,7 @@ class ModelService(Generic[T]):
 
         validation = self.db_service.validateDTO(db_obj)
         if not validation.success:
-            self.log.error(f"Validation failed: %s", validation.data)
+            self.log.error(f"Validation failed: {validation.data}")
             return None, ModelResponse(success=False, data=obj, validation=validation)
         try:
             self.table.insert(
@@ -108,14 +107,14 @@ class ModelService(Generic[T]):
                 alter=not self.db_service.prod,
             )
         except sqlite3.IntegrityError as e:
-            self.log.error(f"Integrity error while inserting: %s", e)
+            self.log.error(f"Integrity error while inserting: {e}", e)
             invalidation = ValidationResponse(
                 success=False, data=obj, message="Integrity error"
             )
             return None, ModelResponse(success=False, validation=invalidation)
-        self.log.info(f"Added #{obj.id}")
-        self.db_service.add_audit_log(f"Added {self.model_name}: {obj.id}")
-        return db_obj, ModelResponse(success=True, id=obj.id, validation=validation)
+        self.log.info(f"Added #{db_obj.id}")
+        self.db_service.add_audit_log(f"Added {self.model_name}: {db_obj.id}")
+        return db_obj, ModelResponse(success=True, id=db_obj.id, validation=validation)
 
     async def create_many(
         self, obj_list: List[T]
@@ -142,13 +141,13 @@ class ModelService(Generic[T]):
             else:
                 [created, response] = await self.create(obj)
                 if not response.success:
-                    log.error(f"Failed to create: %s", response.error)
+                    log.error(f"Failed to create", error=response.error)
                     problems.append(
                         ModelResponse(success=False, data=obj, error=response.error)
                     )
                 else:
                     responses.append(created)
-                    log.info(f"Created: %s", created.id)
+                    log.info(f"Created", created=created.id)
 
         return responses, problems
 
@@ -162,8 +161,10 @@ class ModelService(Generic[T]):
         Returns:
             The model instance, or None if not found
         """
+        if obj_id is None or obj_id == "":
+            return None, ModelResponse(success=False, id=None, error="obj_id required")
         model_name = self.model_name
-        boundlog = self.log.bind(get=obj_id)
+        boundlog = self.log.bind(obj_id=obj_id)
         boundlog.info("Getting from DB")
         row = self.table.get(str(obj_id))
         try:
@@ -198,7 +199,7 @@ class ModelService(Generic[T]):
         boundlog = self.log.bind(obj_id=obj.id)
         validation = self.db_service.validateDTO(obj)
         if not validation.success:
-            boundlog.error(f"Validation failed: %s", validation.data)
+            boundlog.error(f"Validation failed: {validation.data}")
             return obj, ModelResponse(success=False, data=obj, validation=validation)
 
         # Check if the object exists to update
@@ -224,7 +225,7 @@ class ModelService(Generic[T]):
         try:
             self.table.update(obj.id, cleaned)
         except sqlite3.IntegrityError:
-            boundlog.error(f"Integrity error while updating: %s", cleaned)
+            boundlog.error(f"Integrity error while updating", obj=cleaned)
             invalidation = ValidationResponse(success=False, message="Integrity error")
             return obj, ModelResponse(success=False, id=obj.id, validation=invalidation)
 
@@ -244,7 +245,7 @@ class ModelService(Generic[T]):
         """
         existing = await self.get(obj_id)
         if existing is None:
-            self.log.warn(f"No such id #%s", obj_id)
+            self.log.warn(f"No such id #{obj_id}")
             return ModelResponse(
                 success=False,
                 id=obj_id,
@@ -254,7 +255,7 @@ class ModelService(Generic[T]):
         self.table.update(
             obj_id, {"deleted_at": int(datetime.now().timestamp()), "active": False}
         )
-        self.log.info(f"Deleted #%s", obj_id)
+        self.log.info(f"Deleted #{obj_id}")
         self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}")
         return ModelResponse(success=True, id=obj_id, data=existing)
 
@@ -275,7 +276,7 @@ class ModelService(Generic[T]):
         for obj_id in obj_ids:
             obj, response = await self.get(obj_id)
             if not response.success:
-                self.log.error(f"Failed to get: %s", response.error)
+                self.log.error(f"Failed to get: {response.error}")
                 problems.append(response)
             else:
                 responses.append(obj)

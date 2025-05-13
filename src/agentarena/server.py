@@ -119,7 +119,7 @@ if __name__ == "__main__":
         print(f"Cannot find the config file: {yamlFile}")
         sys.exit(1)
     log = container.logging().get_logger("server", module="server")
-    log.info("path: %s", container.projectroot())
+    log.info(f"path: {container.projectroot()}")
     log.info("Starting app with uvicorn")
     # db_service call moved to startup_event to ensure resources are initialized
 

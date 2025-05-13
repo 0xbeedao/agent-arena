@@ -167,3 +167,10 @@ Moved api endpoints to `/api`
 
 Added the debug_controller to allow for quick creation of requests - to make sure it works live and watch all the states
 
+## 2025-05-13 11:56:33
+
+Aha, `JobResponseState` is or should be just the initial and final states of `JobState`. I don't need both enums - should be clearer.
+
+Retries can be done with a new state "RETRY", and the job can have a "ttl" field which calculated against the created_date?  Not sure if I need a record for the first time it was picked up, or if I should just look it up from history.
+
+Also could do exponential backoff.

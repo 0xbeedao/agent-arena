@@ -67,11 +67,11 @@ class ContestController(ModelController[ContestDTO]):
             end_time=None,
             winner=None,
         )
-        contestDTO, response = await self.model_service.create(contestDTO)
+        contest, response = await self.model_service.create(contestDTO)
         if not response.success:
             raise HTTPException(status_code=422, detail=response.validation)
 
-        return await self.contest_factory.build(contestDTO)
+        return await self.contest_factory.build(contest)
 
     # @router.get("/contest/{contest_id}", response_model=Contest)
     async def get_contest(
@@ -145,7 +145,7 @@ class ContestController(ModelController[ContestDTO]):
             raise HTTPException(status_code=404, detail=response.validation)
 
         if contestDTO.state != ContestState.CREATED:
-            boundlog.error("contest is not in CREATED state, was: %s", contestDTO.state)
+            boundlog.error(f"contest is not in CREATED state, was: {contestDTO.state}")
             raise HTTPException(
                 status_code=422, detail="Contest is not in CREATED state"
             )
@@ -165,7 +165,7 @@ class ContestController(ModelController[ContestDTO]):
 
         for role in ParticipantRole:
             if agent_roles[role] is None or len(agent_roles[role]) == 0:
-                boundlog.error("No agents in arena for role %s, raising error", role)
+                boundlog.error(f"No agents in arena for role {role}, raising error")
                 raise HTTPException(
                     status_code=422, detail=f"Arena needs at least one {role} agent"
                 )
@@ -194,7 +194,7 @@ class ContestController(ModelController[ContestDTO]):
         async def get(obj_id: str):
             return await self.get_contest(obj_id)
 
-        @router.get("/", response_model=List[ContestDTO])
+        @router.get("", response_model=List[ContestDTO])
         async def list_all():
             return await self.get_model_list()
 

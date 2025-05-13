@@ -5,7 +5,6 @@ Handles HTTP requests for arena operations.
 
 from typing import Dict
 from typing import List
-from typing import Tuple
 
 from fastapi import APIRouter
 from fastapi import Body
@@ -19,7 +18,6 @@ from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaCreateRequest
 from agentarena.models.arena import ArenaDTO
-from agentarena.models.dbbase import DbBase
 from agentarena.models.feature import FeatureDTO
 from agentarena.models.feature import FeatureOriginType
 from agentarena.models.participant import ParticipantDTO
@@ -83,11 +81,10 @@ class ArenaController(ModelController[ArenaDTO]):
         log = self.log.bind(method="create_arena", arena=arenaDTO.name)
 
         # get and validate the features
-        # this isn't really an await in the code, but it is an async mock, so we're faking
-        invalid_features = await self.feature_service.validate_list(features)
+        invalid_features = self.feature_service.validate_list(features)
         if invalid_features:
             for invalidation in invalid_features:
-                log.info("Invalid: %s", invalidation.model_dump_json())
+                log.info(f"Invalid: {invalidation.model_dump_json()}")
             raise HTTPException(
                 status_code=422, detail=invalid_features[0].validation.model_dump_json()
             )
@@ -97,14 +94,14 @@ class ArenaController(ModelController[ArenaDTO]):
         _, problems = await self.agent_service.get_by_ids(agent_ids)
         if problems:
             for problem in problems:
-                log.info("Invalid agent: %s", problem.model_dump_json())
+                log.info("Invalid agent", json=problem.model_dump_json())
             raise HTTPException(status_code=422, detail=problems[0].model_dump_json())
 
         # create the new arena
         [arena, response] = await self.model_service.create(arenaDTO)
         if not response.success:
             log.info(
-                "Failed to create arena: %s", response.validation.model_dump_json()
+                "Failed to create arena", json=response.validation.model_dump_json()
             )
             raise HTTPException(
                 status_code=422, detail=response.validation.model_dump_json()
@@ -112,19 +109,17 @@ class ArenaController(ModelController[ArenaDTO]):
 
         # Map the features to the arena
         if (len(features) + len(agents)) > 0:
-            response = await self.add_features_and_agents(
-                arena.id, createRequest, log=log
-            )
+            response = await self.add_features_and_agents(arena.id, createRequest)
             if not response.success:
                 log.info(
-                    "Failed to map features and agents: %s",
-                    response.validation.model_dump_json(),
+                    "Failed to map features and agents",
+                    response=response.validation.model_dump_json(),
                 )
                 raise HTTPException(
                     status_code=422, detail=response.validation.model_dump_json()
                 )
 
-        log.info("Created arena: %s", arena.id)
+        log.info(f"Created arena: {arena.id}")
         # If we get here, the arena was created successfully
         return await self.arena_factory.build(arena)
 
@@ -178,7 +173,7 @@ class ArenaController(ModelController[ArenaDTO]):
         invalid_features = self.feature_service.validate_list(features)
         if invalid_features:
             for invalidation in invalid_features:
-                log.info("Invalid: %s", invalidation.model_dump_json())
+                log.info("Invalid", invalidation=invalidation.model_dump_json())
             raise HTTPException(
                 status_code=422, detail=invalid_features[0].validation.model_dump_json()
             )
@@ -188,7 +183,7 @@ class ArenaController(ModelController[ArenaDTO]):
         _, problems = await self.agent_service.get_by_ids(agent_ids)
         if problems:
             for problem in problems:
-                log.info("Invalid agent: %s", problem.model_dump_json())
+                log.info(f"Invalid agent: {problem.model_dump_json()}")
             raise HTTPException(status_code=422, detail=problems[0].model_dump_json())
 
         arena_config = ArenaDTO(
@@ -204,22 +199,21 @@ class ArenaController(ModelController[ArenaDTO]):
         arenaDTO, response = await self.model_service.update(arena_config)
         if not response.success:
             log.info(
-                "Failed to update arena: %s", response.validation.model_dump_json()
+                f"Failed to update arena: {response.validation.model_dump_json()}",
             )
             raise HTTPException(status_code=422, detail=response.validation)
 
         # Add new mappings
         response = await self.add_features_and_agents(
-            arena_id, updateRequest, features, agents, clean=True, log=log
+            arena_id, updateRequest, features, agents, clean=True
         )
         if not response.success:
             log.info(
-                "Failed to map features and agents: %s",
-                response.validation.model_dump_json(),
+                f"Failed to map features and agents: {response.validation.model_dump_json()}"
             )
             raise HTTPException(status_code=422, detail=response.validation)
 
-        log.info("Updated arena: %s", arena_id)
+        log.info("Updated arena")
         return self.arena_factory.build(arenaDTO)
 
     async def add_features_and_agents(
@@ -237,7 +231,6 @@ class ArenaController(ModelController[ArenaDTO]):
             agents: The list of agents to add
         """
         locallog = self.log.bind(
-            module="arena_controller",
             arena_id=arena_id,
             method="add_features_and_agents",
         )
@@ -272,13 +265,11 @@ class ArenaController(ModelController[ArenaDTO]):
 
             _, problems = await self.feature_service.create_many(feature_objects)
             if problems:
-                boundlog.error(
-                    "Failed to map features to arena %s, rolling-back", arena_id
-                )
+                boundlog.error(f"Failed to map features to arena, rolling-back")
                 # db.execute("ROLLBACK")
                 return problems[0]
 
-        locallog.debug("Mapped %i features to arena %s", len(features), arena_id)
+        locallog.debug(f"Mapped {len(features)} features to arena")
 
         # Map the agents to the arena
         if len(agents) > 0:
@@ -291,13 +282,11 @@ class ArenaController(ModelController[ArenaDTO]):
                 [_, response] = await self.participant_service.create(participant)
                 if not response.success:
                     boundlog.error(
-                        "Failed to map agent %s to arena %s, rolling-back",
-                        agentReq.id,
-                        arena_id,
+                        f"Failed to map agent {agentReq.id} to arena, rolling-back",
                     )
                     # db.execute("ROLLBACK")
                     return ModelResponse(success=False, validation=response.validation)
-        locallog.debug("Mapped %i agents to arena %s", len(agents), arena_id)
+        locallog.debug(f"Mapped {len(agents)} agents to arena")
 
         # db.execute("COMMIT")
         return ModelResponse(success=True)
