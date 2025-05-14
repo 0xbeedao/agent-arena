@@ -140,10 +140,10 @@ class QueueService:
             ct += 1
             if c.state == JobState.FAIL.value:
                 failed = True
-                info.append(f"Child #{c.id} in FAIL - batch fail")
+                info.append(f"Child {c.id} in FAIL - batch fail")
             if c.state != JobState.COMPLETE.value:
                 complete = False
-                info.append(f"Child #{c.id} is in {c.state} - batch pending")
+                info.append(f"Child {c.id} is in {c.state} - batch pending")
 
         if ct == 0:
             log.info("This is an invalid batch, as it has no children")

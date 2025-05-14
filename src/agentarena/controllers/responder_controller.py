@@ -41,7 +41,7 @@ class ResponderController:
         if not response.success:
             return HealthResponse(
                 state="failed",
-                message=f"no such responder: #{participant_id}",
+                message=f"no such responder: {participant_id}",
                 job_id=job_id,
             )
 

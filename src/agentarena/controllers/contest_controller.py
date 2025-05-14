@@ -47,7 +47,7 @@ class ContestController(ModelController[ContestDTO]):
     async def create_contest(
         self,
         createRequest: ContestRequest,
-    ) -> Contest:
+    ) -> ContestDTO:
         """
         Create a new contest.
 
@@ -71,13 +71,14 @@ class ContestController(ModelController[ContestDTO]):
         if not response.success:
             raise HTTPException(status_code=422, detail=response.validation)
 
-        return await self.contest_factory.build(contest)
+        # return await self.contest_factory.build(contest)
+        return contest
 
     # @router.get("/contest/{contest_id}", response_model=Contest)
     async def get_contest(
         self,
         contest_id: str,
-    ) -> Contest:
+    ) -> ContestDTO:
         """
         Get a contest by ID.
 
@@ -90,11 +91,11 @@ class ContestController(ModelController[ContestDTO]):
         Raises:
             HTTPException: If the contest is not found
         """
-        contest_obj, response = await self.model_service.get(contest_id)
+        contest, response = await self.model_service.get(contest_id)
         if not response.success:
             raise HTTPException(status_code=404, detail=response.error)
-
-        return await self.contest_factory.build(contest_obj)
+        return contest
+        # return await self.contest_factory.build(contest_obj)
 
     # @router.put("/contest/{contest_id}", response_model=Dict[str, bool])
     async def update_contest(
@@ -186,11 +187,11 @@ class ContestController(ModelController[ContestDTO]):
         self.log.info("getting router")
         router = APIRouter(prefix=self.base_path, tags=[self.model_name])
 
-        @router.post("/", response_model=Contest)
+        @router.post("/", response_model=ContestDTO)
         async def create(req: ContestRequest = Body(...)):
             return await self.create_contest(req)
 
-        @router.get("/{obj_id}", response_model=Contest)
+        @router.get("/{obj_id}", response_model=ContestDTO)
         async def get(obj_id: str):
             return await self.get_contest(obj_id)
 

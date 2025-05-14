@@ -12,7 +12,7 @@ from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.dbbase import DbBase
 from agentarena.services.model_service import ModelService
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar("T")
 
 
 class ModelController(Generic[T]):

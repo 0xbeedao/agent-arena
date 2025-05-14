@@ -56,7 +56,7 @@ class ArenaController(ModelController[ArenaDTO]):
     async def create_arena(
         self,
         createRequest: ArenaCreateRequest,
-    ) -> Arena:
+    ) -> ArenaDTO:
         """
         Create a new arena.
 
@@ -120,14 +120,15 @@ class ArenaController(ModelController[ArenaDTO]):
                 )
 
         log.info(f"Created arena: {arena.id}")
+        return arena
         # If we get here, the arena was created successfully
-        return await self.arena_factory.build(arena)
+        # return await self.arena_factory.build(arena)
 
     # @router.get("/arena/{arena_id}", response_model=Arena)
     async def get_arena(
         self,
         arena_id: str,
-    ) -> Arena:
+    ) -> ArenaDTO:
         """
         Get an arena by ID.
 
@@ -144,7 +145,8 @@ class ArenaController(ModelController[ArenaDTO]):
         if not response.success:
             raise HTTPException(status_code=404, detail=response.error)
 
-        return await self.arena_factory.build(arenaDTO)
+        # return await self.arena_factory.build(arenaDTO)
+        return arenaDTO
 
     # @router.put("/arena/{arena_id}", response_model=Dict[str, bool])
     async def update_arena(
@@ -214,7 +216,8 @@ class ArenaController(ModelController[ArenaDTO]):
             raise HTTPException(status_code=422, detail=response.validation)
 
         log.info("Updated arena")
-        return self.arena_factory.build(arenaDTO)
+        # return self.arena_factory.build(arenaDTO)
+        return arenaDTO
 
     async def add_features_and_agents(
         self,

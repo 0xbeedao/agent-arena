@@ -49,7 +49,7 @@ class ParticipantFactory:
         [strategyDTO, _] = await self.strategy_service.get(agentDTO.strategy_id)
 
         strategy: Strategy = Strategy.from_dto(strategyDTO)
-        log.debug(f"Got strategy #{agentDTO.strategy_id}")
+        log.debug(f"Got strategy {agentDTO.strategy_id}")
 
         return Participant(
             id=participant.id,

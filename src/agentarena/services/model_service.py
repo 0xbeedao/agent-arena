@@ -5,6 +5,7 @@ Provides a reusable service for CRUD operations on any model that inherits from 
 
 import sqlite3
 from datetime import datetime
+import uuid  # Added for generating IDs
 from typing import Any
 from typing import Dict
 from typing import Generic
@@ -79,40 +80,88 @@ class ModelService(Generic[T]):
             model=self.model_name,
         )
 
-    async def create(self, obj: T) -> Tuple[T, ModelResponse]:
+    def parse_model(self, input_data: BaseModel) -> Tuple[Optional[T], ModelResponse]:
+        try:
+            # Ensure input_data is converted/validated to the specific model type
+            # self.model_class is Type[T] where T is bound to DbBase
+            # model_validate can take a dict or another BaseModel instance
+            parsed_obj = self.model_class.model_validate(input_data)
+            return parsed_obj, None
+        except Exception as e:  # Broad exception for Pydantic validation errors
+            self.log.error(
+                f"Validation failed during model parsing: {str(e)}",
+                input_data=str(input_data)[:500],  # Log snippet of input data
+                exc_info=True,
+            )
+            error_detail = str(e)
+            # Try to get more structured errors from Pydantic's ValidationError
+            if hasattr(e, "errors") and callable(e.errors):
+                try:
+                    error_detail = e.errors()
+                except Exception:
+                    pass  # Stick to str(e) if .errors() fails
+
+            validation_resp = ValidationResponse(
+                success=False,
+                message="Input data could not be validated for the model.",
+                data=error_detail,
+            )
+            return None, ModelResponse(success=False, validation=validation_resp)
+
+    async def create(self, input_data: BaseModel) -> Tuple[Optional[T], ModelResponse]:
         """
         Create a new model instance.
 
         Args:
-            obj: The model instance to create
+            input_data: The model data, expected to be compatible with self.model_class
 
         Returns:
-            the object or None
+            the created object or None
             the response detail
         """
-        db_obj = obj.model_copy()
-        # set the timestamps
+        parsed_obj, problem = self.parse_model(input_data)
+        if problem:
+            return parsed_obj, problem
+
+        # Now parsed_obj is a proper instance of self.model_class (e.g., AgentDTO)
+        db_obj: T = parsed_obj.model_copy(deep=True)
+
         isonow = int(datetime.now().timestamp())
+        # For new objects, created_at and updated_at are typically the same.
+        db_obj.created_at = isonow
         db_obj.updated_at = isonow
 
+        # This validateDTO is from DbBase, for business logic validation after Pydantic's parsing
         validation = self.db_service.validateDTO(db_obj)
         if not validation.success:
-            self.log.error(f"Validation failed: {validation.data}")
-            return None, ModelResponse(success=False, data=obj, validation=validation)
+            self.log.error(
+                f"Post-parsing DTO validation failed: {validation.message}",
+                data=validation.data,
+            )
+            return None, ModelResponse(
+                success=False, data=db_obj.model_dump(), validation=validation
+            )
+
         try:
             self.table.insert(
-                db_obj.model_dump(),
+                db_obj.model_dump(),  # Use the fully processed db_obj
                 pk="id",
-                foreign_keys=obj.get_foreign_keys(),
+                foreign_keys=db_obj.get_foreign_keys(),  # Use db_obj here
                 alter=not self.db_service.prod,
             )
         except sqlite3.IntegrityError as e:
-            self.log.error(f"Integrity error while inserting: {e}", e)
+            self.log.error(
+                f"Integrity error while inserting {self.model_name} {db_obj.id}: {e}",
+                exc_info=True,
+            )
             invalidation = ValidationResponse(
-                success=False, data=obj, message="Integrity error"
+                success=False,
+                data=db_obj.model_dump(),
+                message=f"Database integrity error: {e}",
             )
             return None, ModelResponse(success=False, validation=invalidation)
-        self.log.info(f"Added #{db_obj.id}")
+
+        self.log.info(f"Added {self.model_name} {db_obj.id}")
         self.db_service.add_audit_log(f"Added {self.model_name}: {db_obj.id}")
         return db_obj, ModelResponse(success=True, id=db_obj.id, validation=validation)
 
@@ -229,7 +278,7 @@ class ModelService(Generic[T]):
             invalidation = ValidationResponse(success=False, message="Integrity error")
             return obj, ModelResponse(success=False, id=obj.id, validation=invalidation)
 
-        self.db_service.add_audit_log(f"Updated {self.model_name}, #{obj.id}")
+        self.db_service.add_audit_log(f"Updated {self.model_name}, {obj.id}")
 
         return await self.get(obj.id)
 
@@ -245,7 +294,7 @@ class ModelService(Generic[T]):
         """
         existing = await self.get(obj_id)
         if existing is None:
-            self.log.warn(f"No such id #{obj_id}")
+            self.log.warn(f"No such id {obj_id}")
             return ModelResponse(
                 success=False,
                 id=obj_id,
@@ -255,7 +304,7 @@ class ModelService(Generic[T]):
         self.table.update(
             obj_id, {"deleted_at": int(datetime.now().timestamp()), "active": False}
         )
-        self.log.info(f"Deleted #{obj_id}")
+        self.log.info(f"Deleted {obj_id}")
         self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}")
         return ModelResponse(success=True, id=obj_id, data=existing)
 

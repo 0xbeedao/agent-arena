@@ -25,6 +25,8 @@ class UUIDService:
         leet = [word.replace("i", "1") for word in words if "i" in word]
         leet.extend([word.replace("o", "0") for word in words if "o" in word])
         words.extend(leet)
+        leet.extend(words)
+        words = leet
         caps = [word.upper() for word in words]
         proper = [word.capitalize() for word in words]
         words.extend(caps)

@@ -64,7 +64,7 @@ def load_strategy_fixture(fixture_file: Path):
         response = httpx.post(f"{BASE_URL}/strategy/", json=fixture_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
-            typer.echo(f"Successfully created strategy from {fixture_file}: #{obj_id}")
+            typer.echo(f"Successfully created strategy from {fixture_file}: {obj_id}")
             return obj_id, fixture_data["role"]
         else:
             typer.echo(
@@ -97,7 +97,7 @@ def make_agent(strategy_id: str, fname: str):
         response = httpx.post(f"{BASE_URL}/agent/", json=agent_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
-            typer.echo(f"Successfully created agent from strategy {fname}: #{obj_id}")
+            typer.echo(f"Successfully created agent from strategy {fname}: {obj_id}")
             return obj_id, name
         else:
             print("error with json:\n", json_data)
@@ -152,7 +152,7 @@ def load_arena_fixture(fname: str, players=2, agents={}):
         response = httpx.post(f"{BASE_URL}/arena/", json=fixture_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
-            typer.echo(f"Successfully created arena from {fname}: #{obj_id}")
+            typer.echo(f"Successfully created arena from {fname}: {obj_id}")
             return obj_id
         else:
             print("error with json:\n", fixture_json)
@@ -179,7 +179,7 @@ def load_contest_fixture(fname: str, arena_id: str):
         response = httpx.post(f"{BASE_URL}/contest/", json=contest_req)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
-            typer.echo(f"Successfully created contest from {fname}: #{obj_id}")
+            typer.echo(f"Successfully created contest from {fname}: {obj_id}")
             return obj_id
         else:
             print("error with json:\n", fixture_json)
@@ -234,7 +234,7 @@ def load_fixtures(
     arenas = []
     for arena_fixture in arena_files:
         arena_id = load_arena_fixture(Path(arena_fixture), players=2, agents=agents)
-        typer.echo(f"created arena: #{arena_id}")
+        typer.echo(f"created arena: {arena_id}")
         arenas.append(arena_id)
 
     contest_files = glob(os.path.join(fixture_dir, "contest-*.json"))
@@ -242,7 +242,7 @@ def load_fixtures(
     for contest_fixture in contest_files:
         for arena_id in arenas:
             contest_id = load_contest_fixture(Path(contest_fixture), arena_id)
-            typer.echo(f"Created contest: #{contest_id}")
+            typer.echo(f"Created contest: {contest_id}")
 
             contest = httpx.get((f"{BASE_URL}/contest/{contest_id}"))
             c = json.loads(contest.content)
