@@ -243,7 +243,10 @@ class Container(containers.DeclarativeContainer):
     )
 
     responder_controller = providers.Singleton(
-        ResponderController, participant_service=participant_service, logging=logging
+        ResponderController,
+        participant_service=participant_service,
+        participant_factory=participant_factory,
+        logging=logging,
     )
 
     strategy_controller = providers.Singleton(

@@ -1,4 +1,5 @@
 from enum import Enum
+import json
 
 import httpx
 from pydantic import Field
@@ -64,7 +65,6 @@ class RequestMachine(StateMachine):
 
         :param job: Optional job or context object for the request.
         """
-        assert job.command == JobCommandType.REQUEST.value
         self.arena_url = arena_url
         self.job = job
         self.response_object: JobResponse = None
@@ -76,8 +76,9 @@ class RequestMachine(StateMachine):
         method = self.job.method.lower()
         try:
             url = self._resolve_url()
-            self.log.info("requesting", url=url)
-            response = httpx.Client().request(method, url, data=self.job.data)
+            data = self.clean_data(self.job.data)
+            self.log.info("requesting", url=url, data=data)
+            response = httpx.Client().request(method, url, data=data)
             await self.receive_response(response)
         except Exception as e:
             self.log.error(
@@ -96,7 +97,7 @@ class RequestMachine(StateMachine):
             self.log.info(f"parsed correctly? {obj is not None}")
             return True
         except Exception as e:
-            self.log.error(f"message could not be parsed: {e}")
+            self.log.error(f"message could not be parsed: {json}", error=e)
         return False
 
     async def on_enter_response(self, response):
@@ -125,10 +126,32 @@ class RequestMachine(StateMachine):
         # else:
         #     self.log.debug(f"{self.name} enter: {target.id} from {event}")
 
+    def clean_data(self, data: str) -> str:
+        if not data:
+            return None
+        data = data.strip()
+        if not data:
+            return None
+        try:
+            obj = json.loads(data)
+        except Exception:
+            # try again, with quotes
+            orig = data
+            data = f'"{data}"'
+            try:
+                obj = json.loads(data)
+            except Exception:
+                self.log.warn(f"Could not parse data {orig}")
+                obj = None
+
+        if obj:
+            return data
+        return None
+
     def _resolve_url(self) -> str:
         """Expand url, if needed"""
         url = self.job.url
         url = url.replace("$JOB$", self.job.id)
-        url = url.replace("$ARENA", self.arena_url)
+        url = url.replace("$ARENA$", self.arena_url)
         self.log.info(f"resolved url is {url} from {self.job.url}")
         return url

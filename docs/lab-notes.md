@@ -181,3 +181,7 @@ Got the create methods working - it was a fight with FastAPI, Generics and Pydan
 
 batch is having issues - I have a TODO in the queue-controller
 solution is to remove "event" and just have the data be the event - it gets posted to the event listener as a string event name
+
+## 2025-05-14 16:16:27
+
+Success! Removed that event, and made batches callback with a simple message event.

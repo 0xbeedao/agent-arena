@@ -18,7 +18,7 @@ class ResponderController:
 
     def __init__(
         self,
-        base_path: str = "/api",
+        base_path: str = "",  # NOT API - this is a logically separate service
         participant_factory: ParticipantFactory = Field(
             description="The participant factory"
         ),

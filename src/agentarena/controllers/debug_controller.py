@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.event import JobEvent
-from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJob, JobResponse
 from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
@@ -45,13 +45,18 @@ class DebugController:
         self.q = queue_service
         self.log = logging.get_logger("controller", path=self.base_path)
 
-    async def event(self, job_id: str, event: str) -> str:
+    async def event(self, job_id: str, event: str) -> JobResponse:
         """
         A callback event from the scheduler
         """
         self.log.bind(job_id=job_id)
-        self.log.info("Received event", event=event)
-        return "OK"
+        self.log.info(f"Received event {event}")
+        return JobResponse(
+            job_id=job_id,
+            delay=0,
+            message="OK",
+            state=JobResponseState.COMPLETED.value,
+        )
 
     async def get_job(self, job_id: str = Field(description="job ID to fetch")):
         job, response = await self.job_service.get(job_id)
@@ -120,8 +125,8 @@ class DebugController:
         async def send_request(req: DebugBatchRequest = Body(...)):
             return await self.send_batch_job(req)
 
-        @router.post("/event/{job_id}", response_model=str)
-        async def receive_event(job_id: str, req: str):
+        @router.post("/event/{job_id}", response_model=JobResponse)
+        async def receive_event(job_id: str, req: str = Body(...)):
             return await self.event(job_id, req)
 
         @router.get("/job/{job_id}", response_model=CommandJob)
