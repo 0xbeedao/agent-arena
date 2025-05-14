@@ -26,6 +26,7 @@ from agentarena.models.participant import ParticipantDTO
 from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
 from agentarena.models.strategy import StrategyDTO
+from agentarena.services import uuid_service
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
@@ -56,10 +57,7 @@ def get_wordlist(
     word_file: str,
 ):
     filename = word_file.replace("<projectroot>", str(projectroot))
-    with open(filename, "r") as file:
-        lines = file.readlines()
-        words = [word.replace("\n", "") for word in lines]
-        return words
+    return uuid_service.get_wordlist(filename)
 
 
 class Container(containers.DeclarativeContainer):

@@ -55,12 +55,10 @@ async def test_create_contest_success(
         contest_dto,
         ModelResponse(success=True),
     )
-    contest = Mock()
-    mock_contest_factory.build.return_value = contest
     # Act
     result = await contest_controller.create_contest(
         createRequest=create_request,
     )
     # Assert
-    assert result == contest
+    assert result == contest_dto
     mock_contest_service.create.assert_awaited_once()

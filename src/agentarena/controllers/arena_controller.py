@@ -81,7 +81,7 @@ class ArenaController(ModelController[ArenaDTO]):
         log = self.log.bind(method="create_arena", arena=arenaDTO.name)
 
         # get and validate the features
-        invalid_features = self.feature_service.validate_list(features)
+        invalid_features = await self.feature_service.validate_list(features)
         if invalid_features:
             for invalidation in invalid_features:
                 log.info(f"Invalid: {invalidation.model_dump_json()}")
@@ -172,7 +172,7 @@ class ArenaController(ModelController[ArenaDTO]):
         log = self.log.bind(method="update_arena", arena_id=arena_id)
 
         # get and validate the features
-        invalid_features = self.feature_service.validate_list(features)
+        invalid_features = await self.feature_service.validate_list(features)
         if invalid_features:
             for invalidation in invalid_features:
                 log.info("Invalid", invalidation=invalidation.model_dump_json())

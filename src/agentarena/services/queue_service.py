@@ -83,35 +83,6 @@ class QueueService:
         self.log.info("returning next job", job=updated_job.id)
         return updated_job
 
-    async def publish_final_event(self, job: CommandJob, message: str, data: str):
-        log = self.log.bind(job=job.id, method="publish_final_event")
-        if job.event is None or len(job.event) == 0:
-            log.warn("Invalid - no event defined")
-            return
-
-        response = None
-        event: JobEvent = None
-        if data:
-            try:
-                response = json.loads(data)
-                log.info("sending event with full response data")
-                event = JobEvent.from_job_and_response(job, response)
-            except Exception as e:
-                log.warn("couldn't parse response data", data=data)
-
-        if event is None:
-            log.info("Creating default event")
-            event = JobEvent(
-                job_id=job.id,
-                name=job.event,
-                data={},
-                command=job.command,
-                message=message,
-                state=job.state,
-            )
-
-        await self.event_bus.publish(event)
-
     async def requeue_job(
         self, job_id, message="requeue", data="", delay: int = 0
     ) -> CommandJob:
@@ -153,7 +124,7 @@ class QueueService:
         if failed:
             state = JobState.FAIL.value
         elif complete:
-            if batch.event and batch.url:
+            if batch.url:
                 # this will kick off the final request
                 state = JobState.IDLE.value
 
@@ -226,9 +197,6 @@ class QueueService:
         sent, response = await self.job_service.update(job)
         if not response.success:
             sent = None
-
-        if state in FINAL_STATES and sent.event is not None and len(sent.event) > 0:
-            await self.publish_final_event(sent, message, data)
 
         if sent.parent_id:
             log.info("Starting update_parent_states for child request")

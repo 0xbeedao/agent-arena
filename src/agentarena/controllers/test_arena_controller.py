@@ -81,10 +81,7 @@ async def test_create_arena_success(
 
     mock_arena = ArenaStub(name="test", id="testid")
 
-    mock_result_arena = ArenaStub(name="test", id="testid")
-
     mock_arena_service.create.return_value = [mock_arena, ModelResponse(success=True)]
-    mock_arena_factory.build.return_value = mock_result_arena
     mock_feature_service.validate_list.return_value = []
     mock_agent_service.get_by_ids.return_value = [[], []]
     # Act
@@ -92,7 +89,7 @@ async def test_create_arena_success(
         createRequest=create_request,
     )
     # Assert
-    assert result == mock_result_arena
+    assert result == mock_arena
     mock_arena_service.create.assert_awaited_once()
 
 

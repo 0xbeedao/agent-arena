@@ -50,7 +50,6 @@ class JobResponse(BaseModel):
 
 class JsonRequestSummary(BaseModel):
     url: Optional[str] = Field(description="Url to Call")
-    event: Optional[str] = Field(default="", description="Event to send on complete")
     method: Optional[str] = Field(default="GET", description="HTTP method")
     data: Optional[str] = Field(description="optional payload to send to Url")
     delay: Optional[int] = Field(
@@ -65,9 +64,6 @@ class CommandJob(DbBase):
     )
     command: str = Field(description="job command: batch, request")
     data: Optional[str] = Field(description="optional payload to send to Url")
-    event: Optional[str] = Field(
-        default="", description="Optional event name to throw when complete"
-    )
     method: str = Field(description="HTTP method")
     priority: Optional[int] = Field(
         default=5, description="priority on a scale from 1 to 10, 10 high"
@@ -104,7 +100,6 @@ class CommandJob(DbBase):
             command=JobCommandType.REQUEST.value,
             created_at=int(datetime.now().timestamp()),
             data=req.data,
-            event=req.event,
             method=req.method,
             priority=self.priority,
             send_at=send_at,

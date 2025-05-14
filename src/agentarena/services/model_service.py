@@ -377,7 +377,7 @@ class ModelService(Generic[T]):
         """
         return [self.model_class.model_validate(row) for row in self.table.rows]
 
-    def validate_list(self, obj_list: List[T]) -> List[ModelResponse]:
+    async def validate_list(self, obj_list: List[T]) -> List[ModelResponse]:
         if not obj_list:
             return []
-        return self.db_service.validate_list(obj_list)
+        return await self.db_service.validate_list(obj_list)

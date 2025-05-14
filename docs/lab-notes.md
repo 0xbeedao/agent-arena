@@ -178,3 +178,6 @@ Also could do exponential backoff.
 ## 2025-05-13 18:58:02
 
 Got the create methods working - it was a fight with FastAPI, Generics and Pydantic.  I solved it by removing the generic bound "T" to DbBase. Before doing that, it was stripping all fields not in the base.
+
+batch is having issues - I have a TODO in the queue-controller
+solution is to remove "event" and just have the data be the event - it gets posted to the event listener as a string event name

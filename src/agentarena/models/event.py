@@ -12,7 +12,6 @@ from agentarena.models.job import JobResponseState
 
 class JobEvent(DbBase):
     job_id: str = Field(description="job that caused this event")
-    name: str = Field(description="event name for subscriptions")
     command: str = Field(description="job command")
     data: Any = Field(description="job payload")
     message: Optional[str] = Field(description="message regarding data")
@@ -33,6 +32,5 @@ class JobEvent(DbBase):
             data=response.data,
             command=job.command,
             message=response.message,
-            name=job.event,
             state=response.state,
         )

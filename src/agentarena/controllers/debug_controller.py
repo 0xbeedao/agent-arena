@@ -1,12 +1,14 @@
 from datetime import datetime
+from typing import List
 
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
+from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponseState
@@ -16,6 +18,10 @@ from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
+
+
+class DebugBatchRequest(JsonRequestSummary):
+    urls: List[str]
 
 
 class DebugController:
@@ -39,6 +45,14 @@ class DebugController:
         self.q = queue_service
         self.log = logging.get_logger("controller", path=self.base_path)
 
+    async def event(self, job_id: str, event: str) -> str:
+        """
+        A callback event from the scheduler
+        """
+        self.log.bind(job_id=job_id)
+        self.log.info("Received event", event=event)
+        return "OK"
+
     async def get_job(self, job_id: str = Field(description="job ID to fetch")):
         job, response = await self.job_service.get(job_id)
         if not response.success:
@@ -49,7 +63,6 @@ class DebugController:
         job = CommandJob(
             command=JobCommandType.REQUEST.value,
             data=req.data,
-            event=req.event,
             method=req.method,
             priority=5,
             send_at=int(datetime.now().timestamp() + req.delay),
@@ -59,6 +72,33 @@ class DebugController:
             url=req.url,
         )
         sent = await self.q.send_job(job)
+        if not sent:
+            raise HTTPException(status_code="500", detail="Invalid queue response")
+        return sent
+
+    async def send_batch_job(self, req: DebugBatchRequest) -> CommandJob:
+        batch = CommandJob(
+            command=JobCommandType.BATCH.value,
+            data=req.data or "",
+            method="POST",
+            priority=5,
+            send_at=int(datetime.now().timestamp() + req.delay),
+            state=JobState.IDLE.value,
+            started_at=0,
+            finished_at=0,
+            url=f"$ARENA${self.base_path}/event/$JOB$",
+        )
+        requests = [
+            JsonRequestSummary(
+                url=url,
+                method="GET",
+                data="",
+                delay=0,
+            )
+            for url in req.urls
+        ]
+
+        sent = await self.q.send_batch(batch, requests)
         if not sent:
             raise HTTPException(status_code="500", detail="Invalid queue response")
         return sent
@@ -75,6 +115,14 @@ class DebugController:
     def get_router(self):
         self.log.info("getting router")
         router = APIRouter(prefix=self.base_path, tags=["debug"])
+
+        @router.post("/batch", response_model=CommandJob)
+        async def send_request(req: DebugBatchRequest = Body(...)):
+            return await self.send_batch_job(req)
+
+        @router.post("/event/{job_id}", response_model=str)
+        async def receive_event(job_id: str, req: str):
+            return await self.event(job_id, req)
 
         @router.get("/job/{job_id}", response_model=CommandJob)
         async def get_job(job_id: str):

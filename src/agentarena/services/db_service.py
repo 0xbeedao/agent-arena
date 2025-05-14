@@ -72,7 +72,7 @@ class DbService:
         self.fill_defaults(obj)
         return obj.validateDTO()
 
-    def validate_list(self, obj_list: List[DbBase]) -> List[ValidationResponse]:
+    async def validate_list(self, obj_list: List[DbBase]) -> List[ValidationResponse]:
         """
         Validate a list of models.
 

@@ -17,8 +17,6 @@ from agentarena.models.participant import ParticipantDTO
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
 
-READINESS_CHECK_BATCH = "READINESS_CHECK_BATCH"
-
 
 class ParticipantController:
 
@@ -155,7 +153,6 @@ class ParticipantController:
         batch = CommandJob(
             command=JobCommandType.BATCH.value,
             data="",
-            event=READINESS_CHECK_BATCH,
             method="POST",
             url=f"$ARENA${self.base_path}/event",
         )
@@ -163,7 +160,6 @@ class ParticipantController:
         requests_summaries = [
             JsonRequestSummary(
                 url=agent.url("health"),
-                event="",
                 method="GET",
                 data="",
                 delay=0,

@@ -85,7 +85,7 @@ def make_agent(strategy_id: str, fname: str):
     agent_data = {
         "name": name,
         "description": f"A test agent using {name}",
-        "endpoint": "/api/responders/$AGENT_ID$",
+        "endpoint": "/api/responders/$AGENT$",
         "api_key": "",
         "metadata": json.dumps(metadata),
         "strategy_id": strategy_id,
