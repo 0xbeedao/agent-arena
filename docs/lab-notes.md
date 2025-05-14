@@ -174,3 +174,7 @@ Aha, `JobResponseState` is or should be just the initial and final states of `Jo
 Retries can be done with a new state "RETRY", and the job can have a "ttl" field which calculated against the created_date?  Not sure if I need a record for the first time it was picked up, or if I should just look it up from history.
 
 Also could do exponential backoff.
+
+## 2025-05-13 18:58:02
+
+Got the create methods working - it was a fight with FastAPI, Generics and Pydantic.  I solved it by removing the generic bound "T" to DbBase. Before doing that, it was stripping all fields not in the base.
