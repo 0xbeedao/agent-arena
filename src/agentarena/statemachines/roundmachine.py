@@ -49,7 +49,7 @@ class RoundMachine(StateMachine):
         """Initialize the round machine."""
         self.contest = contest
         self.log = logging.get_logger(
-            "roundmachine", contest=contest.id if contest else "none"
+            "machine", contest=contest.id if contest else "none"
         )
         super().__init__()
 

@@ -190,6 +190,7 @@ Success! Removed that event, and made batches callback with a simple message eve
 
 Next steps:
 
+- [X] Review log inits - regularize on "controller", etc, instead of module="foo", allowing for default setting of levels for these.
 - [ ] Convert to Datetimes, using orjson
 - [ ] Make scheduler completely independant
   - [ ] scheduler.db
@@ -197,3 +198,4 @@ Next steps:
   - [ ] Scheduler data payload returns the original data sent, as well as a list of final result events - allows controller to take action on results without looking up job details
 - [ ] possibly refactor model tree into core, actor, arena, scheduler - with DbBase and Job in Core?
   - [ ] Or is it a refactor at a deeper level, making those be top-level packages - agentarea.core, agentarena.scheduler
+- [ ] Allow log level overrides in yaml setup file

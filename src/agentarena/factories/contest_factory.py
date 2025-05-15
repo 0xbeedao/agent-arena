@@ -29,7 +29,7 @@ class ContestFactory:
         self.participant_service = participant_service
         self.participant_factory = participant_factory
         self.arena_factory = arena_factory
-        self.log = logging.get_logger(module="contest_factory")
+        self.log = logging.get_logger("factory")
         self.log.debug("init")
 
     async def build(self, contestDTO: ContestDTO) -> Contest:

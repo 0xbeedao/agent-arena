@@ -32,7 +32,7 @@ class RequestService:
         self.arena_url = arena_url
         self.queue_service = queue_service
         self.logging = logging
-        self.log = logging.get_logger(module="request_service")
+        self.log = logging.get_logger("service")
 
     async def poll_and_process(self) -> bool:
         """

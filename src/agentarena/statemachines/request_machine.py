@@ -67,7 +67,7 @@ class RequestMachine(StateMachine):
         self.arena_url = arena_url
         self.job = job
         self.response_object: JobResponse = None
-        self.log = logging.get_logger("requestmachine", job=job.id)
+        self.log = logging.get_logger("machine", job=job.id)
         super().__init__()
 
     async def on_enter_request(self):

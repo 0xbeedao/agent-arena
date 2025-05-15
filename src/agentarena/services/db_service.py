@@ -29,13 +29,11 @@ class DbService:
 
         if memory:
             filename = ":memory:"
-            self.log = logging.get_logger(module="dbservice", db="memory")
+            self.log = logging.get_logger("service", db="memory")
             self.log.info("setting up memory db")
         else:
             filename = dbfile.replace("<projectroot>", str(projectroot))
-            self.log = logging.get_logger(
-                "dbservice", module="dbservice", db=os.path.basename(filename)
-            )
+            self.log = logging.get_logger("service", db=os.path.basename(filename))
             self.log.info("Setting up DB")
 
         self.db: Database = get_database(filename)

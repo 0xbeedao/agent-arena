@@ -15,7 +15,7 @@ class ParticipantFactory:
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
-        self.log = logging.get_logger("participant_factory")
+        self.log = logging.get_logger("factory")
 
     async def build(self, participant: ParticipantDTO) -> Participant:
         """

@@ -55,9 +55,7 @@ class ReadyMachine(StateMachine):
         self.participants = participants
         self.q = queue_service
         self.timeout_seconds = timeout_seconds
-        self.log = logging.get_logger(
-            module="ready_machine", participants=len(participants)
-        )
+        self.log = logging.get_logger("machine", participants=len(participants))
         self._jobs: Dict[str, Participant] = {}
         self.checked_in: List[str] = []
         self.failed: List[str]

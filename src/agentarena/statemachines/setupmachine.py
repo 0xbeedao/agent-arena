@@ -36,7 +36,7 @@ class SetupMachine(StateMachine):
         """Initialize the setup machine."""
         self.contest = contest
         self.log = logging.get_logger(
-            "setupmachine", contest=contest.id if contest else "none"
+            "machine", contest=contest.id if contest else "none"
         )
         super().__init__()
 

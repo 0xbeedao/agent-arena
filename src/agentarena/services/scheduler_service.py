@@ -26,7 +26,7 @@ class SchedulerService:
         self.request_service = request_service
         self.logging = logging
         self.scheduler: AsyncIOScheduler = None
-        self.log = logging.get_logger(module="scheduler")
+        self.log = logging.get_logger("service")
 
     async def start(
         self,

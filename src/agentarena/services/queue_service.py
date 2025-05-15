@@ -30,7 +30,7 @@ class QueueService:
     ):
         self.history_service = history_service
         self.job_service = job_service
-        self.log = logging.get_logger(module="queue_service")
+        self.log = logging.get_logger("service")
 
     async def drain(self, message=""):
         log = self.log.bind(method="drain")

@@ -26,7 +26,7 @@ class ArenaFactory:
         self.participant_service = participant_service
         self.feature_service = feature_service
         self.participant_factory = participant_factory
-        self.log = logging.get_logger(module="arena_factory")
+        self.log = logging.get_logger("factory")
 
     async def build(
         self,
