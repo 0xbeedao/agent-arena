@@ -2,8 +2,12 @@ arena:
   db:
     filename: <projectroot>/arena.db
   logging:
-    level: DEBUG  
+    level: DEBUG
     capture: False
+    loggers:
+      factory: DEBUG
+      service: DEBUG
+      controller: DEBUG
   url: http://localhost:8000
   workers: 4
 
@@ -11,8 +15,12 @@ actor:
   db:
     filename: <projectroot>/actor.db
   logging:
-    level: DEBUG  
+    level: DEBUG
     capture: False
+    loggers:
+      factory: DEBUG
+      service: DEBUG
+      controller: DEBUG
   url: http://localhost:8001
 
 scheduler:
@@ -20,8 +28,12 @@ scheduler:
     filename: <projectroot>/arena.db
   delay: 1
   logging:
-    level: DEBUG  
+    level: DEBUG
     capture: False
+    loggers:
+      factory: DEBUG
+      service: DEBUG
+      controller: DEBUG
   max_concurrent: 5
   url: http://localhost:8080
 

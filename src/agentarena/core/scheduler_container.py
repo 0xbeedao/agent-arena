@@ -51,9 +51,10 @@ class SchedulerContainer(containers.DeclarativeContainer):
     logging = providers.Singleton(
         LoggingService,
         capture=config.scheduler.logging.capture,
-        level=config.scheduler.logging.arena.level,
+        level=config.scheduler.logging.level,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
         name="scheduler",
+        logger_levels=config.scheduler.logging.loggers,
     )
 
     uuid_service = providers.Singleton(

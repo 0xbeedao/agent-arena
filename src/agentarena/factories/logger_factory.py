@@ -16,11 +16,14 @@ class ILogger(Protocol):
     def error(self, *args, **kwargs) -> None: ...
 class LoggingService:
 
-    def __init__(self, capture=False, prod=False, level="DEBUG", name="arena"):
+    def __init__(
+        self, capture=False, prod=False, level="DEBUG", name="arena", logger_levels=None
+    ):
         self.capture = capture
         self.name = name
         self.prod = prod
         self.level = level
+        self.logger_levels = logger_levels or {}
         self._setup = False
 
     def setup_logging(self):
@@ -63,10 +66,8 @@ class LoggingService:
                     wrapper_class=structlog.stdlib.BoundLogger,
                     cache_logger_on_first_use=True,
                 )
-
-            structlog.get_logger("structlog", module="factories.logger").info(
-                "Set up logging with structlog", app=self.name
-            )
+            log = structlog.get_logger("structlog")
+            log.info("Set up logging with structlog", app=self.name)
             # Configure Uvicorn loggers to use structlog
             uvicorn_logger = logging.getLogger("uvicorn")
             uvicorn_logger.handlers = []  # Clear default handlers
@@ -77,6 +78,13 @@ class LoggingService:
             # Turn down logging for APScheduler to avoid excessive logs
             aps_logger = logging.getLogger("apscheduler")
             aps_logger.setLevel(logging.WARNING)
+
+            # Configure logger levels for specific loggers (factory, service, controller, etc.)
+            for logger_name, level in self.logger_levels.items():
+                logger = logging.getLogger(logger_name)
+                logger.setLevel(getattr(logging, level.upper(), logging.DEBUG))
+                log.debug(f"Set logger '{logger_name}' to level {level}")
+
             # Optionally clear handlers to avoid duplicate output
             # if aps_logger.handlers:
             #    aps_logger.handlers = []

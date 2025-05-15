@@ -53,6 +53,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         level=config.arena.logging.level,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
         name="arena",
+        logger_levels=config.arena.logging.loggers,
     )
 
     uuid_service = providers.Singleton(

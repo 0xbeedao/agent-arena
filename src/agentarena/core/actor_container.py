@@ -32,9 +32,10 @@ class ActorContainer(containers.DeclarativeContainer):
     logging = providers.Singleton(
         LoggingService,
         capture=config.actor.logging.capture,
-        level=config.actor.logging.arena.level,
+        level=config.actor.logging.level,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
-        name="arena",
+        name="actor",
+        logger_levels=config.actor.logging.loggers,
     )
 
     uuid_service = providers.Singleton(
