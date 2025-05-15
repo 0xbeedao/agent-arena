@@ -1,11 +1,9 @@
-import json
 from datetime import datetime
 from typing import List
 
 from pydantic import Field
 
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import JobCommandType

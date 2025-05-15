@@ -1,5 +1,5 @@
-from enum import Enum
 import json
+from enum import Enum
 
 import httpx
 from pydantic import Field
@@ -8,7 +8,6 @@ from statemachine import StateMachine
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob
-from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 

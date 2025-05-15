@@ -13,13 +13,13 @@ from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from agentarena.containers import Container
+from agentarena.core.arena_container import ArenaContainer
 from agentarena.core.middleware import add_logging_middleware
 
 better_exceptions.MAX_LENGTH = None
 
 # Initialize the container
-container = Container()
+container = ArenaContainer()
 parentDir = Path(__file__).parent.parent.parent
 yamlFile = os.path.join(parentDir, "agent-arena-config.yaml")
 if os.path.exists(yamlFile):

@@ -26,7 +26,6 @@ src_dir = os.path.join(project_root, "src")
 sys.path.append(src_dir)
 print(f"added path: {src_dir}")
 
-from agentarena.models.contest import ContestState
 
 app = typer.Typer(help="CLI tool to load fixtures into a FastAPI application")
 
@@ -82,6 +81,9 @@ def make_agent(strategy_id: str, fname: str):
     name, _ = os.path.splitext(fixture)
     name = name.replace("strategy", "agent")
     metadata = {"fixture": fixture}
+
+    # TODO - make actor with strategy instead
+
     agent_data = {
         "name": name,
         "description": f"A test agent using {name}",

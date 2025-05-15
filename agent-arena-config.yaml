@@ -1,27 +1,36 @@
 arena:
+  db:
+    filename: <projectroot>/arena.db
+  logging:
+    level: DEBUG  
+    capture: False
   url: http://localhost:8000
-db:
-  filename: <projectroot>/arena.db
-logging:
-  arena:
+  workers: 4
+
+actor:
+  db:
+    filename: <projectroot>/actor.db
+  logging:
     level: DEBUG  
     capture: False
-  scheduler:
-    level: DEBUG  
-    capture: False
-uuid:
-  wordlist: <projectroot>/etc/words.csv
-queues:
-  jobs:
-    filename: <projectroot>/queue.db
+  url: http://localhost:8001
+
 scheduler:
+  db:
+    filename: <projectroot>/arena.db
   delay: 1
+  logging:
+    level: DEBUG  
+    capture: False
   max_concurrent: 5
   url: http://localhost:8080
-server:
-  workers: 4
+
+uuid:
+  wordlist: <projectroot>/etc/words.csv
+
 prod:
   better_exceptions: False
+
 dev:
   better_exceptions: True
   

@@ -4,8 +4,6 @@ from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.participant import Participant
 from agentarena.models.participant import ParticipantDTO
-from agentarena.models.strategy import Strategy
-from agentarena.models.strategy import StrategyDTO
 from agentarena.services.model_service import ModelService
 
 
@@ -14,12 +12,10 @@ class ParticipantFactory:
     def __init__(
         self,
         agent_service: ModelService[AgentDTO] = None,
-        strategy_service: ModelService[StrategyDTO] = None,
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
-        self.strategy_service = strategy_service
-        self.log = logging.get_logger(module="ParticipantFactory")
+        self.log = logging.get_logger("participant_factory")
 
     async def build(self, participant: ParticipantDTO) -> Participant:
         """
@@ -45,17 +41,10 @@ class ParticipantFactory:
         # Get the Agent
         [agentDTO, _] = await self.agent_service.get(participant.agent_id)
 
-        # Get the Strategy
-        [strategyDTO, _] = await self.strategy_service.get(agentDTO.strategy_id)
-
-        strategy: Strategy = Strategy.from_dto(strategyDTO)
-        log.debug(f"Got strategy {agentDTO.strategy_id}")
-
         return Participant(
             id=participant.id,
             role=participant.role,
             agent_id=agentDTO.id,
             name=agentDTO.name,
             description=agentDTO.description,
-            strategy=strategy,
         )

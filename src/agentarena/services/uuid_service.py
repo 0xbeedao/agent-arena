@@ -4,7 +4,6 @@ from pydantic import Field
 from ulid import ULID
 
 from agentarena.models.dbbase import DbBase
-from agentarena.util.wordbase import encode_number_to_words
 
 
 class UUIDService:

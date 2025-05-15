@@ -4,13 +4,13 @@ from typing import List
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
-from agentarena.models.event import JobEvent
-from agentarena.models.job import CommandJob, JobResponse
+from agentarena.models.job import CommandJob
 from agentarena.models.job import JobCommandType
+from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
 from agentarena.models.job import JsonRequestSummary

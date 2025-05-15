@@ -185,3 +185,15 @@ solution is to remove "event" and just have the data be the event - it gets post
 ## 2025-05-14 16:16:27
 
 Success! Removed that event, and made batches callback with a simple message event.
+
+## 2025-05-14 18:42:55
+
+Next steps:
+
+- [ ] Convert to Datetimes, using orjson
+- [ ] Make scheduler completely independant
+  - [ ] scheduler.db
+  - [ ] queue_proxy on Arena side POSTs to Scheduler
+  - [ ] Scheduler data payload returns the original data sent, as well as a list of final result events - allows controller to take action on results without looking up job details
+- [ ] possibly refactor model tree into core, actor, arena, scheduler - with DbBase and Job in Core?
+  - [ ] Or is it a refactor at a deeper level, making those be top-level packages - agentarea.core, agentarena.scheduler

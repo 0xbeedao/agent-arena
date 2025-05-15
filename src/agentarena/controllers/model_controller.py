@@ -6,10 +6,9 @@ from typing import TypeVar
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.dbbase import DbBase
 from agentarena.services.model_service import ModelService
 
 T = TypeVar("T")

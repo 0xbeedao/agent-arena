@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from agentarena.containers import SchedulerContainer
+from agentarena.core.scheduler_container import SchedulerContainer
 
 parentDir = Path(__file__).parent.parent.parent
 yamlFile = os.path.join(parentDir, "agent-arena-config.yaml")

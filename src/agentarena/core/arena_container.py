@@ -14,7 +14,6 @@ from agentarena.factories.db_factory import get_database
 from agentarena.factories.environment_factory import get_project_root
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.factories.participant_factory import ParticipantFactory
-from agentarena.factories.queue_factory import get_queue
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.contest import ContestDTO
@@ -30,26 +29,7 @@ from agentarena.services import uuid_service
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
-from agentarena.services.request_service import RequestService
-from agentarena.services.scheduler_service import SchedulerService
 from agentarena.services.uuid_service import UUIDService
-
-
-async def get_scheduler(
-    delay: int = 1,
-    max_concurrent: int = 5,
-    request_service: RequestService = None,
-    logging: LoggingService = None,
-):
-    scheduler = SchedulerService(
-        delay=delay,
-        max_concurrent=max_concurrent,
-        request_service=request_service,
-        logging=logging,
-    )
-    await scheduler.start()
-    yield scheduler
-    scheduler.shutdown()
 
 
 def get_wordlist(
@@ -60,7 +40,7 @@ def get_wordlist(
     return uuid_service.get_wordlist(filename)
 
 
-class Container(containers.DeclarativeContainer):
+class ArenaContainer(containers.DeclarativeContainer):
 
     config = providers.Configuration()
 
@@ -69,8 +49,8 @@ class Container(containers.DeclarativeContainer):
 
     logging = providers.Singleton(
         LoggingService,
-        capture=config.logging.arena.capture,
-        level=config.logging.arena.level,
+        capture=config.arena.logging.capture,
+        level=config.arena.logging.level,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
         name="arena",
     )
@@ -81,12 +61,10 @@ class Container(containers.DeclarativeContainer):
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
     )
 
-    get_q = providers.Factory(get_queue)
-
     db_service = providers.Singleton(
         DbService,
         projectroot,
-        config.db.filename,
+        config.arena.db.filename,
         get_database=get_database,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
         uuid_service=uuid_service,
@@ -195,7 +173,6 @@ class Container(containers.DeclarativeContainer):
     participant_factory = providers.Singleton(
         ParticipantFactory,
         agent_service=agent_service,
-        strategy_service=strategy_service,
         logging=logging,
     )
 
@@ -261,78 +238,5 @@ class Container(containers.DeclarativeContainer):
         agent_service=agent_service,
         queue_service=queue_service,
         job_service=commandjob_service,
-        logging=logging,
-    )
-
-
-class SchedulerContainer(containers.DeclarativeContainer):
-    config = providers.Configuration()
-
-    projectroot = providers.Resource(get_project_root)
-    wordlist = providers.Resource(get_wordlist, projectroot, config.uuid.wordlist)
-
-    logging = providers.Singleton(
-        LoggingService,
-        capture=config.logging.arena.capture,
-        level=config.logging.arena.level,
-        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
-        name="scheduler",
-    )
-
-    uuid_service = providers.Singleton(
-        UUIDService,
-        word_list=wordlist,
-        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
-    )
-
-    get_q = providers.Factory(get_queue)
-
-    db_service = providers.Singleton(
-        DbService,
-        projectroot,
-        config.db.filename,
-        get_database=get_database,
-        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
-        uuid_service=uuid_service,
-        logging=logging,
-    )
-
-    # model services
-
-    commandjob_service = providers.Singleton(
-        ModelService[CommandJob],
-        model_class=CommandJob,
-        db_service=db_service,
-        table_name="jobs",
-        logging=logging,
-    )
-
-    jobhistory_service = providers.Singleton(
-        ModelService[CommandJobHistory],
-        model_class=CommandJobHistory,
-        db_service=db_service,
-        table_name="jobhistories",
-        logging=logging,
-    )
-
-    queue_service = providers.Singleton(
-        QueueService,
-        history_service=jobhistory_service,
-        job_service=commandjob_service,
-        logging=logging,
-    )
-
-    request_service = providers.Singleton(
-        RequestService,
-        arena_url=config.arena.url,
-        queue_service=queue_service,
-        logging=logging,
-    )
-
-    scheduler_service = providers.Resource(
-        get_scheduler,
-        delay=config.scheduler.delay,
-        max_concurrent=config.scheduler.max_concurrent,
-        request_service=request_service,
         logging=logging,
     )
