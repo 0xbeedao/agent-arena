@@ -3,6 +3,7 @@ import os
 from dependency_injector import containers
 from dependency_injector import providers
 
+from agentarena.controllers.job_controller import JobController
 from agentarena.factories.db_factory import get_database
 from agentarena.factories.environment_factory import get_project_root
 from agentarena.factories.logger_factory import LoggingService
@@ -110,5 +111,14 @@ class SchedulerContainer(containers.DeclarativeContainer):
         delay=config.scheduler.delay,
         max_concurrent=config.scheduler.max_concurrent,
         request_service=request_service,
+        logging=logging,
+    )
+
+    # controllers
+
+    job_controller = providers.Singleton(
+        JobController,
+        base_path="/api",
+        model_service=commandjob_service,
         logging=logging,
     )

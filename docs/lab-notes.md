@@ -201,3 +201,19 @@ Next steps:
 - [ ] possibly refactor model tree into core, actor, arena, scheduler - with DbBase and Job in Core?
   - [ ] Or is it a refactor at a deeper level, making those be top-level packages - agentarea.core, agentarena.scheduler
 - [X] Allow log level overrides in yaml setup file
+
+Had Claude make a JobService - need to add a send_batch equivalent, and then we can remove the direct queue calls from Arena.
+Note - it should not even extend Model Service - we should directly send to q from the service.
+
+## 2025-05-15 07:25:42
+
+I asked ChatGPT for feedback on the project so far, and one of its suggestions was to use an ORM. I've resisted, but the main reason I did so was that I find the handling of related objects annoying in most ORMs.
+
+So I read the docs for SQLAlchemy and it's not so bad.  But, it interferes with Pydantic.  Pydantic is for JSON/Model validation and communication, not DB storage.  Happily, I found [SQLModel](https://pypi.org/project/sqlmodel/), which appears
+to be exactly what I need. It integrates Pydantic and SQLAlchemy and makes it all just declarative.
+
+I'll end up with fully-instantiated objects that won't need "factory" methods to hydrate them. Lovely.  Also, I'll end up with better DB access without having to pass in handlers for each table. It will lead to less coupling and more reusability.
+
+---
+
+Also, based on [this Roocode setup doc](https://docs.google.com/document/d/1Ugiyqqa7PXqHTBwgtyhp55Hd-U0GQUuygOGdGbhP8q4/edit?tab=t.u8k2fvg0xbdu) I went ahead and added a new config `core-code` to Roocode, to try as my main coding driver.
