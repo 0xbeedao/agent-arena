@@ -28,7 +28,8 @@ dependencies = [
     "apscheduler>=3.11.0",
     "rich",
     "better-exceptions>=0.3.3",
-    "asgi-correlation-id>=4.3.4"
+    "asgi-correlation-id>=4.3.4",
+    "orjson>=3.10.18"
 ]
 
 [project.optional-dependencies]

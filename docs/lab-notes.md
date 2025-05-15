@@ -191,7 +191,9 @@ Success! Removed that event, and made batches callback with a simple message eve
 Next steps:
 
 - [X] Review log inits - regularize on "controller", etc, instead of module="foo", allowing for default setting of levels for these.
-- [ ] Convert to Datetimes, using orjson
+- [X] Add Orjson
+- [ ] Add orjson-pydantic, and convert to use that for serialization
+- [ ] Convert to Datetimes, using orjson - note there is an option to trim microseconds automatically
 - [ ] Make scheduler completely independant
   - [ ] scheduler.db
   - [ ] queue_proxy on Arena side POSTs to Scheduler

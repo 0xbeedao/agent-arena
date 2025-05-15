@@ -1,4 +1,4 @@
-import json
+import orjson
 from enum import Enum
 
 import httpx
@@ -115,9 +115,6 @@ class RequestMachine(StateMachine):
             self.log.warn(f"invalid state: {state}")
             await self.malformed_response()
 
-    # def after_transition(self, event, source, target):
-    #     self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
-
     def on_enter_state(self, target, event):
         self.log = self.log.bind(state=target.id)
         if target.final:
@@ -132,15 +129,15 @@ class RequestMachine(StateMachine):
         if not data:
             return None
         try:
-            obj = json.loads(data)
-        except Exception:
+            obj = orjson.loads(data)
+        except orjson.JSONDecodeError as e:
             # try again, with quotes
             orig = data
             data = f'"{data}"'
             try:
-                obj = json.loads(data)
-            except Exception:
-                self.log.warn(f"Could not parse data {orig}")
+                obj = orjson.loads(data)
+            except orjson.JSONDecodeError as e:
+                self.log.warn(f"Could not parse data {orig}", error=e)
                 obj = None
 
         if obj:
