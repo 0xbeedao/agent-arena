@@ -4,16 +4,16 @@ from dependency_injector import containers
 from dependency_injector import providers
 
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.controllers.arena_controller import ArenaController
-from agentarena.controllers.contest_controller import ContestController
-from agentarena.controllers.model_controller import ModelController
-from agentarena.controllers.responder_controller import ResponderController
-from agentarena.factories.arena_factory import ArenaFactory
+from agentarena.arena.controllers.arena_controller import ArenaController
+from agentarena.arena.controllers.contest_controller import ContestController
+from agentarena.core.controllers.model_controller import ModelController
+from agentarena.actors.controllers.responder_controller import ResponderController
+from agentarena.arena.factories.arena_factory import ArenaFactory
 from agentarena.factories.contest_factory import ContestFactory
-from agentarena.factories.db_factory import get_database
+from agentarena.core.factories.db_factory import get_database
 from agentarena.factories.environment_factory import get_project_root
-from agentarena.factories.logger_factory import LoggingService
-from agentarena.factories.participant_factory import ParticipantFactory
+from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.arena.factories.participant_factory import ParticipantFactory
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.contest import ContestDTO
@@ -26,10 +26,10 @@ from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
 from agentarena.models.strategy import StrategyDTO
 from agentarena.services import uuid_service
-from agentarena.services.db_service import DbService
-from agentarena.services.model_service import ModelService
-from agentarena.services.queue_service import QueueService
-from agentarena.services.uuid_service import UUIDService
+from agentarena.core.services.db_service import DbService
+from agentarena.core.services.model_service import ModelService
+from agentarena.scheduler.services.queue_service import QueueService
+from agentarena.core.services.uuid_service import UUIDService
 
 
 def get_wordlist(

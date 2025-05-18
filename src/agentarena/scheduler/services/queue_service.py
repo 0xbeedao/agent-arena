@@ -3,12 +3,13 @@ from typing import Any, List, Mapping, Optional
 
 from pydantic import Field
 
-from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJob, CommandJobRequest
+from agentarena.clients.message_broker import MessageBroker
+from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.models.job import CommandJob, CommandJobRequest, JobResponse
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
-from agentarena.services.model_service import ModelService
+from agentarena.core.services.model_service import ModelService
 
 FINAL_STATES = [JobState.FAIL.value, JobState.COMPLETE.value]
 ALL_STATES = [state.value for state in JobState]
@@ -25,10 +26,12 @@ class QueueService:
             description="Job History Service"
         ),
         job_service: ModelService[CommandJob] = Field(description="job model service"),
+        message_broker: MessageBroker = Field(description="Message broker"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.history_service = history_service
         self.job_service = job_service
+        self.message_broker = message_broker
         self.log = logging.get_logger("service")
 
     async def drain(self, message=""):
@@ -126,6 +129,18 @@ class QueueService:
             return True
         return True
 
+    async def send_final_message(
+        self, job: CommandJob, message: str = "", data: Optional[Mapping[str, Any]] = {}
+    ):
+        res = JobResponse(
+            job_id=job.id,
+            delay=0,
+            message=message,
+            state=job.state or JobState.COMPLETE.value,
+            data=data,
+        )
+        await self.message_broker.send_response(job.channel, res)
+
     async def update_parent_states(self, job: CommandJob):
         log = self.log.bind(job=job.id)
         if not job.parent_id:
@@ -189,8 +204,13 @@ class QueueService:
             )
         )
         sent, response = await self.job_service.update(job)
+        # send message if any
         if not response.success:
             sent = None
+
+        if response.success and state in FINAL_STATES and sent is not None:
+            log.debug("Sending message for final state")
+            await self.send_final_message(sent, message=message, data=data)
 
         if sent and sent.parent_id:
             log.info("Starting update_parent_states for child request")

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel
 
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob, JobResponse, JobState
 from agentarena.models.job import JobResponseState
 from agentarena.statemachines.request_machine import RequestMachine

@@ -20,7 +20,7 @@ from typing import TypeVar
 from pydantic import BaseModel
 from pydantic import Field
 
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.dbbase import DbBase
 from agentarena.models.validation import ValidationResponse
 

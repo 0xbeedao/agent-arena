@@ -5,17 +5,16 @@ from fastapi import Body
 from fastapi import HTTPException
 from pydantic import Field
 
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
-from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import UrlJobRequest
 from agentarena.models.participant import ParticipantDTO
-from agentarena.services.model_service import ModelService
-from agentarena.services.queue_service import QueueService
+from agentarena.core.services.model_service import ModelService
+from agentarena.scheduler.services.queue_service import QueueService
 
 
 class ParticipantController:
@@ -41,9 +40,7 @@ class ParticipantController:
     def _validate_participant_ids(self, participant_ids: List[str]) -> None:
         """Checks if the participant_ids list is empty and raises HTTPException if it is."""
         if not participant_ids:
-            self.log.warning(
-                "participant_check_workflow called with no participant_ids."
-            )
+            self.log.warn("participant_check_workflow called with no participant_ids.")
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -151,8 +148,8 @@ class ParticipantController:
         """Creates and dispatches a batch job for readiness checks on valid agents."""
         # valid_agents is guaranteed non-empty by _get_valid_agents raising HTTPException otherwise
         batch = CommandJob(
-            channel=JobCommandType.BATCH.value,
-            data="",
+            channel="arena.readiness.check.result",
+            data={},
             method="POST",
             url=f"$ARENA${self.base_path}/event",
         )
@@ -161,7 +158,7 @@ class ParticipantController:
             UrlJobRequest(
                 url=agent.url("health"),
                 method="GET",
-                data="",
+                data={},
                 delay=0,
             )
             for agent in valid_agents

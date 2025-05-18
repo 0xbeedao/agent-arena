@@ -4,8 +4,8 @@ from unittest.mock import Mock
 import pytest
 from pydantic import BaseModel
 
-from agentarena.controllers.responder_controller import ResponderController
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.actors.controllers.responder_controller import ResponderController
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.participant import ParticipantDTO
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus

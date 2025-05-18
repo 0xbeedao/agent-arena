@@ -3,12 +3,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
-from agentarena.services.request_service import RequestService
+from agentarena.scheduler.services.request_service import RequestService
 
 
 def make_job(name: str):
@@ -115,11 +115,10 @@ async def test_poll_job_pending(queue_service, logging, httpx_mock):
 
 
 @pytest.mark.asyncio
-async def test_message_job(queue_service, logging, message_broker):
+async def test_message_job_just_completes(queue_service, logging, message_broker):
     svc = RequestService(
         arena_url="http://localhost:8000",
         queue_service=queue_service,
-        message_broker=message_broker,
         logging=logging,
     )
     job = CommandJob(
@@ -137,5 +136,3 @@ async def test_message_job(queue_service, logging, message_broker):
     queue_service.get_next.return_value = job
     success = await svc.poll_and_process()
     assert success
-
-    message_broker.send_response.assert_awaited_once()

@@ -10,7 +10,7 @@ from pydantic import Field
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.contest import Contest
 
 from .roundmachine import RoundMachine

@@ -7,12 +7,12 @@ from pydantic import Field
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobState
 from agentarena.models.participant import Participant
-from agentarena.services.queue_service import QueueService
+from agentarena.scheduler.services.queue_service import QueueService
 
 
 class ReadyState(Enum):

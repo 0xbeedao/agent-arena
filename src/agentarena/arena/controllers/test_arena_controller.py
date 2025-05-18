@@ -3,10 +3,10 @@ from unittest.mock import AsyncMock
 import pytest
 from pydantic import BaseModel
 
-from agentarena.controllers.arena_controller import ArenaController
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.arena.controllers.arena_controller import ArenaController
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.arena import ArenaCreateRequest
-from agentarena.services.model_service import ModelResponse
+from agentarena.core.services.model_service import ModelResponse
 
 
 @pytest.fixture

@@ -3,11 +3,11 @@ from pydantic import Field
 from statemachine import State
 
 from agentarena.clients.message_broker import MessageBroker
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob, JobResponseState
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
-from agentarena.services.queue_service import QueueService
+from agentarena.scheduler.services.queue_service import QueueService
 from agentarena.statemachines.request_machine import RequestMachine
 from agentarena.statemachines.request_machine import RequestState
 
@@ -28,13 +28,11 @@ class RequestService:
         self,
         arena_url: str = Field(description="url of arena server"),
         queue_service: QueueService = Field(description="Queue Service"),
-        message_broker: MessageBroker = Field(description="message broker"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         assert arena_url
         self.arena_url = arena_url
         self.queue_service = queue_service
-        self.message_broker = message_broker
         self.logging = logging
         self.log = logging.get_logger("service")
 
@@ -59,8 +57,8 @@ class RequestService:
         log.info("processing")
         method = job.method.lower()
         if method == "message":
-            # Not a request for the request machine - just publish and be done.
-            return await self.publish_job(job)
+            # Not a request for the request machine - just move to complete - this will cause a publish
+            return await self.handle_complete(job, None)
         machine = RequestMachine(job, logging=self.logging, arena_url=self.arena_url)
         await machine.activate_initial_state()
         await machine.start_request("request")
@@ -128,15 +126,3 @@ class RequestService:
             delay = response.delay
         result = await self.queue_service.requeue_job(job, delay=delay)
         return result is not None
-
-    async def publish_job(self, job: CommandJob):
-        """
-        Called for MESSAGE sending
-        """
-        state = JobResponseState.COMPLETED.value
-        res = JobResponse(
-            job_id=job.id, delay=0, message="", data=job.data, state=state
-        )
-        channel = job.channel
-        await self.message_broker.send_response(channel, res)
-        return await self.handle_complete(job, res)

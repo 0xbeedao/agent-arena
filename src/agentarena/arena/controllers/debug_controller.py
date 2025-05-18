@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from nats.aio.client import Client as NatsClient
 from pydantic import Field
 
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobRequest
@@ -17,7 +17,7 @@ from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
-from agentarena.services.model_service import ModelService
+from agentarena.core.services.model_service import ModelService
 
 
 class DebugBatchRequest(UrlJobRequest):

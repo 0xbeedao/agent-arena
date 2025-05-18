@@ -1,4 +1,4 @@
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.arena import Arena
 from agentarena.models.contest import Contest
 from agentarena.models.contest import ContestState

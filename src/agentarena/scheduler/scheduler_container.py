@@ -3,19 +3,19 @@ import os
 from dependency_injector import containers
 from dependency_injector import providers
 
-from agentarena.controllers.job_controller import JobController
-from agentarena.factories.db_factory import get_database
+from agentarena.scheduler.controllers.job_controller import JobController
+from agentarena.core.factories.db_factory import get_database
 from agentarena.factories.environment_factory import get_project_root
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobHistory
 from agentarena.services import uuid_service
-from agentarena.services.db_service import DbService
-from agentarena.services.model_service import ModelService
-from agentarena.services.queue_service import QueueService
-from agentarena.services.request_service import RequestService
-from agentarena.services.scheduler_service import SchedulerService
-from agentarena.services.uuid_service import UUIDService
+from agentarena.core.services.db_service import DbService
+from agentarena.core.services.model_service import ModelService
+from agentarena.scheduler.services.queue_service import QueueService
+from agentarena.scheduler.services.request_service import RequestService
+from agentarena.scheduler.services.scheduler_service import SchedulerService
+from agentarena.core.services.uuid_service import UUIDService
 
 
 async def get_scheduler(

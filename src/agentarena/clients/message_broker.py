@@ -5,12 +5,11 @@ from fastapi import Depends
 from nats.aio.client import Client as NatsClient
 from pydantic import Field
 
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJobBatchRequest, JobResponse
 from agentarena.models.job import CommandJobRequest
 from agentarena.models.job import JobState
-from agentarena.models.job import UrlJobRequest
-from agentarena.services.uuid_service import UUIDService
+from agentarena.core.services.uuid_service import UUIDService
 
 
 async def get_message_broker_connection(
@@ -39,7 +38,7 @@ class MessageBroker:
 
     async def send_job(self, req: CommandJobRequest):
         """
-        sends a job to the message broker
+        sends a job to the scheduler
         """
         obj_id = self.uuid_service.ensure_id(req)
         obj = req.model_copy()
@@ -56,6 +55,9 @@ class MessageBroker:
         await self.client.publish(obj.channel, json.encode("utf-8"))
 
     async def send_batch(self, req: CommandJobBatchRequest):
+        """
+        Sends a batch to the scheduler
+        """
         batch_id = self.uuid_service.ensure_id(req.batch)
         batch: CommandJobRequest = req.batch.model_copy()
         batch.id = batch_id
@@ -68,6 +70,9 @@ class MessageBroker:
             await self.send_job(job)
 
     async def send_response(self, channel: str, res: JobResponse):
+        """
+        Send a response from the scheduler
+        """
         self.log.debug(f"publishing response: {res.job_id}")
         json = res.model_dump_json()
         dest = channel

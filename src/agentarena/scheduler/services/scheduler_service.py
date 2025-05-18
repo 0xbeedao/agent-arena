@@ -2,8 +2,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from pydantic import Field
 
-from agentarena.factories.logger_factory import LoggingService
-from agentarena.services.request_service import RequestService
+from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.scheduler.services.request_service import RequestService
 
 
 class SchedulerService:

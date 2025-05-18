@@ -11,9 +11,9 @@ from fastapi import Body
 from fastapi import HTTPException
 from pydantic import Field
 
-from agentarena.controllers.model_controller import ModelController
-from agentarena.factories.arena_factory import ArenaFactory
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.controllers.model_controller import ModelController
+from agentarena.arena.factories.arena_factory import ArenaFactory
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaCreateRequest
@@ -21,8 +21,8 @@ from agentarena.models.arena import ArenaDTO
 from agentarena.models.feature import FeatureDTO
 from agentarena.models.feature import FeatureOriginType
 from agentarena.models.participant import ParticipantDTO
-from agentarena.services.model_service import ModelResponse
-from agentarena.services.model_service import ModelService
+from agentarena.core.services.model_service import ModelResponse
+from agentarena.core.services.model_service import ModelService
 
 
 class ArenaController(ModelController[ArenaDTO]):
@@ -33,7 +33,7 @@ class ArenaController(ModelController[ArenaDTO]):
         model_service: ModelService[ArenaDTO] = Field(description="The arena service"),
         agent_service: ModelService[AgentDTO] = Field(description="The agent service"),
         feature_service: ModelService[FeatureDTO] = Field(
-            Description="The feature service"
+            description="The feature service"
         ),
         participant_service: ModelService[ParticipantDTO] = Field(
             description="The participant service"

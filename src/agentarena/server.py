@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from agentarena.core.arena_container import ArenaContainer
+from agentarena.arena.arena_container import ArenaContainer
 from agentarena.core.middleware import add_logging_middleware
 
 better_exceptions.MAX_LENGTH = None
@@ -44,7 +44,7 @@ async def startup_event():
             "agentarena.controllers.arena_controller",
             "agentarena.controllers.contest_controller",
             "agentarena.controllers.debug_controller",
-            "agentarena.controllers.model_controller",
+            "agentarena.core.controllers.model_controller",
             "agentarena.controllers.responder_controller",
         ]
     )

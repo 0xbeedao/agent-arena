@@ -2,10 +2,10 @@ from fastapi import APIRouter
 from fastapi import Body
 from pydantic import Field
 
-from agentarena.controllers.model_controller import ModelController
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.controllers.model_controller import ModelController
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob
-from agentarena.services.model_service import ModelService
+from agentarena.core.services.model_service import ModelService
 
 
 class JobController(ModelController[CommandJob]):

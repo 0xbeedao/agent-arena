@@ -1,18 +1,19 @@
 import time
 from datetime import datetime
+from unittest.mock import AsyncMock
 
 import pytest
 
-from agentarena.factories.db_factory import get_database
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.db_factory import get_database
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob, CommandJobRequest
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
-from agentarena.services.db_service import DbService
-from agentarena.services.model_service import ModelService
-from agentarena.services.queue_service import QueueService
-from agentarena.services.uuid_service import UUIDService
+from agentarena.core.services.db_service import DbService
+from agentarena.core.services.model_service import ModelService
+from agentarena.scheduler.services.queue_service import QueueService
+from agentarena.core.services.uuid_service import UUIDService
 
 
 @pytest.fixture
@@ -54,6 +55,12 @@ def history_service(db_service, logging):
         table_name="jobhistory",
         logging=logging,
     )
+
+
+@pytest.fixture
+def message_broker():
+    service = AsyncMock()
+    return service
 
 
 @pytest.mark.asyncio
@@ -123,10 +130,11 @@ async def test_get_unique(job_service, history_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_update_state(job_service, history_service, logging):
+async def test_update_state(job_service, history_service, message_broker, logging):
     q = QueueService(
         history_service=history_service,
         job_service=job_service,
+        message_broker=message_broker,
         logging=logging,
     )
     job = CommandJobRequest(
@@ -146,6 +154,8 @@ async def test_update_state(job_service, history_service, logging):
 
     success = await q.update_state(job_id, JobState.COMPLETE.value, "test message")
     assert success
+
+    message_broker.send_response.assert_awaited_once()
 
     dead_job, response = await q.job_service.get(job_id)
     assert response.success
@@ -168,10 +178,11 @@ async def test_update_state(job_service, history_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_requeue_job(job_service, history_service, logging):
+async def test_requeue_job(job_service, history_service, message_broker, logging):
     q = QueueService(
         history_service=history_service,
         job_service=job_service,
+        message_broker=message_broker,
         logging=logging,
     )
     job = CommandJobRequest(
@@ -279,10 +290,13 @@ async def test_get_idle_batch(job_service, history_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_batch_state_updates(job_service, history_service, logging):
+async def test_batch_state_updates(
+    job_service, history_service, message_broker, logging
+):
     q = QueueService(
         history_service=history_service,
         job_service=job_service,
+        message_broker=message_broker,
         logging=logging,
     )
     # Create a batch job
@@ -347,10 +361,13 @@ async def test_batch_state_updates(job_service, history_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_batch_with_failed_child(job_service, history_service, logging):
+async def test_batch_with_failed_child(
+    job_service, history_service, message_broker, logging
+):
     q = QueueService(
         history_service=history_service,
         job_service=job_service,
+        message_broker=message_broker,
         logging=logging,
     )
     # Create a batch job
@@ -396,10 +413,11 @@ async def test_batch_with_failed_child(job_service, history_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_batch_send_1(job_service, history_service, logging):
+async def test_batch_send_1(job_service, history_service, message_broker, logging):
     q = QueueService(
         history_service=history_service,
         job_service=job_service,
+        message_broker=message_broker,
         logging=logging,
     )
     batch_req = CommandJobRequest(

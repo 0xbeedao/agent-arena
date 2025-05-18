@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from agentarena.core.scheduler_container import SchedulerContainer
+from agentarena.scheduler.scheduler_container import SchedulerContainer
 
 parentDir = Path(__file__).parent.parent.parent
 yamlFile = os.path.join(parentDir, "agent-arena-config.yaml")

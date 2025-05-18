@@ -3,15 +3,15 @@ import os
 from dependency_injector import containers
 from dependency_injector import providers
 
-from agentarena.controllers.actor_controller import ActorController
-from agentarena.factories.db_factory import get_database
+from agentarena.actors.controllers.actor_controller import ActorController
+from agentarena.core.factories.db_factory import get_database
 from agentarena.factories.environment_factory import get_project_root
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.actor import ActorDTO
 from agentarena.services import uuid_service
-from agentarena.services.db_service import DbService
-from agentarena.services.model_service import ModelService
-from agentarena.services.uuid_service import UUIDService
+from agentarena.core.services.db_service import DbService
+from agentarena.core.services.model_service import ModelService
+from agentarena.core.services.uuid_service import UUIDService
 
 
 def get_wordlist(

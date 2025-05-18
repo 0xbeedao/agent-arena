@@ -5,10 +5,10 @@ from typing import List, Sequence
 from pydantic import Field
 from sqlite_utils.db import Database
 
-from agentarena.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.dbbase import DbBase
 from agentarena.models.validation import ValidationResponse
-from agentarena.services.uuid_service import UUIDService
+from agentarena.core.services.uuid_service import UUIDService
 
 
 class DbService:
