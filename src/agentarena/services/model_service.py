@@ -3,10 +3,12 @@ Generic model service for the Agent Arena application.
 Provides a reusable service for CRUD operations on any model that inherits from DbBase.
 """
 
+from copy import deepcopy
+import json
 import sqlite3
 import uuid  # Added for generating IDs
 from datetime import datetime
-from typing import Any
+from typing import Any, Mapping
 from typing import Dict
 from typing import Generic
 from typing import List
@@ -120,7 +122,7 @@ class ModelService(Generic[T]):
             the response detail
         """
         parsed_obj, problem = self.parse_model(input_data)
-        if problem:
+        if problem or parsed_obj is None:
             return parsed_obj, problem
 
         # Now parsed_obj is a proper instance of self.model_class (e.g., AgentDTO)
@@ -215,12 +217,12 @@ class ModelService(Generic[T]):
         model_name = self.model_name
         boundlog = self.log.bind(obj_id=obj_id)
         boundlog.info("Getting from DB")
-        row = self.table.get(str(obj_id))
         try:
+            row = self.table.get(obj_id)
             boundlog.debug("validating model")
-            obj = self.model_class.model_validate(row) if row is not None else None
+            obj = self.validate(row) if row is not None else None
         except Exception as e:
-            boundlog.error("error when loading", e)
+            boundlog.error("error when loading: {}", e)
             obj = None
         if obj is None:
             boundlog.warn(f"Not found")
@@ -329,9 +331,9 @@ class ModelService(Generic[T]):
                 problems.append(response)
             else:
                 responses.append(obj)
-        return responses, problems
+        return [self.validate(response) for response in responses], problems
 
-    def count_where(self, where: str, params: Dict, **kwargs) -> List[T]:
+    def count_where(self, where: str, params: Dict, **kwargs) -> int:
         """
         Count model instances by a WHERE clause.
 
@@ -356,7 +358,7 @@ class ModelService(Generic[T]):
             A list of model instances
         """
         rows = self.table.rows_where(where, params, **kwargs)
-        return [self.model_class.model_validate(row) for row in rows]
+        return [self.validate(row) for row in rows]
 
     async def list(self) -> List[T]:
         """
@@ -366,7 +368,7 @@ class ModelService(Generic[T]):
             A list of all model instances
         """
         rows = self.table.rows_where("active = ?", [True])
-        return [self.model_class.model_validate(row) for row in rows]
+        return [self.validate(row) for row in rows]
 
     async def list_all(self) -> List[T]:
         """
@@ -375,9 +377,21 @@ class ModelService(Generic[T]):
         Returns:
             A list of all model instances
         """
-        return [self.model_class.model_validate(row) for row in self.table.rows]
+        return [self.validate(row) for row in self.table.rows]
 
-    async def validate_list(self, obj_list: List[T]) -> List[ModelResponse]:
+    def validate(self, obj: Dict[str, Any]) -> T:
+        cleaned = fix_data(obj)
+        return self.model_class.model_validate(cleaned)
+
+    async def validate_list(self, obj_list: List[T]) -> List[ValidationResponse]:
         if not obj_list:
             return []
         return await self.db_service.validate_list(obj_list)
+
+
+def fix_data(obj: Dict[str, Any]):
+    if "data" in obj:
+        cleaned = deepcopy(obj)
+        cleaned["data"] = json.loads(obj["data"])
+        return cleaned
+    return obj

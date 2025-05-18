@@ -3,9 +3,9 @@ import os
 from dependency_injector import containers
 from dependency_injector import providers
 
+from agentarena.arena.controllers.debug_controller import DebugController
 from agentarena.controllers.arena_controller import ArenaController
 from agentarena.controllers.contest_controller import ContestController
-from agentarena.controllers.debug_controller import DebugController
 from agentarena.controllers.model_controller import ModelController
 from agentarena.controllers.responder_controller import ResponderController
 from agentarena.factories.arena_factory import ArenaFactory

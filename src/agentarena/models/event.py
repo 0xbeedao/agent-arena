@@ -30,7 +30,7 @@ class JobEvent(DbBase):
         return JobEvent(
             job_id=job.id,
             data=response.data,
-            command=job.command,
+            command=job.channel,
             message=response.message,
             state=response.state,
         )

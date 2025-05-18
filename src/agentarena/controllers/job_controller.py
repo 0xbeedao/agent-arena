@@ -1,5 +1,5 @@
-from typing import Dict
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter
+from fastapi import Body
 from pydantic import Field
 
 from agentarena.controllers.model_controller import ModelController

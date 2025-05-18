@@ -12,7 +12,7 @@ from agentarena.models.job import CommandJob
 from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
-from agentarena.models.job import JsonRequestSummary
+from agentarena.models.job import UrlJobRequest
 from agentarena.models.participant import ParticipantDTO
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
@@ -151,14 +151,14 @@ class ParticipantController:
         """Creates and dispatches a batch job for readiness checks on valid agents."""
         # valid_agents is guaranteed non-empty by _get_valid_agents raising HTTPException otherwise
         batch = CommandJob(
-            command=JobCommandType.BATCH.value,
+            channel=JobCommandType.BATCH.value,
             data="",
             method="POST",
             url=f"$ARENA${self.base_path}/event",
         )
 
         requests_summaries = [
-            JsonRequestSummary(
+            UrlJobRequest(
                 url=agent.url("health"),
                 method="GET",
                 data="",

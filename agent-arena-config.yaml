@@ -23,6 +23,9 @@ actor:
       controller: DEBUG
   url: http://localhost:8001
 
+messagebroker:
+  url: nats://localhost:4443
+
 scheduler:
   db:
     filename: <projectroot>/arena.db
@@ -45,4 +48,3 @@ prod:
 
 dev:
   better_exceptions: True
-  

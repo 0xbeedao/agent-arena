@@ -5,7 +5,6 @@ import pytest
 
 from agentarena.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob
-from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
@@ -15,9 +14,9 @@ from agentarena.services.request_service import RequestService
 def make_job(name: str):
     return CommandJob(
         id=name,
-        command=JobCommandType.REQUEST.value,
+        channel="test.command",
         method="GET",
-        data="{'test': 1}",
+        data={"test": 1},
         finished_at=0,
         send_at=0,
         state=JobState.IDLE.value,
@@ -37,6 +36,12 @@ def queue_service():
     return service
 
 
+@pytest.fixture
+def message_broker():
+    service = AsyncMock()
+    return service
+
+
 def make_success_response() -> JobResponse:
     return JobResponse(
         job_id="test-response",
@@ -47,9 +52,7 @@ def make_success_response() -> JobResponse:
 
 def make_pending_response() -> JobResponse:
     return JobResponse(
-        job_id="test-response",
-        state=JobResponseState.PENDING.value,
-        eta=int(datetime.now().timestamp() + 100),
+        job_id="test-response", state=JobResponseState.PENDING.value, delay=1
     )
 
 
@@ -109,3 +112,30 @@ async def test_poll_job_pending(queue_service, logging, httpx_mock):
 
     success = await svc.poll_and_process()
     assert success
+
+
+@pytest.mark.asyncio
+async def test_message_job(queue_service, logging, message_broker):
+    svc = RequestService(
+        arena_url="http://localhost:8000",
+        queue_service=queue_service,
+        message_broker=message_broker,
+        logging=logging,
+    )
+    job = CommandJob(
+        id="test-message",
+        channel="test.message.response",
+        method="MESSAGE",
+        data={"test": 1},
+        finished_at=0,
+        send_at=0,
+        state=JobState.IDLE.value,
+        started_at=int(datetime.now().timestamp()),
+        url="",
+    )
+
+    queue_service.get_next.return_value = job
+    success = await svc.poll_and_process()
+    assert success
+
+    message_broker.send_response.assert_awaited_once()

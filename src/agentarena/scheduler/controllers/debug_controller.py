@@ -13,20 +13,19 @@ from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
-from agentarena.models.job import JsonRequestSummary
+from agentarena.models.job import UrlJobRequest
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
 from agentarena.services.model_service import ModelService
-from agentarena.services.queue_service import QueueService
 
 
-class DebugBatchRequest(JsonRequestSummary):
+class DebugBatchRequest(UrlJobRequest):
     urls: List[str]
 
 
 class DebugController:
     """
-    Provides debug/raw endpoints for testing and discovery.
+    Provides debug/raw endpoints for testing and discovery in Scheduler Server
     """
 
     def __init__(
@@ -35,14 +34,12 @@ class DebugController:
         agent_service: ModelService[AgentDTO] = Field(
             description="The Agent DTO Service"
         ),
-        queue_service: QueueService = Field(description="queue service"),
         job_service: ModelService[CommandJob] = Field(description="Job Model service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
         self.base_path = f"{base_path}/debug"
         self.job_service = job_service
-        self.q = queue_service
         self.log = logging.get_logger("controller", path=self.base_path)
 
     async def event(self, job_id: str, event: str) -> JobResponse:
@@ -64,9 +61,9 @@ class DebugController:
             raise HTTPException(status_code="404", detail=job_id)
         return job
 
-    async def send_request_job(self, req: JsonRequestSummary) -> CommandJob:
+    async def send_request_job(self, req: UrlJobRequest) -> CommandJob:
         job = CommandJob(
-            command=JobCommandType.REQUEST.value,
+            channel=JobCommandType.REQUEST.value,
             data=req.data,
             method=req.method,
             priority=5,
@@ -83,7 +80,7 @@ class DebugController:
 
     async def send_batch_job(self, req: DebugBatchRequest) -> CommandJob:
         batch = CommandJob(
-            command=JobCommandType.BATCH.value,
+            channel=JobCommandType.BATCH.value,
             data=req.data or "",
             method="POST",
             priority=5,
@@ -94,7 +91,7 @@ class DebugController:
             url=f"$ARENA${self.base_path}/event/$JOB$",
         )
         requests = [
-            JsonRequestSummary(
+            UrlJobRequest(
                 url=url,
                 method="GET",
                 data="",
@@ -134,7 +131,7 @@ class DebugController:
             return await self.get_job(job_id)
 
         @router.post("/request", response_model=CommandJob)
-        async def send_request(req: JsonRequestSummary = Body(...)):
+        async def send_request(req: UrlJobRequest = Body(...)):
             return await self.send_request_job(req)
 
         @router.get("/health", response_model=HealthResponse)

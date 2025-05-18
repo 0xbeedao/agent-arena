@@ -5,11 +5,10 @@ import pytest
 
 from agentarena.factories.db_factory import get_database
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJob, CommandJobRequest
 from agentarena.models.job import CommandJobHistory
-from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobState
-from agentarena.models.job import JsonRequestSummary
+from agentarena.models.job import UrlJobRequest
 from agentarena.services.db_service import DbService
 from agentarena.services.model_service import ModelService
 from agentarena.services.queue_service import QueueService
@@ -58,9 +57,9 @@ def history_service(db_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_get_when_empty(job_service, logging):
+async def test_get_when_empty(history_service, job_service, logging):
     q = QueueService(
-        history_service=None,
+        history_service=history_service,
         job_service=job_service,
         logging=logging,
     )
@@ -75,18 +74,20 @@ async def test_get(job_service, history_service, logging):
         job_service=job_service,
         logging=logging,
     )
-    job = CommandJob(
-        command=JobCommandType.REQUEST.value,
+    job = CommandJobRequest(
+        id="testget",
+        channel="job.request.url",
         method="GET",
-        data='{"test": "toast"}',
+        data={"test": "toast"},
         url="/test",
     )
-    next = await q.send_job(job)
+    next = await q.add_job(job)
     assert next is not None
     assert next.started_at == 0
     assert next.state == JobState.IDLE.value
 
     retrieved = await q.get_next()
+    assert retrieved is not None
     assert retrieved.id == next.id
     assert retrieved.state == JobState.REQUEST.value
     assert retrieved.started_at > 0
@@ -99,17 +100,20 @@ async def test_get_unique(job_service, history_service, logging):
         job_service=job_service,
         logging=logging,
     )
-    job = CommandJob(
-        command=JobCommandType.REQUEST.value,
+    job = CommandJobRequest(
+        id="test",
+        channel="job.request.url",
         method="GET",
-        data='{"testy": "toast"}',
+        data={"testy": "toast"},
         url="/test",
     )
 
-    next = await q.send_job(job)
+    next = await q.add_job(job)
+    assert next is not None
     assert next.started_at == 0
 
     live_job = await q.get_next()
+    assert live_job is not None
     assert live_job.id == next.id
     assert live_job.started_at > datetime.now().timestamp() - 1000
     assert live_job.state == JobState.REQUEST.value
@@ -125,17 +129,19 @@ async def test_update_state(job_service, history_service, logging):
         job_service=job_service,
         logging=logging,
     )
-    job = CommandJob(
-        command=JobCommandType.REQUEST.value,
+    job = CommandJobRequest(
+        id="test",
+        channel="job.request.url",
         method="GET",
-        data='{"test": "toast"}',
+        data={"test": "toast"},
         url="/test",
     )
-    next = await q.send_job(job)
+    next = await q.add_job(job)
+    assert next is not None
     assert next.started_at == 0
 
     live_job = await q.get_next()
-
+    assert live_job is not None
     job_id = live_job.id
 
     success = await q.update_state(job_id, JobState.COMPLETE.value, "test message")
@@ -143,6 +149,7 @@ async def test_update_state(job_service, history_service, logging):
 
     dead_job, response = await q.job_service.get(job_id)
     assert response.success
+    assert dead_job is not None
     assert dead_job.state == JobState.COMPLETE.value
     assert dead_job.finished_at >= datetime.now().timestamp() - 1000
 
@@ -167,13 +174,14 @@ async def test_requeue_job(job_service, history_service, logging):
         job_service=job_service,
         logging=logging,
     )
-    job = CommandJob(
-        command=JobCommandType.REQUEST.value,
+    job = CommandJobRequest(
+        id="testrequeue",
+        channel="job.request.url",
         method="POST",
-        data='{"foo": "bar"}',
+        data={"foo": "bar"},
         url="/requeue",
     )
-    orig = await q.send_job(job)
+    orig = await q.add_job(job)
     assert orig is not None
     orig_id = orig.id
 
@@ -196,51 +204,52 @@ async def test_requeue_job(job_service, history_service, logging):
     assert picked.id == requeued.id
 
 
-@pytest.mark.asyncio
-async def test_send_batch(job_service, history_service, logging):
-    q = QueueService(
-        history_service=history_service,
-        job_service=job_service,
-        logging=logging,
-    )
-    # Create a batch job
-    batch_job = CommandJob(
-        command=JobCommandType.BATCH.value,
-        method="POST",
-        data='{"batch": "data"}',
-        url="/batch",
-    )
+# Note: Moved this responsibility to message_broker
+# @pytest.mark.asyncio
+# async def test_send_batch(job_service, history_service, logging):
+#     q = QueueService(
+#         history_service=history_service,
+#         job_service=job_service,
+#         logging=logging,
+#     )
+#     # Create a batch job
+#     batch_job = CommandJob(
+#         command="job.batch.callback",
+#         method="POST",
+#         data={"batch": "data"},
+#         url="/batch",
+#     )
 
-    # Create request summaries for child jobs
-    requests = [
-        JsonRequestSummary(
-            method="GET",
-            url="/request1",
-            data='{"req": "1"}',
-        ),
-        JsonRequestSummary(
-            method="GET",
-            url="/request2",
-            data='{"req": "2"}',
-        ),
-    ]
+#     # Create request summaries for child jobs
+#     requests = [
+#         UrlJobRequest(
+#             method="GET",
+#             url="/request1",
+#             data={"req": "1"},
+#         ),
+#         UrlJobRequest(
+#             method="GET",
+#             url="/request2",
+#             data={"req": "2"},
+#         ),
+#     ]
 
-    # Send the batch with child requests
-    result = await q.send_batch(batch_job, requests)
-    assert result is not None
-    assert result.command == JobCommandType.BATCH.value
-    assert result.state == JobState.REQUEST.value
+#     # Send the batch with child requests
+#     result = await q.send_batch(batch_job, requests)
+#     assert result is not None
+#     assert result.command == JobCommandType.BATCH.value
+#     assert result.state == JobState.REQUEST.value
 
-    # Get the child jobs
-    batch_id = result.id
-    children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
-    assert len(children) == 2
+#     # Get the child jobs
+#     batch_id = result.id
+#     children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
+#     assert len(children) == 2
 
-    # Verify child jobs are correctly created
-    for child in children:
-        assert child.parent_id == batch_id
-        assert child.command == JobCommandType.REQUEST.value
-        assert child.state == JobState.IDLE.value
+#     # Verify child jobs are correctly created
+#     for child in children:
+#         assert child.parent_id == batch_id
+#         assert child.command == "job.request.url"
+#         assert child.state == JobState.IDLE.value
 
 
 @pytest.mark.asyncio
@@ -250,18 +259,20 @@ async def test_get_idle_batch(job_service, history_service, logging):
         job_service=job_service,
         logging=logging,
     )
-    job = CommandJob(
-        command=JobCommandType.BATCH.value,
-        method="GET",
-        data='{"test": "toast"}',
+    job = CommandJobRequest(
+        id="idlebatch",
+        channel="test.request.batch",
+        method="MESSAGE",
+        data={"test": "toast"},
         url="/test",
     )
-    next = await q.send_job(job)
+    next = await q.add_job(job)
     assert next is not None
     assert next.started_at == 0
     assert next.state == JobState.IDLE.value
 
     retrieved = await q.get_next()
+    assert retrieved is not None
     assert retrieved.id == next.id
     assert retrieved.state == JobState.REQUEST.value
     assert retrieved.started_at > 0
@@ -275,30 +286,36 @@ async def test_batch_state_updates(job_service, history_service, logging):
         logging=logging,
     )
     # Create a batch job
-    batch_job = CommandJob(
-        command=JobCommandType.BATCH.value,
-        event="TEST",
-        method="POST",
-        data='{"batch": "data"}',
+    batch_req = CommandJobRequest(
+        id="testbatch",
+        channel="test.batch.request",
+        method="MESSAGE",
+        data={"batch": "data"},
+        state=JobState.REQUEST.value,
         url="/batch",
     )
 
     # Create request summaries for child jobs
     requests = [
-        JsonRequestSummary(
+        UrlJobRequest(
             method="GET",
             url="/request1",
-            data='{"req": "1"}',
+            data={"req": "1"},
         ),
-        JsonRequestSummary(
+        UrlJobRequest(
             method="GET",
             url="/request2",
-            data='{"req": "2"}',
+            data={"req": "2"},
         ),
     ]
 
-    # Send the batch with child requests
-    batch = await q.send_batch(batch_job, requests)
+    child_reqs = [batch_req.make_child(r) for r in requests]
+
+    batch = await q.add_job(batch_req)
+    assert batch is not None
+    children = [await q.add_job(child) for child in child_reqs]
+    for c in children:
+        assert c is not None
     batch_id = batch.id
 
     # Get the child jobs
@@ -323,6 +340,7 @@ async def test_batch_state_updates(job_service, history_service, logging):
 
     # check that we get the batch to process now
     batch_check = await q.get_next()
+    assert batch_check is not None
     assert batch_check.id == batch.id
     assert batch_check.url == batch.url
     assert batch_check.state == JobState.REQUEST.value
@@ -336,18 +354,29 @@ async def test_batch_with_failed_child(job_service, history_service, logging):
         logging=logging,
     )
     # Create a batch job
-    batch_job = CommandJob(
-        command=JobCommandType.BATCH.value, method="POST", url="/batch", data=""
+    batch_req = CommandJobRequest(
+        id="testbatch",
+        channel="test.batch.fail",
+        method="POST",
+        url="/batch",
+        data={},
+        state=JobState.REQUEST.value,
     )
 
     # Create request summaries for child jobs
     requests = [
-        JsonRequestSummary(method="GET", url="/request1", data=""),
-        JsonRequestSummary(method="GET", url="/request2", data=""),
+        UrlJobRequest(method="GET", url="/request1", data={}),
+        UrlJobRequest(method="GET", url="/request2", data={}),
     ]
 
     # Send the batch with child requests
-    batch = await q.send_batch(batch_job, requests)
+    child_reqs = [batch_req.make_child(r) for r in requests]
+
+    batch = await q.add_job(batch_req)
+    assert batch is not None
+    children = [await q.add_job(child) for child in child_reqs]
+    for c in children:
+        assert c is not None
     batch_id = batch.id
 
     # Get the child jobs
@@ -373,21 +402,30 @@ async def test_batch_send_1(job_service, history_service, logging):
         job_service=job_service,
         logging=logging,
     )
-    job = CommandJob(
-        command=JobCommandType.BATCH.value,
-        event="CALLBACK_TEST",
+    batch_req = CommandJobRequest(
+        id="batchreq",
+        channel="test.batch",
         method="GET",
-        data='{"test": "toast"}',
+        data={"test": "toast"},
         url="/test",
+        state=JobState.REQUEST.value,
     )
-    reqs = [JsonRequestSummary(url="/test/1", event="", method="GET", data="", delay=0)]
-    batch = await q.send_batch(job, reqs)
+    requests = [UrlJobRequest(url="/test/1", method="GET", data={}, delay=0)]
+
+    child_reqs = [batch_req.make_child(r) for r in requests]
+
+    batch = await q.add_job(batch_req)
     assert batch is not None
+    children = [await q.add_job(child) for child in child_reqs]
+    for c in children:
+        assert c is not None
     assert batch.started_at == 0
     assert batch.state == JobState.REQUEST.value
 
     child = await q.get_next()
+    assert child is not None
     assert child.id != batch.id
+    assert child.parent_id == batch.id
     assert child.url == "/test/1"
     assert child.state == JobState.REQUEST.value
     assert child.started_at > 0

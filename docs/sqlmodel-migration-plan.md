@@ -26,7 +26,7 @@ flowchart TD
 
 ### 1. Model Updates
 
-- [ ] [ ] Replace `DbBase` inheritance with `SQLModel`
+- [ ] Replace `DbBase` inheritance with `SQLModel`
 - [ ] Convert all model fields to SQLModel Columns
 - [ ] Define proper table names with `__tablename__`
 - [ ] Set up relationships between models
@@ -79,7 +79,7 @@ flowchart TD
 
 | Risk | Mitigation |
 |------|------------|
-| Data loss during migration | Thorough backup strategy |
+| Data loss during migration | Irrelevant - no data need be kept |
 | Performance regression | Benchmark critical paths |
 | Validation behavior changes | Comprehensive test suite |
 | Complex relationship handling | Incremental implementation |

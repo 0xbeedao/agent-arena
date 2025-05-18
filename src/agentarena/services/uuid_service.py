@@ -3,8 +3,6 @@ from typing import List
 from pydantic import Field
 from ulid import ULID
 
-from agentarena.models.dbbase import DbBase
-
 
 class UUIDService:
     """
@@ -27,11 +25,11 @@ class UUIDService:
         val = int.from_bytes(base.bytes[-8:])
         return encode_arbitrary_base(val, self.word_list)
 
-    def ensure_id(self, obj: DbBase):
+    def ensure_id(self, obj):
         id = getattr(obj, "id", "")
         if id is None or id == 0 or id == "":
-            obj.id = self.make_id()
-        return obj
+            return self.make_id()
+        return id
 
 
 def get_wordlist(

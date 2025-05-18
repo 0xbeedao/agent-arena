@@ -1,6 +1,5 @@
-import orjson
 from enum import Enum
-
+import json
 import httpx
 from pydantic import Field
 from statemachine import State
@@ -37,9 +36,9 @@ class RequestMachine(StateMachine):
     idle = State(RequestState.IDLE.value, initial=True)
     request = State(RequestState.REQUEST.value)
     response = State(RequestState.RESPONSE.value)
-    waiting = State(RequestState.WAITING, final=True)
-    fail = State(RequestState.FAIL, final=True)
-    complete = State(RequestState.COMPLETE, final=True)
+    waiting = State(RequestState.WAITING.value, final=True)
+    fail = State(RequestState.FAIL.value, final=True)
+    complete = State(RequestState.COMPLETE.value, final=True)
 
     # Transitions
     start_request = idle.to(request)
@@ -66,7 +65,7 @@ class RequestMachine(StateMachine):
         """
         self.arena_url = arena_url
         self.job = job
-        self.response_object: JobResponse = None
+        self.response_object: JobResponse | None = None
         self.log = logging.get_logger("machine", job=job.id)
         super().__init__()
 
@@ -75,7 +74,7 @@ class RequestMachine(StateMachine):
         method = self.job.method.lower()
         try:
             url = self._resolve_url()
-            data = self.clean_data(self.job.data)
+            data = self.job.data
             self.log.info("requesting", url=url, data=data)
             response = httpx.Client().request(method, url, data=data)
             await self.receive_response(response)
@@ -85,13 +84,13 @@ class RequestMachine(StateMachine):
                 url=self.job.url,
                 error=e,
             )
-            await self.http_error()  # FAIL
+            await self.http_error(e)  # FAIL
 
     def is_valid_response(self, response):
         if response.status_code >= 400:
             return False
+        json = response.json()
         try:
-            json = response.json()
             obj = JobResponse.model_validate(json)
             self.log.info(f"parsed correctly? {obj is not None}")
             return True
@@ -106,14 +105,14 @@ class RequestMachine(StateMachine):
         state = self.response_object.state
         self.log.info("responder state is", responder=state)
         if state == JobResponseState.FAIL.value:
-            await self.state_failure()
+            await self.state_failure("")
         elif state == JobResponseState.PENDING.value:
-            await self.state_pending()
+            await self.state_pending("")
         elif state == JobResponseState.COMPLETED.value:
-            await self.state_complete()
+            await self.state_complete("")
         else:
             self.log.warn(f"invalid state: {state}")
-            await self.malformed_response()
+            await self.malformed_response("")
 
     def on_enter_state(self, target, event):
         self.log = self.log.bind(state=target.id)
@@ -122,31 +121,31 @@ class RequestMachine(StateMachine):
         # else:
         #     self.log.debug(f"{self.name} enter: {target.id} from {event}")
 
-    def clean_data(self, data: str) -> str:
+    def clean_data(self, data: str | None) -> object | None:
         if not data:
             return None
         data = data.strip()
         if not data:
             return None
         try:
-            obj = orjson.loads(data)
-        except orjson.JSONDecodeError as e:
+            obj = json.loads(data)
+        except json.JSONDecodeError as e:
             # try again, with quotes
             orig = data
             data = f'"{data}"'
             try:
-                obj = orjson.loads(data)
-            except orjson.JSONDecodeError as e:
+                obj = json.loads(data)
+            except json.JSONDecodeError as e:
                 self.log.warn(f"Could not parse data {orig}", error=e)
                 obj = None
 
         if obj:
-            return data
+            return obj
         return None
 
     def _resolve_url(self) -> str:
         """Expand url, if needed"""
-        url = self.job.url
+        url = self.job.url or ""
         url = url.replace("$JOB$", self.job.id)
         url = url.replace("$ARENA$", self.arena_url)
         self.log.info(f"resolved url is {url} from {self.job.url}")

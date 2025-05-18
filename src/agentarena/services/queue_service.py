@@ -1,14 +1,13 @@
 from datetime import datetime
-from typing import List
+from typing import Any, List, Mapping, Optional
 
 from pydantic import Field
 
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJob, CommandJobRequest
 from agentarena.models.job import CommandJobHistory
-from agentarena.models.job import JobCommandType
 from agentarena.models.job import JobState
-from agentarena.models.job import JsonRequestSummary
+from agentarena.models.job import UrlJobRequest
 from agentarena.services.model_service import ModelService
 
 FINAL_STATES = [JobState.FAIL.value, JobState.COMPLETE.value]
@@ -37,24 +36,15 @@ class QueueService:
         log.info("Draining queue")
         job = await self.get_next()
         while job is not None:
-            self.update_state(job.id, "fail", message=message)
+            await self.update_state(job.id, "fail", message=message)
         log.info("drain complete")
 
-    async def send_batch(
-        self, job: CommandJob, requests: List[JsonRequestSummary]
-    ) -> CommandJob:
-        # ensure this doesn't get picked up - set to REQUESTING
-        # later, when we revalidate, if all children are done,
-        # we go to back to IDLE to execute the final call
-        job.state = JobState.REQUEST.value
-        batch_job = await self.send_job(job)
-        jobs = batch_job.make_batch_requests(requests)
-        for job in jobs:
-            await self.send_job(job)
-        return batch_job
-
-    async def send_job(self, job: CommandJob):
-        if job.id is None:
+    async def add_job(self, req: CommandJobRequest):
+        """
+        NATS refactor notes - this needs to be executed on the consuming side.
+        """
+        job = req.to_job()
+        if not job.id:
             job.started_at = 0
             job.finished_at = 0
         created, response = await self.job_service.create(job)
@@ -62,7 +52,7 @@ class QueueService:
             return created
         return None
 
-    async def get_next(self) -> CommandJob:
+    async def get_next(self) -> CommandJob | None:
         next = await self.job_service.get_where(
             "state = :idle and send_at <= :now",
             {
@@ -78,20 +68,23 @@ class QueueService:
         updated_job = await self.update_state(
             job.id, JobState.REQUEST.value, "picked up from queue"
         )
-        self.log.info("returning next job", job=updated_job.id)
+        self.log.info(
+            "returning next job", job=updated_job.id if updated_job else "none"
+        )
         return updated_job
 
     async def requeue_job(
-        self, job_id, message="requeue", data="", delay: int = 0
-    ) -> CommandJob:
+        self,
+        job_id,
+        message="requeue",
+        data: Optional[Mapping[str, Any]] = {},
+        delay: int = 0,
+    ) -> CommandJob | None:
         return await self.update_state(
             job_id, JobState.IDLE.value, message=message, data=data, delay=delay
         )
 
     async def revalidate_batch(self, batch: CommandJob):
-        if batch.command != JobCommandType.BATCH.value:
-            self.log.warn("Not a batch", batch=batch.id, command=batch.command)
-            return False
         current_state = batch.state
         if current_state == JobState.IDLE.value:
             # this batch is waiting to be picked up for final run
@@ -127,7 +120,7 @@ class QueueService:
                 state = JobState.IDLE.value
 
         log.debug("info from validation", info=info, state=state)
-        if state != batch.state:
+        if state and state != batch.state:
             # this will kick off revalidation of parents as well, if needed
             await self.update_state(batch.id, state, ",".join(info))
             return True
@@ -142,21 +135,24 @@ class QueueService:
         pid = job.parent_id
         log = log.bind(parent=pid)
         parent, response = await self.job_service.get(pid)
-        if not response.success:
+        if parent is None or not response.success:
             log.warn("Couldn't get parent, aborting")
             return False
-        if parent.command == JobCommandType.BATCH.value:
-            log.info("Parent is a batch, sending for revalidation")
-            return await self.revalidate_batch(parent)
-        return True
+        log.info("Parent is a batch, sending for revalidation")
+        return await self.revalidate_batch(parent)
 
     async def update_state(
-        self, job_id: str, state: str, message: str = "", data="", delay=0
-    ) -> CommandJob:
+        self,
+        job_id: str,
+        state: str,
+        message: str = "",
+        data: Optional[Mapping[str, Any]] = {},
+        delay=0,
+    ) -> CommandJob | None:
 
         if not state in ALL_STATES:
-            log.warn(f"Invalid state: {state}")
-            return False
+            self.log.warn(f"Invalid state: {state}")
+            return None
 
         log = self.log.bind(method="update_state", state=state, job_id=job_id)
 
@@ -166,7 +162,7 @@ class QueueService:
             log.warn("No such job")
             return None
 
-        old_state = job.state
+        old_state = job.state or JobState.IDLE.value
         job.state = state
         log = log.bind(state=state)
         sent = None
@@ -196,7 +192,7 @@ class QueueService:
         if not response.success:
             sent = None
 
-        if sent.parent_id:
+        if sent and sent.parent_id:
             log.info("Starting update_parent_states for child request")
             await self.update_parent_states(sent)
 

@@ -1,6 +1,6 @@
 import os.path
 from datetime import datetime
-from typing import List
+from typing import List, Sequence
 
 from pydantic import Field
 from sqlite_utils.db import Database
@@ -54,7 +54,8 @@ class DbService:
         )
 
     def fill_defaults(self, obj: DbBase):
-        obj = self.uuid_service.ensure_id(obj)
+        obj_id = self.uuid_service.ensure_id(obj)
+        obj.id = obj_id
         c = getattr(obj, "created_at", None)
         if c is None or c == 0 or c == "":
             obj.created_at = int(datetime.now().timestamp())
@@ -70,7 +71,9 @@ class DbService:
         self.fill_defaults(obj)
         return obj.validateDTO()
 
-    async def validate_list(self, obj_list: List[DbBase]) -> List[ValidationResponse]:
+    async def validate_list(
+        self, obj_list: Sequence[DbBase]
+    ) -> List[ValidationResponse]:
         """
         Validate a list of models.
 

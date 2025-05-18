@@ -217,3 +217,13 @@ I'll end up with fully-instantiated objects that won't need "factory" methods to
 ---
 
 Also, based on [this Roocode setup doc](https://docs.google.com/document/d/1Ugiyqqa7PXqHTBwgtyhp55Hd-U0GQUuygOGdGbhP8q4/edit?tab=t.u8k2fvg0xbdu) I went ahead and added a new config `core-code` to Roocode, to try as my main coding driver.
+
+I made a doc with Deepseek's help - [[sqlmodel-migration-plan]], which I'll execute after doing the DB separation I mention above, as it is a safer path.
+
+## 2025-05-16 06:03:53 Fri
+
+Had a bunch of ideas while travelling.
+
+- Use `textual` to make a TUI for development
+- Use `NATS` as my message broker
+  

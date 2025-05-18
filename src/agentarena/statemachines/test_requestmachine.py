@@ -2,19 +2,10 @@ import pytest
 from pydantic import BaseModel
 
 from agentarena.factories.logger_factory import LoggingService
-from agentarena.models.job import JobCommandType
-from agentarena.models.job import JobResponse
+from agentarena.models.job import CommandJob, JobResponse, JobState
 from agentarena.models.job import JobResponseState
 from agentarena.statemachines.request_machine import RequestMachine
 from agentarena.statemachines.request_machine import RequestState
-
-
-class MockJob(BaseModel):
-    id: str
-    command: str
-    url: str
-    method: str
-    data: str
 
 
 @pytest.fixture
@@ -23,12 +14,13 @@ def logging():
 
 
 def make_job():
-    return MockJob(
+    return CommandJob(
         id="testjob",
-        command=JobCommandType.REQUEST.value,
+        channel="test.arena.job",
         url="http://localhost:8000/test",
         method="GET",
-        data='{"test": "toast"}',
+        state=JobState.IDLE.value,
+        data={"test": "toast"},
     )
 
 
@@ -65,7 +57,7 @@ async def test_success_call(logging, httpx_mock):
     machine = RequestMachine(job, logging=logging, arena_url="http://localhost:8000")
 
     await machine.activate_initial_state()
-    await machine.start_request()
+    await machine.start_request("start")
     assert machine.current_state.id == RequestState.COMPLETE.value
 
 
@@ -81,7 +73,7 @@ async def test_fail_call(logging, httpx_mock):
     machine = RequestMachine(job, logging=logging, arena_url="http://localhost:8000")
 
     await machine.activate_initial_state()
-    await machine.start_request()
+    await machine.start_request("test")
     assert machine.current_state.id == RequestState.FAIL.value
 
 
@@ -98,5 +90,5 @@ async def test_pending_call(logging, httpx_mock):
     machine = RequestMachine(job, logging=logging, arena_url="http://localhost:8000")
 
     await machine.activate_initial_state()
-    await machine.start_request()
+    await machine.start_request("test")
     assert machine.current_state.id == RequestState.WAITING.value

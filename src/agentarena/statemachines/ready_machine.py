@@ -94,7 +94,8 @@ class ReadyMachine(StateMachine):
         self.log.info("Starting polling")
         for p in self.participants:
             job: CommandJob = self.make_health_request_job(p)
-            await self.q.send_job(job)
+            # TODO: needs to use NATS
+            # await self.q.send_job(job)
             self._jobs[job.id] = p
         self.log.info("Requests sent to queue")
         self._timeout_task = asyncio.create_task(self._timeout_coroutine())
