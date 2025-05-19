@@ -37,7 +37,6 @@ class DebugController:
         ),
         job_service: ModelService[CommandJob] = Field(description="Job Model service"),
         message_broker: MessageBroker = Field(),
-        scheduler_service: SchedulerService = Field(),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
@@ -46,8 +45,6 @@ class DebugController:
         self.log = logging.get_logger("controller", path=self.base_path)
         self._subscribed = []
         self.message_broker = message_broker
-        self.scheduler_service = scheduler_service
-        scheduler_service.do_on_next_poll(self.subscribe_yourself)
 
     async def get_job(self, job_id: str = Field(description="job ID to fetch")):
         job, response = await self.job_service.get(job_id)
@@ -148,11 +145,12 @@ class DebugController:
 
         return router
 
-    async def subscribe_yourself(self):
+    async def subscribe_yourself(self, message_broker: MessageBroker):
         if not self._subscribed:
             self.log.info("Subscribing to scheduler.debug.>")
-            client = self.message_broker.client
-            sub = await client.subscribe("scheduler.debug.>", cb=self.log_message)
+            sub = await message_broker.client.subscribe(
+                "scheduler.debug.>", cb=self.log_message
+            )
             self._subscribed.append(sub)
 
     async def unsubscribe_yourself(self):

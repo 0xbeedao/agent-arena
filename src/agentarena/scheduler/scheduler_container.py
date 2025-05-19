@@ -142,6 +142,5 @@ class SchedulerContainer(containers.DeclarativeContainer):
     debug_controller = providers.Singleton(
         DebugController,
         job_service=commandjob_service,
-        scheduler_service=scheduler_service,
         logging=logging,
     )

@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.middleware import add_logging_middleware
 from agentarena.scheduler.scheduler_container import SchedulerContainer
 from agentarena.util.files import find_directory_of_file
@@ -45,14 +46,17 @@ async def startup_event():
 
     logger = container.logging()
     log = logger.get_logger("scheduler")
+    broker = await container.message_broker()  # type: ignore
+    controller = container.debug_controller()
+    await controller.subscribe_yourself(broker)
     log.info("Application startup complete, resources initialized and container wired.")
 
 
 async def shutdown_event():
     """Shutdown resources on application stop."""
-    queue = container.queue_service()
-    await queue.unsubscribe_yourself()
-    container.shutdown_resources()
+    controller = container.debug_controller()
+    await controller.unsubscribe_yourself()
+    await container.shutdown_resources()  # type: ignore
 
 
 app.add_event_handler("startup", startup_event)
