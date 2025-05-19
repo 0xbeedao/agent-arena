@@ -4,7 +4,6 @@ FastAPI server for the Agent Arena application.
 
 import os
 import sys
-from pathlib import Path
 
 import better_exceptions
 import uvicorn

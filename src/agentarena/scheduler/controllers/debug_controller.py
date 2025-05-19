@@ -17,7 +17,6 @@ from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
-from agentarena.scheduler.services.scheduler_service import SchedulerService
 
 
 class DebugBatchRequest(UrlJobRequest):

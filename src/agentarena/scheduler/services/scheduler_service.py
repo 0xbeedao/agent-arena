@@ -1,6 +1,3 @@
-from typing import Callable
-from typing import List
-
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from fastapi import Depends
@@ -30,7 +27,6 @@ class SchedulerService:
         self.request_service = request_service
         self.logging = logging
         self.scheduler: AsyncIOScheduler = Depends()
-        self.on_next_poll: List[Callable] = []
         self.log = logging.get_logger("service")
 
     async def start(
@@ -75,14 +71,5 @@ class SchedulerService:
                 "Scheduler was not running or not provided/initialized correctly."
             )
 
-    def do_on_next_poll(self, todo: Callable):
-        self.log.info("Adding a do_on_next_poll")
-        self.on_next_poll.append(todo)
-
     async def poll(self):
-        if self.on_next_poll:
-            while self.on_next_poll:
-                self.log.info(f"executing on_next_poll items {len(self.on_next_poll)}")
-                toexec = self.on_next_poll.pop()
-                await toexec()
         await self.request_service.poll_and_process()

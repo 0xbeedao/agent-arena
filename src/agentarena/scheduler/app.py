@@ -3,7 +3,6 @@ FastAPI server for the Agent Arena application.
 """
 
 import os
-import sys
 
 import better_exceptions
 from fastapi import FastAPI
@@ -11,7 +10,6 @@ from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.middleware import add_logging_middleware
 from agentarena.scheduler.scheduler_container import SchedulerContainer
 from agentarena.util.files import find_directory_of_file
