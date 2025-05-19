@@ -1,10 +1,10 @@
 from typing import Optional
+
 from pydantic import Field
 from statemachine import State
 
-from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJob, JobResponseState
+from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
 from agentarena.scheduler.services.queue_service import QueueService
@@ -60,7 +60,7 @@ class RequestService:
             # Not a request for the request machine - just move to complete - this will cause a publish
             return await self.handle_complete(job, None)
         machine = RequestMachine(job, logging=self.logging, arena_url=self.arena_url)
-        await machine.activate_initial_state()
+        await machine.activate_initial_state()  # type: ignore
         await machine.start_request("request")
 
         # machine will now be in a final state
@@ -94,7 +94,7 @@ class RequestService:
             job.id,
             JobState.COMPLETE.value,
             message=message,
-            data=data,
+            data=data,  # type: ignore
         )
         return result is not None
 

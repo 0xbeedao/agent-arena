@@ -1,20 +1,18 @@
-from datetime import datetime
-
 import nats
-from fastapi import Depends
 from nats.aio.client import Client as NatsClient
 from pydantic import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJobBatchRequest, JobResponse
-from agentarena.models.job import CommandJobRequest
-from agentarena.models.job import JobState
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.job import CommandJobBatchRequest
+from agentarena.models.job import CommandJobRequest
+from agentarena.models.job import JobResponse
+from agentarena.models.job import JobState
 
 
 async def get_message_broker_connection(
     nats_url: str,
-    logging: LoggingService = Depends(),
+    logging: LoggingService,
 ):
     """DI method to instantiate a NATS connection"""
     assert nats_url

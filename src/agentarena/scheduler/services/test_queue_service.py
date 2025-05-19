@@ -6,14 +6,15 @@ import pytest
 
 from agentarena.core.factories.db_factory import get_database
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJob, CommandJobRequest
-from agentarena.models.job import CommandJobHistory
-from agentarena.models.job import JobState
-from agentarena.models.job import UrlJobRequest
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
-from agentarena.scheduler.services.queue_service import QueueService
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobHistory
+from agentarena.models.job import CommandJobRequest
+from agentarena.models.job import JobState
+from agentarena.models.job import UrlJobRequest
+from agentarena.scheduler.services.queue_service import QueueService
 
 
 @pytest.fixture

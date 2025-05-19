@@ -5,13 +5,13 @@ from dependency_injector import providers
 
 from agentarena.actors.controllers.actor_controller import ActorController
 from agentarena.core.factories.db_factory import get_database
-from agentarena.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.actor import ActorDTO
-from agentarena.services import uuid_service
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.factories.environment_factory import get_project_root
+from agentarena.models.actor import ActorDTO
+from agentarena.services import uuid_service
 
 
 def get_wordlist(

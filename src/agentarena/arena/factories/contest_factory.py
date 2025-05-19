@@ -5,6 +5,7 @@ from typing import List
 from pydantic import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.model_service import ModelService
 from agentarena.models.arena import Arena
 from agentarena.models.arena import ArenaDTO
 from agentarena.models.contest import Contest
@@ -12,7 +13,6 @@ from agentarena.models.contest import ContestDTO
 from agentarena.models.contest import ContestState
 from agentarena.models.participant import Participant
 from agentarena.models.participant import ParticipantDTO
-from agentarena.core.services.model_service import ModelService
 
 
 class ContestFactory:

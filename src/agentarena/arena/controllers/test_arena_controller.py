@@ -5,8 +5,8 @@ from pydantic import BaseModel
 
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.arena import ArenaCreateRequest
 from agentarena.core.services.model_service import ModelResponse
+from agentarena.models.arena import ArenaCreateRequest
 
 
 @pytest.fixture

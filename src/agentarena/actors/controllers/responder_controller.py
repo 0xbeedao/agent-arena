@@ -5,13 +5,13 @@ Responder controller for Agent Response endpoints
 from fastapi import APIRouter
 from pydantic import Field
 
-from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.arena.factories.participant_factory import ParticipantFactory
+from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.model_service import ModelService
 from agentarena.models.participant import Participant
 from agentarena.models.participant import ParticipantDTO
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
-from agentarena.core.services.model_service import ModelService
 
 
 class ResponderController:

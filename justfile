@@ -16,15 +16,15 @@ roll-log FILE ARCHIVE_DIR:
 
 roll-logs:
     just roll-log agentarena-core.log logs
-    just roll-log agentarena-poller.log logs
+    just roll-log agentarena-scheduler.log logs
 
 [working-directory: "src"]
 server: checkvenv
     python scripts/agentarena.server | tee agentarena-core.log
 
 [working-directory: "src"]
-poller: checkvenv
-    python scripts/agentarena.poller | tee agentarena-poller.log
+scheduler: checkvenv
+    python scripts/agentarena.scheduler | tee agentarena-scheduler.log
 
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"

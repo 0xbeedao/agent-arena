@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from pydantic import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.model_service import ModelService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
@@ -13,7 +14,6 @@ from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import UrlJobRequest
 from agentarena.models.participant import ParticipantDTO
-from agentarena.core.services.model_service import ModelService
 from agentarena.scheduler.services.queue_service import QueueService
 
 

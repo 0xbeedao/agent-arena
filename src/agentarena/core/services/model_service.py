@@ -3,12 +3,12 @@ Generic model service for the Agent Arena application.
 Provides a reusable service for CRUD operations on any model that inherits from DbBase.
 """
 
-from copy import deepcopy
 import json
 import sqlite3
 import uuid  # Added for generating IDs
+from copy import deepcopy
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
 from typing import Dict
 from typing import Generic
 from typing import List

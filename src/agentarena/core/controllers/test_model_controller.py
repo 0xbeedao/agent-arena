@@ -6,12 +6,12 @@ import ulid
 
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.model_service import ModelResponse
 from agentarena.models.agent import AgentDTO
 from agentarena.models.dbbase import DbBase
 from agentarena.models.feature import FeatureDTO
 from agentarena.models.strategy import StrategyDTO
 from agentarena.models.strategy import StrategyType
-from agentarena.core.services.model_service import ModelResponse
 
 
 @pytest.fixture

@@ -24,7 +24,7 @@ actor:
   url: http://localhost:8001
 
 messagebroker:
-  url: nats://localhost:4443
+  url: nats://localhost:4222
 
 scheduler:
   db:

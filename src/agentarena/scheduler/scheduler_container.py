@@ -2,27 +2,31 @@ import os
 
 from dependency_injector import containers
 from dependency_injector import providers
+from fastapi import Depends
 
-from agentarena.scheduler.controllers.job_controller import JobController
+from agentarena.clients.message_broker import MessageBroker
+from agentarena.clients.message_broker import get_message_broker_connection
 from agentarena.core.factories.db_factory import get_database
-from agentarena.factories.environment_factory import get_project_root
+from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJob
-from agentarena.models.job import CommandJobHistory
-from agentarena.services import uuid_service
+from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
+from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobHistory
+from agentarena.scheduler.controllers.debug_controller import DebugController
+from agentarena.scheduler.controllers.job_controller import JobController
 from agentarena.scheduler.services.queue_service import QueueService
 from agentarena.scheduler.services.request_service import RequestService
 from agentarena.scheduler.services.scheduler_service import SchedulerService
-from agentarena.core.services.uuid_service import UUIDService
 
 
 async def get_scheduler(
     delay: int = 1,
     max_concurrent: int = 5,
-    request_service: RequestService = None,
-    logging: LoggingService = None,
+    request_service: RequestService = Depends(),
+    logging: LoggingService = Depends(),
 ):
     scheduler = SchedulerService(
         delay=delay,
@@ -32,7 +36,7 @@ async def get_scheduler(
     )
     await scheduler.start()
     yield scheduler
-    scheduler.shutdown()
+    await scheduler.shutdown()
 
 
 def get_wordlist(
@@ -58,10 +62,21 @@ class SchedulerContainer(containers.DeclarativeContainer):
         logger_levels=config.scheduler.logging.loggers,
     )
 
+    message_broker_connection = providers.Resource(
+        get_message_broker_connection, config.messagebroker.url, logging
+    )
+
     uuid_service = providers.Singleton(
         UUIDService,
         word_list=wordlist,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
+    )
+
+    message_broker = providers.Singleton(
+        MessageBroker,
+        client=message_broker_connection,
+        uuid_service=uuid_service,
+        logging=logging,
     )
 
     db_service = providers.Singleton(
@@ -96,6 +111,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         QueueService,
         history_service=jobhistory_service,
         job_service=commandjob_service,
+        message_broker=message_broker,
         logging=logging,
     )
 
@@ -120,5 +136,12 @@ class SchedulerContainer(containers.DeclarativeContainer):
         JobController,
         base_path="/api",
         model_service=commandjob_service,
+        logging=logging,
+    )
+
+    debug_controller = providers.Singleton(
+        DebugController,
+        job_service=commandjob_service,
+        scheduler_service=scheduler_service,
         logging=logging,
     )

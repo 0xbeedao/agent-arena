@@ -1,15 +1,18 @@
 from datetime import datetime
-from typing import Any, List, Mapping, Optional
+from typing import Any
+from typing import Mapping
+from typing import Optional
 
 from pydantic import Field
 
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.job import CommandJob, CommandJobRequest, JobResponse
-from agentarena.models.job import CommandJobHistory
-from agentarena.models.job import JobState
-from agentarena.models.job import UrlJobRequest
 from agentarena.core.services.model_service import ModelService
+from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobHistory
+from agentarena.models.job import CommandJobRequest
+from agentarena.models.job import JobResponse
+from agentarena.models.job import JobState
 
 FINAL_STATES = [JobState.FAIL.value, JobState.COMPLETE.value]
 ALL_STATES = [state.value for state in JobState]
@@ -33,6 +36,20 @@ class QueueService:
         self.job_service = job_service
         self.message_broker = message_broker
         self.log = logging.get_logger("service")
+        self._subscribed = []
+
+    async def subscribe_yourself(self):
+        if not self._subscribed:
+            client = self.message_broker.client
+            sub = await client.subscribe(
+                "arena.request.job", cb=self.add_job_from_message
+            )
+            self._subscribed.append(sub)
+
+    async def unsubscribe_yourself(self):
+        if self._subscribed:
+            for sub in self._subscribed:
+                await sub.unsubscribe()
 
     async def drain(self, message=""):
         log = self.log.bind(method="drain")
@@ -54,6 +71,9 @@ class QueueService:
         if response.success:
             return created
         return None
+
+    async def add_job_from_message(self, msg):
+        pass
 
     async def get_next(self) -> CommandJob | None:
         next = await self.job_service.get_where(

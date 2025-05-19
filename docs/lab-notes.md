@@ -227,3 +227,6 @@ Had a bunch of ideas while travelling.
 - Use `textual` to make a TUI for development
 - Use `NATS` as my message broker
   
+  ## 2025-05-18 19:15:57
+
+  Need to get the subscriptions started after app set up.

@@ -4,23 +4,21 @@ FastAPI server for the Agent Arena application.
 
 import os
 import sys
-from pathlib import Path
 
 import better_exceptions
-import uvicorn
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from agentarena.arena.arena_container import ArenaContainer
 from agentarena.core.middleware import add_logging_middleware
+from agentarena.scheduler.scheduler_container import SchedulerContainer
 from agentarena.util.files import find_directory_of_file
 
 better_exceptions.MAX_LENGTH = None
 
 # Initialize the container
-container = ArenaContainer()
+container = SchedulerContainer()
 project_root = find_directory_of_file("agent-arena-config.yaml")
 assert project_root is not None, "Can't find config"
 
@@ -28,8 +26,8 @@ yamlFile = os.path.join(project_root, "agent-arena-config.yaml")
 container.config.from_yaml(yamlFile)
 # Create the FastAPI application
 app = FastAPI(
-    title="Agent Arena (Arena) API",
-    description="API for the Arena portion of the app",
+    title="Agent Arena (Scheduler) API",
+    description="API for the Scheduler portion of the app",
     version="0.1.0",
 )
 
@@ -37,28 +35,23 @@ app = FastAPI(
 async def startup_event():
     """Initialize resources on application startup."""
     container.init_resources()
-    # Wire the container after resources are initialized
-    # Note: wiring might be better suited after specific resource initialization if dependencies exist
-    # For now, global wiring after all init should be fine.
     # container.wire(
     #     modules=[
     #         sys.modules[__name__],  # wire current module
-    #         "agentarena.arena.controllers.arena_controller",
-    #         "agentarena.arena.controllers.contest_controller",
-    #         "agentarena.arena.controllers.debug_controller",
+    #         "agentarena.scheduler.controllers.debug_controller",
     #         "agentarena.core.controllers.model_controller",
     #     ]
     # )
-    # Add initial audit log after resources (like db_service) are ready
-    # db_service = container.db_service()
-    # await db_service.add_audit_log("startup_complete")
+
     logger = container.logging()
-    log = logger.get_logger("server", module="server")
+    log = logger.get_logger("scheduler")
     log.info("Application startup complete, resources initialized and container wired.")
 
 
 async def shutdown_event():
     """Shutdown resources on application stop."""
+    queue = container.queue_service()
+    await queue.unsubscribe_yourself()
     container.shutdown_resources()
 
 
@@ -77,10 +70,7 @@ add_logging_middleware(app)
 
 # Include routers
 routers = [
-    container.contest_controller().get_router(),
-    container.agent_controller().get_router(),
-    container.arena_controller().get_router(),
-    container.strategy_controller().get_router(),
+    container.job_controller().get_router(),
     container.debug_controller().get_router(),
 ]
 [app.include_router(router) for router in routers]
@@ -110,17 +100,3 @@ async def general_exception_handler(request, exc):
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok"}
-
-
-# Run the server if this file is executed directly
-if __name__ == "__main__":
-    # Check if config file exists
-    if not os.path.exists(yamlFile):
-        print(f"Cannot find the config file: {yamlFile}")
-        sys.exit(1)
-    log = container.logging().get_logger("server", module="server")
-    log.info(f"path: {container.projectroot()}")
-    log.info("Starting app with uvicorn")
-    # db_service call moved to startup_event to ensure resources are initialized
-
-    uvicorn.run("agentarena.server:app", host="0.0.0.0", port=8000, reload=True)

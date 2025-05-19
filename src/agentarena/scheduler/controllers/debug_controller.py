@@ -6,17 +6,18 @@ from fastapi import Body
 from fastapi import HTTPException
 from pydantic import Field
 
+from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.model_service import ModelService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.job import CommandJob
-from agentarena.models.job import JobCommandType
-from agentarena.models.job import JobResponse
+from agentarena.models.job import CommandJobRequest
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
 from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
-from agentarena.core.services.model_service import ModelService
+from agentarena.scheduler.services.scheduler_service import SchedulerService
 
 
 class DebugBatchRequest(UrlJobRequest):
@@ -35,75 +36,83 @@ class DebugController:
             description="The Agent DTO Service"
         ),
         job_service: ModelService[CommandJob] = Field(description="Job Model service"),
+        message_broker: MessageBroker = Field(),
+        scheduler_service: SchedulerService = Field(),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.agent_service = agent_service
         self.base_path = f"{base_path}/debug"
         self.job_service = job_service
         self.log = logging.get_logger("controller", path=self.base_path)
-
-    async def event(self, job_id: str, event: str) -> JobResponse:
-        """
-        A callback event from the scheduler
-        """
-        self.log.bind(job_id=job_id)
-        self.log.info(f"Received event {event}")
-        return JobResponse(
-            job_id=job_id,
-            delay=0,
-            message="OK",
-            state=JobResponseState.COMPLETED.value,
-        )
+        self._subscribed = []
+        self.message_broker = message_broker
+        self.scheduler_service = scheduler_service
+        scheduler_service.do_on_next_poll(self.subscribe_yourself)
 
     async def get_job(self, job_id: str = Field(description="job ID to fetch")):
         job, response = await self.job_service.get(job_id)
         if not response.success:
-            raise HTTPException(status_code="404", detail=job_id)
+            raise HTTPException(status_code=404, detail=job_id)
         return job
 
     async def send_request_job(self, req: UrlJobRequest) -> CommandJob:
+        delay = req.delay or 0
+        send_at = int(datetime.now().timestamp()) + delay
         job = CommandJob(
-            channel=JobCommandType.REQUEST.value,
+            channel="scheduler.debug.request",
             data=req.data,
-            method=req.method,
+            method=req.method or "GET",
             priority=5,
-            send_at=int(datetime.now().timestamp() + req.delay),
+            send_at=send_at,
             state=JobState.IDLE.value,
             started_at=0,
             finished_at=0,
             url=req.url,
         )
-        sent = await self.q.send_job(job)
-        if not sent:
-            raise HTTPException(status_code="500", detail="Invalid queue response")
+        sent, response = await self.job_service.create(job)
+        if not response.success or not sent:
+            raise HTTPException(status_code=500, detail=response)
+        self.log.info("Created job", job=sent.id)
         return sent
 
     async def send_batch_job(self, req: DebugBatchRequest) -> CommandJob:
-        batch = CommandJob(
-            channel=JobCommandType.BATCH.value,
-            data=req.data or "",
-            method="POST",
+        delay = req.delay or 0
+        send_at = int(datetime.now().timestamp()) + delay
+
+        batchreq = CommandJobRequest(
+            id="",
+            channel="scheduler.debug.batch",
+            data=req.data or {},
+            method="MESSAGE",
             priority=5,
-            send_at=int(datetime.now().timestamp() + req.delay),
+            send_at=send_at,
             state=JobState.IDLE.value,
-            started_at=0,
-            finished_at=0,
-            url=f"$ARENA${self.base_path}/event/$JOB$",
+            url="",
         )
+        batch, response = await self.job_service.create(batchreq.to_job())
+        if not response.success or batch is None:
+            raise HTTPException(status_code=500, detail=response)
+        log = self.log.bind(batch=batch.id)
+        log.info("Created batch")
+        batchreq.id = batch.id
         requests = [
             UrlJobRequest(
                 url=url,
                 method="GET",
-                data="",
+                data={},
                 delay=0,
             )
             for url in req.urls
         ]
 
-        sent = await self.q.send_batch(batch, requests)
-        if not sent:
-            raise HTTPException(status_code="500", detail="Invalid queue response")
-        return sent
+        children = [batchreq.make_child(req) for req in requests]
+
+        for child in children:
+            child, _ = await self.job_service.create(child.to_job())
+            if child is not None:
+                log.info("Created child", child=child.id)
+
+        return batch
 
     async def healthOK(self):
         self.log.info("health OK")
@@ -114,17 +123,16 @@ class DebugController:
             data=HealthStatus(name="debug_controller", state="OK", version="1"),
         )
 
+    async def log_message(self, *args, **kwargs):
+        self.log.info("received message", args=args, **kwargs)
+
     def get_router(self):
         self.log.info("getting router")
         router = APIRouter(prefix=self.base_path, tags=["debug"])
 
         @router.post("/batch", response_model=CommandJob)
-        async def send_request(req: DebugBatchRequest = Body(...)):
+        async def send_batch(req: DebugBatchRequest = Body(...)):
             return await self.send_batch_job(req)
-
-        @router.post("/event/{job_id}", response_model=JobResponse)
-        async def receive_event(job_id: str, req: str = Body(...)):
-            return await self.event(job_id, req)
 
         @router.get("/job/{job_id}", response_model=CommandJob)
         async def get_job(job_id: str):
@@ -139,3 +147,15 @@ class DebugController:
             return await self.healthOK()
 
         return router
+
+    async def subscribe_yourself(self):
+        if not self._subscribed:
+            self.log.info("Subscribing to scheduler.debug.>")
+            client = self.message_broker.client
+            sub = await client.subscribe("scheduler.debug.>", cb=self.log_message)
+            self._subscribed.append(sub)
+
+    async def unsubscribe_yourself(self):
+        if self._subscribed:
+            for sub in self._subscribed:
+                await sub.unsubscribe()

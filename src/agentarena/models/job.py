@@ -4,8 +4,9 @@ Provides models to manage aynchronous Jobs
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Mapping
+from typing import Any
 from typing import List
+from typing import Mapping
 from typing import Optional
 
 from pydantic import BaseModel
@@ -40,7 +41,11 @@ class JobResponse(BaseModel):
     state: str = Field(
         description="JobResponseState field, one of ['completed', 'pending', 'fail']",
     )
-    data: Optional[Any] = Field(default="", description="payload")
+    data: Any = Field(default={}, description="payload")
+    # Not convinced I need this
+    # child_data: Optional[List["JobResponse"]] = Field(
+    #     default=[], description="child job responses"
+    # )
 
 
 class UrlJobRequest(BaseModel):
