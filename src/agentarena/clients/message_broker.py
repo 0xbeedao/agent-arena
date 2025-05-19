@@ -1,5 +1,7 @@
+from typing import Any, Mapping
 import nats
 from nats.aio.client import Client as NatsClient
+import orjson
 from pydantic import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
@@ -66,6 +68,11 @@ class MessageBroker:
 
         for job in jobs:
             await self.send_job(job)
+
+    async def send_message(self, channel: str, payload: Mapping[str, Any]):
+        self.log.debug("Sending message", channel=channel, payload=payload)
+        json = orjson.dumps(payload)
+        await self.client.publish(channel, json)
 
     async def send_response(self, channel: str, res: JobResponse):
         """

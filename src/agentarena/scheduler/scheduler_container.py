@@ -119,6 +119,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         RequestService,
         arena_url=config.arena.url,
         queue_service=queue_service,
+        message_broker=message_broker,
         logging=logging,
     )
 

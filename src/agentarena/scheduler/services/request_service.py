@@ -3,6 +3,7 @@ from typing import Optional
 from pydantic import Field
 from statemachine import State
 
+from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
@@ -28,11 +29,13 @@ class RequestService:
         self,
         arena_url: str = Field(description="url of arena server"),
         queue_service: QueueService = Field(description="Queue Service"),
+        message_broker: MessageBroker = Field(),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         assert arena_url
         self.arena_url = arena_url
         self.queue_service = queue_service
+        self.message_broker = message_broker
         self.logging = logging
         self.log = logging.get_logger("service")
 
@@ -56,10 +59,12 @@ class RequestService:
         log = self.log.bind(method="process_job", job=job.id)
         log.info("processing")
         method = job.method.lower()
-        if method == "message":
-            # Not a request for the request machine - just move to complete - this will cause a publish
-            return await self.handle_complete(job, None)
-        machine = RequestMachine(job, logging=self.logging, arena_url=self.arena_url)
+        machine = RequestMachine(
+            job,
+            logging=self.logging,
+            arena_url=self.arena_url,
+            message_broker=self.message_broker,
+        )
         await machine.activate_initial_state()  # type: ignore
         await machine.start_request("request")
 

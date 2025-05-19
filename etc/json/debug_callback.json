@@ -1,0 +1,7 @@
+{
+  "command": "scheduler.debug.check",
+  "data": { "sample": "data", "active": true },
+  "delay": 0,
+  "method": "MESSAGE",
+  "url": "scheduler.debug.ping"
+}

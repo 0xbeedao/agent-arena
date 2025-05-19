@@ -6,6 +6,7 @@ from pydantic import Field
 from statemachine import State
 from statemachine import StateMachine
 
+from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
@@ -46,6 +47,7 @@ class RequestMachine(StateMachine):
     receive_response = request.to(response, cond="is_valid_response") | request.to(
         fail, unless="is_valid_response"
     )
+    sent_message = request.to(complete)
     http_error = request.to(fail)
     http_ok = request.to(response)
     malformed_response = response.to(fail)
@@ -57,6 +59,7 @@ class RequestMachine(StateMachine):
         self,
         job: CommandJob,
         arena_url: str = Field(description="url of arena server"),
+        message_broker: MessageBroker = Field(),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         """
@@ -68,10 +71,40 @@ class RequestMachine(StateMachine):
         self.job = job
         self.response_object: JobResponse | None = None
         self.log = logging.get_logger("machine", job=job.id)
+        self.message_broker = message_broker
         super().__init__()
 
     async def on_enter_request(self):
         """Called when entering the REQUEST state."""
+        method = self.job.method.lower()
+        if method == "message":
+            return await self.send_message()
+        return await self.send_request()
+
+    async def send_message(self):
+        job = self.job
+        log = self.log.bind(job=job, method="send_message")
+        try:
+            # url on the outbound, channel on final response
+            channel = job.url or None
+            if not channel:
+                log.warn("No channel available for message, cannot send")
+                return None
+            data = job.data or {}
+            log = log.bind(channel=channel, data=data)
+            log.info("sending message")
+            await self.message_broker.send_message(channel, data)
+            await self.sent_message("")
+        except Exception as e:
+            self.log.error(
+                "Error while sending message",
+                error=e,
+            )
+
+    async def send_request(self):
+        """
+        Send the request via HTTPX
+        """
         method = self.job.method.lower()
         try:
             url = self._resolve_url()
@@ -85,7 +118,7 @@ class RequestMachine(StateMachine):
                 url=self.job.url,
                 error=e,
             )
-            await self.http_error(e)  # FAIL
+            await self.http_error(e)
 
     def is_valid_response(self, response):
         if response.status_code >= 400:
