@@ -3,7 +3,7 @@ from pydantic import Field
 from agentarena.models.dbbase import DbBase
 
 
-class ActorDTO(DbBase):
+class ActorDTO(DbBase, table=True):
     """
     A simple model reference object to tie an agent to a strategy - for use in the Actor subsystem
     """

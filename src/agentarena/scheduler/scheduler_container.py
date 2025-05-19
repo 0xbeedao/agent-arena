@@ -6,7 +6,7 @@ from fastapi import Depends
 
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.clients.message_broker import get_message_broker_connection
-from agentarena.core.factories.db_factory import get_database
+from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services import uuid_service
@@ -83,7 +83,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         DbService,
         projectroot,
         config.scheduler.db.filename,
-        get_database=get_database,
+        get_engine=get_engine,
         prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
         uuid_service=uuid_service,
         logging=logging,

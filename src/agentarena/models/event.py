@@ -9,7 +9,7 @@ from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 
 
-class JobEvent(DbBase):
+class JobEvent(DbBase, table=True):
     job_id: str = Field(description="job that caused this event")
     command: str = Field(description="job command")
     data: Any = Field(description="job payload")

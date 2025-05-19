@@ -11,7 +11,7 @@ from pydantic import Field
 from .dbbase import DbBase
 
 
-class FeatureDTO(DbBase):
+class FeatureDTO(DbBase, table=True):
     """
     Represents a feature in the arena DB.
 
@@ -47,7 +47,7 @@ class FeatureOriginType(Enum):
     RANDOM = "random"
 
 
-class FeatureRequest(DbBase):
+class FeatureRequest(DbBase, table=True):
     """
     Request model for creating a feature
     """

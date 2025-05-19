@@ -13,7 +13,7 @@ from pydantic import Field
 from .dbbase import DbBase
 
 
-class PlayerStateDTO(DbBase):
+class PlayerStateDTO(DbBase, table=True):
     """
     Represents the state of a player.
 
@@ -37,7 +37,7 @@ class PlayerStateDTO(DbBase):
         return [("agent_id", "agents", "id")]
 
 
-class PlayerAction(DbBase):
+class PlayerAction(DbBase, table=True):
     """
     Represents an action taken by a player.
 

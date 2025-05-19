@@ -23,7 +23,7 @@ class StrategyType(str, Enum):
     ANNOUNCER = "announcer"
 
 
-class StrategyDTO(DbBase):
+class StrategyDTO(DbBase, table=True):
     """
     Represents a strategy that can be used by an agent.
 

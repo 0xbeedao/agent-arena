@@ -1,13 +1,15 @@
 import os.path
 from datetime import datetime
-from typing import List
+from typing import Callable, List
 from typing import Sequence
 
 from pydantic import Field
 from sqlite_utils.db import Database
+from sqlmodel import SQLModel, Session
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.audit import AuditMessage
 from agentarena.models.dbbase import DbBase
 from agentarena.models.validation import ValidationResponse
 
@@ -21,7 +23,7 @@ class DbService:
         self,
         projectroot: str,
         dbfile: str,
-        get_database=None,
+        get_engine: Callable,
         memory=False,
         prod=False,
         uuid_service: UUIDService = Field(description="UUID Service"),
@@ -37,22 +39,36 @@ class DbService:
             self.log = logging.get_logger("service", db=os.path.basename(filename))
             self.log.info("Setting up DB")
 
-        self.db: Database = get_database(filename)
-        self.db.ensure_autocommit_off()
-        self.db.execute("PRAGMA foreign_keys=ON")
+        self.engine = get_engine(filename)
         self.prod = prod
         self.uuid_service = uuid_service
+        self._created = False
+
+    def create_db(self):
+        if not self._created:
+            self.log.info("Creating DB")
+            SQLModel.metadata.create_all(self.engine)
+            self._created = True
 
     def add_audit_log(self, message):
-        auditTable = self.db["audit"]
-        self.log.info(message)
-        auditTable.insert(
-            {
-                "id": self.uuid_service.make_id(),
-                "timestamp": int(datetime.now().timestamp()),
-                "message": message,
-            }
+        audit = self.create(
+            AuditMessage(
+                id=self.uuid_service.make_id(),
+                created_at=int(datetime.now().timestamp()),
+                message=message,
+            )
         )
+        self.log.info("audit", audit=audit)
+
+    def create(self, obj: SQLModel):
+        with Session(self.engine) as session:
+            session.add(obj)
+            session.commit()
+            session.refresh(obj)
+            return obj
+
+    def get_session(self):
+        return Session(self.engine)
 
     def fill_defaults(self, obj: DbBase):
         obj_id = self.uuid_service.ensure_id(obj)

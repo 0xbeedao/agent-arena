@@ -1,3 +1,4 @@
+from typing import Any
 from pydantic import BaseModel
 from pydantic import Field
 
@@ -11,6 +12,6 @@ class ValidationResponse(BaseModel):
 
     success: bool = Field(description="Is the data valid?")
     message: str = Field(description="Validation message")
-    data: dict = Field(
+    data: Any = Field(
         default_factory=dict, description="Additional data related to validation"
     )

@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Type
 from typing import Generic
 from typing import List
 from typing import TypeVar
@@ -7,18 +7,24 @@ from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
 from pydantic import Field
+from sqlmodel import SQLModel
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
+from agentarena.models.dbbase import DbBase
 
-T = TypeVar("T")
+T = TypeVar("T", bound=DbBase)
+MC = TypeVar("MC", bound=SQLModel)  # model creation type, e.g. CommandJobCreate
+MU = TypeVar("MU", bound=SQLModel)  # model update type, e.g. CommandJobUpdate
+MP = TypeVar("MP", bound=SQLModel)  # model public tyhpe, e.g. CommandJobPublic
 
 
-class ModelController(Generic[T]):
+class ModelController(Generic[T, MC, MU, MP]):
     def __init__(
         self,
         base_path: str = "/api",
         model_name: str = Field("The model name"),
+        model_public: Type[MP] = Field(description="The public model"),
         model_service: ModelService[T] = Field(
             description="The model service for this model"
         ),
@@ -34,14 +40,15 @@ class ModelController(Generic[T]):
         """
         self.base_path = f"{base_path}/{model_name}"
         self.model_name = model_name
+        self.model_public = model_public
         self.model_service = model_service
         self.log = logging.get_logger(
             "controller", model=model_name, path=self.base_path
         )
 
     async def create_model(
-        self, req: T = Field(description="The model create request")
-    ) -> T:
+        self, req: MC = Field(description="The model create request")
+    ) -> MP:
         """
         Create a new instance of the model.
 
@@ -56,13 +63,15 @@ class ModelController(Generic[T]):
         """
         self.log.info("create request")
         obj, response = await self.model_service.create(req)
-        if not response.success:
+        if response and not response.success:
             raise HTTPException(status_code=422, detail=response.validation)
-        return obj
+        if not obj:
+            raise HTTPException(status_code=500, detail="internal error")
+        return self.model_public.model_validate(obj)
 
     async def get_model(
         self, obj_id: str = Field(description="The id of the object")
-    ) -> T:
+    ) -> MP:
         """
         Get an instance of the model by id
 
@@ -78,22 +87,25 @@ class ModelController(Generic[T]):
         obj, response = await self.model_service.get(obj_id)
         if not response.success:
             raise HTTPException(status_code=404, detail=response.error)
-        return obj
+        if not obj:
+            raise HTTPException(status_code=500, detail="internal error")
+        return self.model_public.model_validate(obj)
 
-    async def get_model_list(self) -> List[T]:
+    async def get_model_list(self) -> List[MP]:
         """
         Get a list of all models.
 
         Returns:
             A list of feature configurations
         """
-        return await self.model_service.list()
+        raw = await self.model_service.list()
+        return [self.model_public.model_validate(obj) for obj in raw]
 
     async def update_model(
         self,
         req_id: str = Field(description="The id of the object to update"),
-        req: T = Field(description="updated model"),
-    ) -> T:
+        req: MU = Field(description="updated model"),
+    ) -> MP:
         """
         Update the model
 
@@ -108,15 +120,17 @@ class ModelController(Generic[T]):
             HTTPException: If the object is not found
         """
 
-        to_update = req.model_copy()
-        to_update.id = req_id
-        obj, response = await self.model_service.update(to_update)
+        obj, response = await self.model_service.update(req_id, req)
         if not response.success:
-            self.log.info(
-                f"Failed to update object: {response.validation.model_dump_json()}"
-            )
+            self.log.info("Failed to update object", validation=response)
             raise HTTPException(status_code=422, detail=response.validation)
-        return obj
+        if not obj:
+            raise HTTPException(status_code=500, detail="internal error")
+        data = obj
+        if hasattr(obj, "model_dump"):
+            data = obj.model_dump()
+
+        return self.model_public.model_validate(data)
 
     async def delete_model(
         self,
@@ -143,24 +157,24 @@ class ModelController(Generic[T]):
         self.log.info("getting router")
         router = APIRouter(prefix=self.base_path, tags=[self.model_name])
 
-        @router.post("/", response_model=T)
-        async def create(req: T = Body(...)):
+        @router.post("/", response_model=MP)
+        async def create(req: MC = Body(...)):
             return await self.create_model(req)
 
         @router.get("/{obj_id}", response_model=T)
         async def get(obj_id: str):
             return await self.get_model(obj_id)
 
-        @router.get("", response_model=List[T])
+        @router.get("", response_model=List[MP])
         async def list_all():
             return await self.get_model_list()
 
-        @router.get("/list", response_model=List[T])
+        @router.get("/list", response_model=List[MP])
         async def list_alias():
             return await self.get_model_list()
 
-        @router.put("/", response_model=T)
-        async def update(req_id: str, req: T = Body(...)):
+        @router.patch("/", response_model=MP)
+        async def update(req_id: str, req: MU = Body(...)):
             return await self.update_model(req_id, req)
 
         @router.delete("/{obj_id}", response_model=Dict[str, bool])

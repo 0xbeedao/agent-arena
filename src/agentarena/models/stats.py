@@ -12,7 +12,7 @@ from pydantic import Field
 from .dbbase import DbBase
 
 
-class RoundStatsDTO(DbBase):
+class RoundStatsDTO(DbBase, table=True):
     """
     Statistics for a round.
 

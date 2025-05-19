@@ -18,7 +18,7 @@ class ParticipantRole(str, Enum):
     ANNOUNCER = "announcer"
 
 
-class ParticipantDTO(DbBase):
+class ParticipantDTO(DbBase, table=True):
     """
     Maps agents to arenas
     """

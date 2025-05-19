@@ -41,7 +41,7 @@ class ContestState(str, Enum):
     FAILED = "failed"
 
 
-class ContestDTO(DbBase):
+class ContestDTO(DbBase, table=True):
     """
     Represents a contest between agents.
 
@@ -70,7 +70,7 @@ class ContestDTO(DbBase):
         return [("arena_config_id", "arenas", "id")]
 
 
-class ContestAgentDTO(DbBase):
+class ContestAgentDTO(DbBase, table=True):
     """
     Maps agents to contests
     """

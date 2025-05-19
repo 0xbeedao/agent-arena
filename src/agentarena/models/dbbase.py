@@ -2,22 +2,18 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from pydantic import BaseModel
-from pydantic import Field
-
+from sqlmodel import SQLModel, Field
 from .validation import ValidationResponse
 
 
-class DbBase(BaseModel):
+class DbBase(SQLModel, table=False):
     """
     Base model for DB-persisted objects
     """
 
-    id: str = Field(default=None, description="Unique identifier")
-    active: bool = Field(default=True, description="Is the object active?")
+    id: str = Field(default=None, description="Unique identifier", primary_key=True)
     created_at: Optional[int] = Field(default=0, description="Creation timestamp")
     updated_at: Optional[int] = Field(default=0, description="Creation timestamp")
-    deleted_at: Optional[int] = Field(default=0, description="Deletion timestamp")
 
     def get_foreign_keys(self) -> List[Tuple[str, str, str]]:
         return []

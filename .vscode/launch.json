@@ -13,6 +13,16 @@
         "env": {"PYTHONPATH": "/home/bruce/work/agent-arena/src"},
         "justMyCode": true,
         "console": "integratedTerminal"
+        },
+        {
+        "name": "Debug AgentArena Scheduler",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "agentarena.scheduler.app",
+        "python": "/home/bruce/work/agent-arena/.venv/bin/python",
+        "env": {"PYTHONPATH": "/home/bruce/work/agent-arena/src"},
+        "justMyCode": true,
+        "console": "integratedTerminal"
         }
     ]
 }

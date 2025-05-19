@@ -230,3 +230,10 @@ Had a bunch of ideas while travelling.
   ## 2025-05-18 19:15:57
 
   Need to get the subscriptions started after app set up.
+
+## 2025-05-19 09:41:02
+
+I'm at a good place with NATS - this is working!
+
+Now I want to have a batch automatically return the final results of the request jobs on its message callback. To do that, I want to first move to SQLModel so that
+hydrating all the history won't be so manual.

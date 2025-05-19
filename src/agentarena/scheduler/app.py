@@ -3,12 +3,14 @@ FastAPI server for the Agent Arena application.
 """
 
 import os
+import sys
 
 import better_exceptions
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import uvicorn
 
 from agentarena.core.middleware import add_logging_middleware
 from agentarena.scheduler.scheduler_container import SchedulerContainer
@@ -44,6 +46,9 @@ async def startup_event():
 
     logger = container.logging()
     log = logger.get_logger("scheduler")
+    db = container.db_service()
+    db.create_db()
+    db.add_audit_log("startup")
     broker = await container.message_broker()  # type: ignore
     controller = container.debug_controller()
     await controller.subscribe_yourself(broker)
@@ -102,3 +107,16 @@ async def general_exception_handler(request, exc):
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+# Run the server if this file is executed directly
+if __name__ == "__main__":
+    # Check if config file exists
+    if not os.path.exists(yamlFile):
+        print(f"Cannot find the config file: {yamlFile}")
+        sys.exit(1)
+    log = container.logging().get_logger("server", module="server")
+    log.info(f"path: {container.projectroot()}")
+    log.info("Starting app with uvicorn")
+
+    uvicorn.run("agentarena.scheduler.app:app", host="0.0.0.0", port=8080, reload=True)

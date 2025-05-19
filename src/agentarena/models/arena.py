@@ -17,7 +17,7 @@ from .participant import ParticipantRequest
 from .participant import ParticipantRole
 
 
-class ArenaDTO(DbBase):
+class ArenaDTO(DbBase, table=True):
     """
     Configuration for an arena.
 

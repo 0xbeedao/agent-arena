@@ -4,13 +4,11 @@ Provides models to manage aynchronous Jobs
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
 from typing import List
-from typing import Mapping
+from typing import Dict
 from typing import Optional
 
-from pydantic import BaseModel
-from pydantic import Field
+from sqlmodel import SQLModel, Field, JSON, Column
 
 from agentarena.models.dbbase import DbBase
 
@@ -30,7 +28,7 @@ class JobResponseState(Enum):
     FAIL = "fail"
 
 
-class JobResponse(BaseModel):
+class JobResponse(SQLModel, table=False):
     job_id: str = Field(description="Job ID")
     delay: Optional[int] = Field(
         default=0, description="Request delay of x seconds before retry"
@@ -41,20 +39,24 @@ class JobResponse(BaseModel):
     state: str = Field(
         description="JobResponseState field, one of ['completed', 'pending', 'fail']",
     )
-    data: Any = Field(default={}, description="payload")
+    data: Dict = Field(
+        default_factory=dict, sa_column=Column(JSON), description="payload"
+    )
     # Not convinced I need this
     # child_data: Optional[List["JobResponse"]] = Field(
     #     default=[], description="child job responses"
     # )
 
 
-class UrlJobRequest(BaseModel):
+class UrlJobRequest(SQLModel, table=False):
     command: str = Field(
         default="job.url.request",
         description="job command - this will be published as the subject on NATS",
     )
-    data: Optional[Mapping[str, Any]] = Field(
-        default={}, description="optional payload to send to Url"
+    data: Optional[Dict] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="optional payload to send to Url",
     )
     delay: Optional[int] = Field(
         default=0, description="Request delay of x seconds before retry"
@@ -63,25 +65,22 @@ class UrlJobRequest(BaseModel):
     url: Optional[str] = Field(description="Url to Call")
 
 
-class CommandJob(DbBase):
-    parent_id: Optional[str] = Field(
-        default=None,
-        description="The parent CommandJob, can be null, indicating this is a top-level job",
-    )
+class CommandJobBase(SQLModel):
+    parent_id: Optional[str] = Field(default="", description="parent")
     channel: str = Field(description="channel for publishing")
-    data: Optional[Mapping[str, Any]] = Field(
-        default={}, description="optional payload to send to Url"
+    data: Optional[Dict] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="optional payload to send to Url",
     )
     method: str = Field(description="HTTP method, or MESSAGE")
-    priority: Optional[int] = Field(
+    priority: int = Field(
         default=5, description="priority on a scale from 1 to 10, 10 high"
     )
     send_at: int = Field(
         default=0, description="Available in queue after what timestamp"
     )
-    state: Optional[str] = Field(
-        default="idle", description="Job state, see JobState states"
-    )
+    state: str = Field(default="idle", description="Job state, see JobState states")
     started_at: int = Field(
         default=0, description="When this job was picked up from queue"
     )
@@ -91,27 +90,73 @@ class CommandJob(DbBase):
         description="When this job reached a final state ['complete', 'fail', 'waiting']",
     )
 
+    url: str = Field(description="Url to Call, or command channel for MESSAGE")
+
+
+class CommandJob(CommandJobBase, DbBase, table=True):
+    pass
+
+
+class CommandJobCreate(CommandJobBase):
+    pass
+
+
+class CommandJobUpdate(SQLModel):
+    channel: Optional[str] = Field(default="", description="channel for publishing")
+    data: Optional[Dict] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="optional payload to send to Url",
+    )
+    method: Optional[str] = Field(default="GET", description="HTTP method, or MESSAGE")
+    priority: Optional[int] = Field(
+        default=5, description="priority on a scale from 1 to 10, 10 high"
+    )
+    send_at: Optional[int] = Field(
+        default=0, description="Available in queue after what timestamp"
+    )
+    state: Optional[str] = Field(
+        default="idle", description="Job state, see JobState states"
+    )
+    started_at: Optional[int] = Field(
+        default=0, description="When this job was picked up from queue"
+    )
     url: Optional[str] = Field(
-        description="Url to Call, or command channel for MESSAGE"
+        default="", description="Url to Call, or command channel for MESSAGE"
     )
 
-    def get_foreign_keys(self):
-        return [("parent_id", "jobs", "id")]
+
+class CommandJobPublic(CommandJobBase):
+    id: str
 
 
-class CommandJobHistory(DbBase):
+class CommandJobHistoryBase(SQLModel):
     job_id: str = Field(description="Initiating job")
     from_state: str = Field(description="Original Job state, see JobState states")
     to_state: str = Field(description="Updated Job state, see JobState states")
     message: Optional[str] = Field(
         default="", description="Message associated with state change"
     )
-    data: Optional[Mapping[str, Any]] = Field(
-        default={}, description="Optional JSON object returned from request"
+    data: Optional[Dict] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="Optional JSON object returned from request",
     )
 
 
-class CommandJobRequest(BaseModel):
+class CommandJobHistory(DbBase, CommandJobHistoryBase, table=True):
+    pass
+
+
+class CommandJobHistoryCreate(CommandJobHistoryBase):
+    pass
+
+
+class CommandJobHistoryPublic(CommandJobHistoryBase):
+    pass
+
+
+class CommandJobRequest(SQLModel, table=False):
     """The JSON serializable request for a CommandJob"""
 
     id: str = Field(description="The Job ID")
@@ -122,8 +167,10 @@ class CommandJobRequest(BaseModel):
     channel: str = Field(
         description="job command - this will be published as the subject on NATS"
     )
-    data: Optional[Mapping[str, Any]] = Field(
-        default={}, description="optional payload to send to Url"
+    data: Optional[Dict] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="optional payload to send to Url",
     )
     method: str = Field(description="method, any HTTP method or 'MESSAGE' to use NATS")
     priority: Optional[int] = Field(
@@ -175,7 +222,7 @@ class CommandJobRequest(BaseModel):
         )
 
 
-class CommandJobBatchRequest(BaseModel):
+class CommandJobBatchRequest(SQLModel, table=False):
     batch: CommandJobRequest = Field(
         description="The job to call when children are in final state"
     )

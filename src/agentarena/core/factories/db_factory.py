@@ -1,4 +1,5 @@
 from sqlite_utils import Database
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 
 def get_database(filename: str, memory: bool = False) -> Database:
@@ -7,3 +8,11 @@ def get_database(filename: str, memory: bool = False) -> Database:
 
     print(f"opening db at: {filename}")
     return Database(filename)
+
+
+def get_engine(filename: str, memory: bool = False):
+    fname = ":memory:" if memory else filename
+    dbfile = f"sqlite:///{fname}"
+
+    connect_args = {"check_same_thread": False}
+    return create_engine(dbfile, echo=True, connect_args=connect_args)

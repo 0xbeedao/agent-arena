@@ -16,7 +16,7 @@ from .player import PlayerAction
 from .player import PlayerStateDTO
 
 
-class ArenaStateDTO(DbBase):
+class ArenaStateDTO(DbBase, table=True):
     """
     Represents the state of the arena at a specific point in time.
 

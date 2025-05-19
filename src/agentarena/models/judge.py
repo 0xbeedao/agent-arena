@@ -11,7 +11,7 @@ from pydantic import Field
 from .dbbase import DbBase
 
 
-class JudgeResultDTO(DbBase):
+class JudgeResultDTO(DbBase, table=True):
     """
     Represents the result of a judge's evaluation.
 

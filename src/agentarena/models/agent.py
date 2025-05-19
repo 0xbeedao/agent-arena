@@ -10,7 +10,7 @@ from pydantic import Field
 from .dbbase import DbBase
 
 
-class AgentDTO(DbBase):
+class AgentDTO(DbBase, table=True):
     """
     Configuration for an agent.
 
