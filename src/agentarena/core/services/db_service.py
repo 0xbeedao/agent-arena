@@ -60,7 +60,9 @@ class DbService:
         )
         self.log.info("audit", audit=audit)
 
-    def create(self, obj: SQLModel):
+    def create(self, obj):
+        print(f"=============================\n{obj.model_dump_json()}")
+        self.log.info("Creating", obj=obj)
         with Session(self.engine) as session:
             session.add(obj)
             session.commit()

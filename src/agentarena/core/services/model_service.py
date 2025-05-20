@@ -4,6 +4,7 @@ Provides a reusable service for CRUD operations on any model that inherits from 
 """
 
 from datetime import datetime
+import json
 from typing import Any
 from typing import Generic
 from typing import List
@@ -18,6 +19,7 @@ from pydantic import Field
 from sqlmodel import SQLModel, select
 
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.dbbase import DbBase
 from agentarena.models.validation import ValidationResponse
 
@@ -53,7 +55,7 @@ class ModelService(Generic[T]):
         self,
         model_class: Type[T],
         db_service: DbService,
-        table_name: str,
+        uuid_service: UUIDService = Field(description="UUID Service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         """
@@ -71,8 +73,8 @@ class ModelService(Generic[T]):
 
         self.model_class = model_class
         self.db_service = db_service
-        self.table_name = table_name
         self.model_name = model_class.__name__
+        self.uuid_service = uuid_service
         self.log = logging.get_logger(
             "service",
             model=self.model_name,
@@ -108,9 +110,7 @@ class ModelService(Generic[T]):
             )
             return None, ModelResponse(success=False, validation=validation_resp)
 
-    async def create(
-        self, input_data: SQLModel
-    ) -> Tuple[Optional[T], Optional[ModelResponse]]:
+    async def create(self, input_data: SQLModel) -> Tuple[Optional[T], ModelResponse]:
         """
         Create a new model instance.
 
@@ -123,47 +123,36 @@ class ModelService(Generic[T]):
         """
         parsed_obj, problem = self.parse_model(input_data)
         if problem or parsed_obj is None:
-            return parsed_obj, problem
+
+            return parsed_obj, problem  # type: ignore
 
         # Now parsed_obj is a proper instance of self.model_class (e.g., AgentDTO)
-        db_obj: T = parsed_obj.model_copy(deep=True)
+        # db_obj: T = parsed_obj.model_copy(deep=True)
 
         isonow = int(datetime.now().timestamp())
-        # For new objects, created_at and updated_at are typically the same.
-        db_obj.created_at = isonow
-        db_obj.updated_at = isonow
+        parsed_obj.created_at = isonow
+        parsed_obj.updated_at = isonow
+        parsed_obj.id = self.uuid_service.make_id()
 
         # This validateDTO is from DbBase, for business logic validation after Pydantic's parsing
-        validation = self.db_service.validateDTO(db_obj)
+        print(f"Now creating #{parsed_obj.id}")
+        validation = self.db_service.validateDTO(parsed_obj)
         if not validation.success:
             self.log.error(
                 f"Post-parsing DTO validation failed: {validation.message}",
                 data=validation.data,
             )
             return None, ModelResponse(
-                success=False, data=db_obj.model_dump(), validation=validation
+                success=False, data=parsed_obj.model_dump(), validation=validation
             )
 
-        try:
-            with self.db_service.get_session() as session:
-                session.add(db_obj)
-                session.commit()
-                session.refresh(db_obj)
-        except Exception as e:
-            self.log.error(
-                f"Integrity error while inserting {self.model_name} {db_obj.id}: {e}",
-                exc_info=True,
-            )
-            invalidation = ValidationResponse(
-                success=False,
-                data=db_obj.model_dump(),
-                message=f"Database integrity error: {e}",
-            )
-            return None, ModelResponse(success=False, validation=invalidation)
+        self.db_service.create(parsed_obj)
 
-        self.log.info(f"Added {self.model_name} {db_obj.id}")
-        self.db_service.add_audit_log(f"Added {self.model_name}: {db_obj.id}")
-        return db_obj, ModelResponse(success=True, id=db_obj.id, validation=validation)
+        self.log.info(f"Added {self.model_name} {parsed_obj.id}")
+        self.db_service.add_audit_log(f"Added {self.model_name}: {parsed_obj.id}")
+        return parsed_obj, ModelResponse(
+            success=True, id=parsed_obj.id, validation=validation
+        )
 
     async def create_many(
         self, obj_list: List[T]
