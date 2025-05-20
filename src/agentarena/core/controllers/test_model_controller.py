@@ -1,4 +1,3 @@
-from datetime import datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -7,13 +6,10 @@ import ulid
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelResponse
-from agentarena.models.dbbase import DbBase
-from agentarena.models.job import (
-    CommandJob,
-    CommandJobCreate,
-    CommandJobPublic,
-    CommandJobUpdate,
-)
+from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobCreate
+from agentarena.models.job import CommandJobPublic
+from agentarena.models.job import CommandJobUpdate
 
 
 @pytest.fixture

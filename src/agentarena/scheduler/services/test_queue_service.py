@@ -4,14 +4,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from agentarena.core.factories.db_factory import get_database
+from agentarena.core.factories.db_factory import get_engine
+from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJob, CommandJobCreate
 from agentarena.models.job import CommandJobHistory
-from agentarena.models.job import CommandJobRequest
 from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
 from agentarena.scheduler.services.queue_service import QueueService
@@ -19,41 +19,45 @@ from agentarena.scheduler.services.queue_service import QueueService
 
 @pytest.fixture
 def logging():
-    return LoggingService(True)
+    return LoggingService(capture=True)
 
 
+@pytest.fixture
 def uuid_service():
     return UUIDService(word_list=[])
 
 
 @pytest.fixture
-def db_service():
-    return DbService(
-        "",
-        "",
-        get_database,
-        logging=LoggingService(True),
-        uuid_service=uuid_service(),
+def db_service(uuid_service, logging):
+    """Fixture to create an in-memory DB service"""
+    service = DbService(
+        get_project_root(),
+        dbfile="test.db",
+        get_engine=get_engine,
         memory=True,
+        prod=False,
+        uuid_service=uuid_service,
+        logging=logging,
     )
+    return service.create_db()
 
 
 @pytest.fixture
-def job_service(db_service, logging):
+def job_service(db_service, uuid_service, logging):
     return ModelService[CommandJob](
         db_service=db_service,
         model_class=CommandJob,
-        table_name="jobs",
+        uuid_service=uuid_service,
         logging=logging,
     )
 
 
 @pytest.fixture
-def history_service(db_service, logging):
+def history_service(db_service, uuid_service, logging):
     return ModelService[CommandJobHistory](
         db_service=db_service,
         model_class=CommandJobHistory,
-        table_name="jobhistory",
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -64,51 +68,48 @@ def message_broker():
     return service
 
 
-@pytest.mark.asyncio
-async def test_get_when_empty(history_service, job_service, logging):
-    q = QueueService(
+@pytest.fixture
+def q(job_service, history_service, message_broker, logging):
+    return QueueService(
         history_service=history_service,
+        message_broker=message_broker,
         job_service=job_service,
         logging=logging,
     )
-    job = await q.get_next()
-    assert job is None
 
 
 @pytest.mark.asyncio
-async def test_get(job_service, history_service, logging):
-    q = QueueService(
-        history_service=history_service,
-        job_service=job_service,
-        logging=logging,
-    )
-    job = CommandJobRequest(
+async def test_get_when_empty(q, db_service):
+    with db_service.get_session() as session:
+        job = await q.get_next(session)
+        assert job is None
+
+
+@pytest.mark.asyncio
+async def test_get(q, db_service):
+    job = CommandJob(
         id="testget",
         channel="job.request.url",
         method="GET",
         data={"test": "toast"},
         url="/test",
     )
-    next = await q.add_job(job)
-    assert next is not None
-    assert next.started_at == 0
-    assert next.state == JobState.IDLE.value
+    with db_service.get_session() as session:
+        next = await q.add_job(job, session)
+        assert next is not None
+        assert next.started_at == 0
+        assert next.state == JobState.IDLE.value
 
-    retrieved = await q.get_next()
-    assert retrieved is not None
-    assert retrieved.id == next.id
-    assert retrieved.state == JobState.REQUEST.value
-    assert retrieved.started_at > 0
+        retrieved = await q.get_next(session)
+        assert retrieved is not None
+        assert retrieved.id == next.id
+        assert retrieved.state == JobState.REQUEST.value
+        assert retrieved.started_at > 0
 
 
 @pytest.mark.asyncio
-async def test_get_unique(job_service, history_service, logging):
-    q = QueueService(
-        history_service=history_service,
-        job_service=job_service,
-        logging=logging,
-    )
-    job = CommandJobRequest(
+async def test_get_unique(q, db_service):
+    job = CommandJob(
         id="test",
         channel="job.request.url",
         method="GET",
@@ -116,193 +117,124 @@ async def test_get_unique(job_service, history_service, logging):
         url="/test",
     )
 
-    next = await q.add_job(job)
-    assert next is not None
-    assert next.started_at == 0
+    with db_service.get_session() as session:
+        next = await q.add_job(job, session)
+        assert next is not None
+        assert next.started_at == 0
 
-    live_job = await q.get_next()
-    assert live_job is not None
-    assert live_job.id == next.id
-    assert live_job.started_at > datetime.now().timestamp() - 1000
-    assert live_job.state == JobState.REQUEST.value
+        live_job = await q.get_next(session)
+        assert live_job is not None
+        assert live_job.id == next.id
+        assert live_job.started_at > datetime.now().timestamp() - 1000
+        assert live_job.state == JobState.REQUEST.value
 
-    no_job = await q.get_next()
-    assert no_job is None
+        no_job = await q.get_next(session)
+        assert no_job is None
 
 
 @pytest.mark.asyncio
-async def test_update_state(job_service, history_service, message_broker, logging):
-    q = QueueService(
-        history_service=history_service,
-        job_service=job_service,
-        message_broker=message_broker,
-        logging=logging,
-    )
-    job = CommandJobRequest(
+async def test_update_state(q, db_service, message_broker):
+    job = CommandJob(
         id="test",
         channel="job.request.url",
         method="GET",
         data={"test": "toast"},
         url="/test",
     )
-    next = await q.add_job(job)
-    assert next is not None
-    assert next.started_at == 0
+    with db_service.get_session() as session:
+        next = await q.add_job(job, session)
+        assert next is not None
+        assert next.started_at == 0
 
-    live_job = await q.get_next()
-    assert live_job is not None
-    job_id = live_job.id
+        live_job = await q.get_next(session)
+        assert live_job is not None
+        job_id = live_job.id
 
-    success = await q.update_state(job_id, JobState.COMPLETE.value, "test message")
-    assert success
+        updated = await q.update_state(
+            job_id, JobState.COMPLETE.value, session, message="test message"
+        )
+        assert updated
 
-    message_broker.send_response.assert_awaited_once()
+        # should send final message
+        message_broker.send_response.assert_awaited_once()
 
-    dead_job, response = await q.job_service.get(job_id)
-    assert response.success
-    assert dead_job is not None
-    assert dead_job.state == JobState.COMPLETE.value
-    assert dead_job.finished_at >= datetime.now().timestamp() - 1000
+        job = session.get(CommandJob, job_id)
+        assert job
 
-    histories = await q.history_service.get_where(
-        "job_id=:jid", {"jid": job_id}, order_by="created_at desc"
-    )
-    rows = [h for h in histories]
-    last = rows.pop()
-    assert last is not None
-    assert last.message == "test message"
+        # check children
+        histories = [h for h in job.history]
+        assert histories
+        last = histories.pop()
+        assert last is not None
+        assert last.message == "test message"
 
-    # assert dead_job.final_message == "test message"
+        assert job.parent is None
 
-    no_job = await q.get_next()
-    assert no_job is None
+        no_job = await q.get_next(session)
+        assert no_job is None
 
 
 @pytest.mark.asyncio
-async def test_requeue_job(job_service, history_service, message_broker, logging):
-    q = QueueService(
-        history_service=history_service,
-        job_service=job_service,
-        message_broker=message_broker,
-        logging=logging,
-    )
-    job = CommandJobRequest(
+async def test_requeue_job(q, db_service):
+    job = CommandJob(
         id="testrequeue",
         channel="job.request.url",
         method="POST",
         data={"foo": "bar"},
         url="/requeue",
     )
-    orig = await q.add_job(job)
-    assert orig is not None
-    orig_id = orig.id
+    with db_service.get_session() as session:
+        orig = await q.add_job(job, session)
+        assert orig is not None
+        orig_id = orig.id
 
-    # Mark the original job as complete so it's not in the queue
-    await q.update_state(orig_id, JobState.COMPLETE.value, "finishing original")
+        # Mark the original job as complete so it's not in the queue
+        await q.update_state(
+            orig_id, JobState.COMPLETE.value, session, message="finishing original"
+        )
 
-    # Requeue the job
-    requeued = await q.requeue_job(orig_id, delay=0)
-    assert requeued is not None
-    assert requeued.state == JobState.IDLE.value
-    assert (
-        abs(datetime.now().timestamp() - requeued.send_at) < 5
-    )  # should be approximately now
-    assert requeued.id == orig_id
+        # Requeue the job
+        requeued = await q.requeue_job(orig_id, session, delay=0)
+        assert requeued is not None
+        assert requeued.state == JobState.IDLE.value
+        assert (
+            abs(datetime.now().timestamp() - requeued.send_at) < 5
+        )  # should be approximately now
+        assert requeued.id == orig_id
 
-    time.sleep(1)
-    # The requeued job should appear on the queue as next job
-    picked = await q.get_next()
-    assert picked is not None
-    assert picked.id == requeued.id
-
-
-# Note: Moved this responsibility to message_broker
-# @pytest.mark.asyncio
-# async def test_send_batch(job_service, history_service, logging):
-#     q = QueueService(
-#         history_service=history_service,
-#         job_service=job_service,
-#         logging=logging,
-#     )
-#     # Create a batch job
-#     batch_job = CommandJob(
-#         command="job.batch.callback",
-#         method="POST",
-#         data={"batch": "data"},
-#         url="/batch",
-#     )
-
-#     # Create request summaries for child jobs
-#     requests = [
-#         UrlJobRequest(
-#             method="GET",
-#             url="/request1",
-#             data={"req": "1"},
-#         ),
-#         UrlJobRequest(
-#             method="GET",
-#             url="/request2",
-#             data={"req": "2"},
-#         ),
-#     ]
-
-#     # Send the batch with child requests
-#     result = await q.send_batch(batch_job, requests)
-#     assert result is not None
-#     assert result.command == JobCommandType.BATCH.value
-#     assert result.state == JobState.REQUEST.value
-
-#     # Get the child jobs
-#     batch_id = result.id
-#     children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
-#     assert len(children) == 2
-
-#     # Verify child jobs are correctly created
-#     for child in children:
-#         assert child.parent_id == batch_id
-#         assert child.command == "job.request.url"
-#         assert child.state == JobState.IDLE.value
+        time.sleep(1)
+        # The requeued job should appear on the queue as next job
+        picked = await q.get_next(session)
+        assert picked is not None
+        assert picked.id == requeued.id
 
 
 @pytest.mark.asyncio
-async def test_get_idle_batch(job_service, history_service, logging):
-    q = QueueService(
-        history_service=history_service,
-        job_service=job_service,
-        logging=logging,
-    )
-    job = CommandJobRequest(
+async def test_get_idle_batch(q, db_service):
+    job = CommandJob(
         id="idlebatch",
         channel="test.request.batch",
         method="MESSAGE",
         data={"test": "toast"},
         url="/test",
     )
-    next = await q.add_job(job)
-    assert next is not None
-    assert next.started_at == 0
-    assert next.state == JobState.IDLE.value
+    with db_service.get_session() as session:
+        next = await q.add_job(job, session)
+        assert next is not None
+        assert next.started_at == 0
+        assert next.state == JobState.IDLE.value
 
-    retrieved = await q.get_next()
-    assert retrieved is not None
-    assert retrieved.id == next.id
-    assert retrieved.state == JobState.REQUEST.value
-    assert retrieved.started_at > 0
+        retrieved = await q.get_next(session)
+        assert retrieved is not None
+        assert retrieved.id == next.id
+        assert retrieved.state == JobState.REQUEST.value
+        assert retrieved.started_at > 0
 
 
 @pytest.mark.asyncio
-async def test_batch_state_updates(
-    job_service, history_service, message_broker, logging
-):
-    q = QueueService(
-        history_service=history_service,
-        job_service=job_service,
-        message_broker=message_broker,
-        logging=logging,
-    )
+async def test_batch_state_updates(q, db_service, job_service):
     # Create a batch job
-    batch_req = CommandJobRequest(
-        id="testbatch",
+    batch_req = CommandJobCreate(
         channel="test.batch.request",
         method="MESSAGE",
         data={"batch": "data"},
@@ -324,56 +256,60 @@ async def test_batch_state_updates(
         ),
     ]
 
-    child_reqs = [batch_req.make_child(r) for r in requests]
+    batch_id = ""
 
-    batch = await q.add_job(batch_req)
-    assert batch is not None
-    children = [await q.add_job(child) for child in child_reqs]
-    for c in children:
-        assert c is not None
-    batch_id = batch.id
+    with db_service.get_session() as session:
+        batch = await q.add_job(batch_req, session)
+        assert batch is not None
+        batch_id = batch.id
+        children = []
+        for r in requests:
+            child = batch.make_child(r)
+            child_job = await q.add_job(child, session)
+            assert child_job is not None
 
-    # Get the child jobs
-    children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
-    assert len(children) == 2
+        session.commit()
 
-    # Process first child job
-    child1 = children[0]
-    await q.update_state(child1.id, JobState.COMPLETE.value, "Child 1 complete")
+    with db_service.get_session() as session:
+        fresh = session.get(CommandJob, batch_id)
+        assert fresh
+        # Get the child jobs
+        children = [c for c in fresh.children]
+        assert len(children) == 2
 
-    # Batch should still be in REQUEST state since one child is pending
-    batch_updated, _ = await job_service.get(batch_id)
-    assert batch_updated.state == JobState.REQUEST.value
+        # Process first child job
+        child1 = children[0]
+        await q.update_state(
+            child1.id, JobState.COMPLETE.value, session, "Child 1 complete"
+        )
 
-    # Process second child job
-    child2 = children[1]
-    await q.update_state(child2.id, JobState.COMPLETE.value, "Child 2 complete")
+        # Batch should still be in REQUEST state since one child is pending
+        session.refresh(batch)
+        assert batch.state == JobState.REQUEST.value
 
-    # Now batch should be IDLE since all children are complete
-    batch_final, _ = await job_service.get(batch_id)
-    assert batch_final.state == JobState.IDLE.value
+        # Process second child job
+        child2 = children[1]
+        await q.update_state(
+            child2.id, JobState.COMPLETE.value, session, "Child 2 complete"
+        )
 
-    # check that we get the batch to process now
-    batch_check = await q.get_next()
-    assert batch_check is not None
-    assert batch_check.id == batch.id
-    assert batch_check.url == batch.url
-    assert batch_check.state == JobState.REQUEST.value
+        # Now batch should be IDLE since all children are complete
+        session.refresh(batch)
+        assert batch.state == JobState.IDLE.value
+
+        # check that we get the batch to process now
+        batch_check = await q.get_next()
+        assert batch_check is not None
+        assert batch_check.id == batch.id
+        assert batch_check.url == batch.url
+        assert batch_check.state == JobState.REQUEST.value
 
 
 @pytest.mark.asyncio
 async def test_batch_with_failed_child(
-    job_service, history_service, message_broker, logging
-):
-    q = QueueService(
-        history_service=history_service,
-        job_service=job_service,
-        message_broker=message_broker,
-        logging=logging,
-    )
-    # Create a batch job
-    batch_req = CommandJobRequest(
-        id="testbatch",
+    q, job_service, db_service
+):  # Create a batch job
+    batch_req = CommandJobCreate(
         channel="test.batch.fail",
         method="POST",
         url="/batch",
@@ -390,38 +326,35 @@ async def test_batch_with_failed_child(
     # Send the batch with child requests
     child_reqs = [batch_req.make_child(r) for r in requests]
 
-    batch = await q.add_job(batch_req)
-    assert batch is not None
-    children = [await q.add_job(child) for child in child_reqs]
-    for c in children:
-        assert c is not None
-    batch_id = batch.id
+    with db_service.get_session() as session:
+        batch = await q.add_job(batch_req, session)
+        assert batch is not None
+        children = [await q.add_job(child, session) for child in child_reqs]
+        for c in children:
+            assert c is not None
+        batch_id = batch.id
 
-    # Get the child jobs
-    children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
+        # Get the child jobs
+        children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
 
-    # Complete first child job successfully
-    child1 = children[0]
-    await q.update_state(child1.id, JobState.COMPLETE.value, "Child 1 complete")
+        # Complete first child job successfully
+        child1 = children[0]
+        await q.update_state(
+            child1.id, JobState.COMPLETE.value, session, "Child 1 complete"
+        )
 
-    # Fail the second child job
-    child2 = children[1]
-    await q.update_state(child2.id, JobState.FAIL.value, "Child 2 failed")
+        # Fail the second child job
+        child2 = children[1]
+        await q.update_state(child2.id, JobState.FAIL.value, session, "Child 2 failed")
 
-    # Batch should be in FAIL state since one child failed
-    batch_final, _ = await job_service.get(batch_id)
-    assert batch_final.state == JobState.FAIL.value
+        # Batch should be in FAIL state since one child failed
+        session.refresh(batch)
+        assert batch.state == JobState.FAIL.value
 
 
 @pytest.mark.asyncio
-async def test_batch_send_1(job_service, history_service, message_broker, logging):
-    q = QueueService(
-        history_service=history_service,
-        job_service=job_service,
-        message_broker=message_broker,
-        logging=logging,
-    )
-    batch_req = CommandJobRequest(
+async def test_batch_send_1(q, db_service):
+    batch_req = CommandJobCreate(
         id="batchreq",
         channel="test.batch",
         method="GET",
@@ -433,34 +366,37 @@ async def test_batch_send_1(job_service, history_service, message_broker, loggin
 
     child_reqs = [batch_req.make_child(r) for r in requests]
 
-    batch = await q.add_job(batch_req)
-    assert batch is not None
-    children = [await q.add_job(child) for child in child_reqs]
-    for c in children:
-        assert c is not None
-    assert batch.started_at == 0
-    assert batch.state == JobState.REQUEST.value
+    with db_service.get_session() as session:
+        batch = await q.add_job(batch_req, session)
+        assert batch is not None
+        children = [await q.add_job(child, session) for child in child_reqs]
+        for c in children:
+            assert c is not None
+        assert batch.started_at == 0
+        assert batch.state == JobState.REQUEST.value
 
-    child = await q.get_next()
-    assert child is not None
-    assert child.id != batch.id
-    assert child.parent_id == batch.id
-    assert child.url == "/test/1"
-    assert child.state == JobState.REQUEST.value
-    assert child.started_at > 0
+        child = await q.get_next()
+        assert child is not None
+        assert child.id != batch.id
+        assert child.parent_id == batch.id
+        assert child.url == "/test/1"
+        assert child.state == JobState.REQUEST.value
+        assert child.started_at > 0
 
-    # child is in request, batch is in request - nothing in q
-    should_be_empty = await q.get_next()
-    assert should_be_empty is None
+        # child is in request, batch is in request - nothing in q
+        should_be_empty = await q.get_next(session)
+        assert should_be_empty is None
 
-    # complete the child, should trigger parent updates
-    updated = await q.update_state(child.id, JobState.COMPLETE.value, "success")
-    assert updated is not None
-    assert updated.id == child.id
+        # complete the child, should trigger parent updates
+        updated = await q.update_state(
+            child.id, JobState.COMPLETE.value, session, message="success"
+        )
+        assert updated is not None
+        assert updated.id == child.id
 
-    # parent should now be idle, and ready to get picket up from q
+        # parent should now be idle, and ready to get picket up from q
 
-    ready_batch = await q.get_next()
-    assert ready_batch is not None
-    assert ready_batch.id == batch.id
-    assert ready_batch.state == JobState.REQUEST.value
+        ready_batch = await q.get_next(session)
+        assert ready_batch is not None
+        assert ready_batch.id == batch.id
+        assert ready_batch.state == JobState.REQUEST.value

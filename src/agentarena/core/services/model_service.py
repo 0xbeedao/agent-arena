@@ -4,7 +4,6 @@ Provides a reusable service for CRUD operations on any model that inherits from 
 """
 
 from datetime import datetime
-import json
 from typing import Any
 from typing import Generic
 from typing import List
@@ -13,10 +12,11 @@ from typing import Tuple
 from typing import Type
 from typing import TypeVar
 
-from fastapi import HTTPException
 from pydantic import BaseModel
 from pydantic import Field
-from sqlmodel import SQLModel, select
+from sqlmodel import Session
+from sqlmodel import SQLModel
+from sqlmodel import select
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
@@ -110,12 +110,15 @@ class ModelService(Generic[T]):
             )
             return None, ModelResponse(success=False, validation=validation_resp)
 
-    async def create(self, input_data: SQLModel) -> Tuple[Optional[T], ModelResponse]:
+    async def create(
+        self, input_data: SQLModel, session: Session
+    ) -> Tuple[Optional[T], ModelResponse]:
         """
         Create a new model instance.
 
         Args:
             input_data: The model data, expected to be the "create" model
+            session: The DB Sesion
 
         Returns:
             the created object or None
@@ -146,16 +149,16 @@ class ModelService(Generic[T]):
                 success=False, data=parsed_obj.model_dump(), validation=validation
             )
 
-        self.db_service.create(parsed_obj)
+        created = self.db_service.create(parsed_obj, session)
 
-        self.log.info(f"Added {self.model_name} {parsed_obj.id}")
-        self.db_service.add_audit_log(f"Added {self.model_name}: {parsed_obj.id}")
-        return parsed_obj, ModelResponse(
-            success=True, id=parsed_obj.id, validation=validation
+        self.log.info(f"Added {self.model_name} {created.id}")
+        self.db_service.add_audit_log(f"Added {self.model_name}: {created.id}", session)
+        return created, ModelResponse(
+            success=True, id=created.id, validation=validation
         )
 
     async def create_many(
-        self, obj_list: List[T]
+        self, obj_list: List[T], session: Session
     ) -> Tuple[List[T], List[ModelResponse]]:
         """
         Create multiple model instances.
@@ -177,7 +180,7 @@ class ModelService(Generic[T]):
                     ModelResponse(success=False, data=obj, validation=validation)
                 )
             else:
-                [created, response] = await self.create(obj)
+                [created, response] = await self.create(obj, session)
                 if response is not None and not response.success:
                     log.error(f"Failed to create", error=response.error)
                     problems.append(
@@ -275,10 +278,12 @@ class ModelService(Generic[T]):
             session.flush()
 
             self.log.info(f"Deleted {obj_id}")
-            self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}")
+            self.db_service.add_audit_log(
+                f"Deleted {self.model_name}: {obj_id}", session
+            )
             return ModelResponse(success=True, id=obj_id)
 
-    async def get_by_ids(self, obj_ids: List[str]):
+    async def get_by_ids(self, obj_ids: List[str], session: Session):
         """
         Get multiple model instances by their IDs.
 
@@ -291,17 +296,20 @@ class ModelService(Generic[T]):
         if not obj_ids:
             return []
 
-        with self.db_service.get_session() as session:
-            stmt = select(self.model_class).filter(self.model_class.id.in_(obj_ids))
-            objects = session.exec(stmt).all()
-            return objects
+        stmt = select(self.model_class).filter(self.model_class.id.in_(obj_ids))  # type: ignore
+        objects = session.exec(stmt).all()
+        return objects
 
-    async def list(self):
+    def get_session(self, session: Optional[Session] = None):
+        if session:
+            return session
+        return self.db_service.get_session()
+
+    async def list(self, session: Session):
         """
         List all model instances.
 
         Returns:
             A list of all model instances
         """
-        with self.db_service.get_session() as session:
-            return session.exec(select(self.model_class)).all()
+        return session.exec(select(self.model_class)).all()

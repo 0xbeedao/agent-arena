@@ -2,7 +2,9 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field
+from sqlmodel import SQLModel
+
 from .validation import ValidationResponse
 
 

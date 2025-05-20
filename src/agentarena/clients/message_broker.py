@@ -1,13 +1,15 @@
-from typing import Any, Mapping
+from typing import Any
+from typing import Mapping
+
 import nats
-from nats.aio.client import Client as NatsClient
 import orjson
+from nats.aio.client import Client as NatsClient
 from pydantic import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import CommandJobBatchRequest
-from agentarena.models.job import CommandJobRequest
+from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
 
@@ -36,7 +38,7 @@ class MessageBroker:
         self.uuid_service = uuid_service
         self.log = logging.get_logger("factory")
 
-    async def send_job(self, req: CommandJobRequest):
+    async def send_job(self, req: CommandJob):
         """
         sends a job to the scheduler
         """
@@ -59,7 +61,7 @@ class MessageBroker:
         Sends a batch to the scheduler
         """
         batch_id = self.uuid_service.ensure_id(req.batch)
-        batch: CommandJobRequest = req.batch.model_copy()
+        batch: CommandJob = req.batch.model_copy()
         batch.id = batch_id
         # batch should not get picked up until complete
         batch.state = JobState.REQUEST.value

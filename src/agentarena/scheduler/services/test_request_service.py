@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from agentarena.core.factories.db_factory import get_engine
+from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.db_service import DbService
+from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
@@ -42,6 +46,38 @@ def message_broker():
     return service
 
 
+@pytest.fixture
+def uuid_service():
+    return UUIDService(word_list=[])
+
+
+@pytest.fixture
+def db_service(uuid_service, logging):
+    """Fixture to create an in-memory DB service"""
+    service = DbService(
+        get_project_root(),
+        dbfile="test.db",
+        get_engine=get_engine,
+        memory=True,
+        prod=False,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+    return service.create_db()
+
+
+@pytest.fixture
+def svc(db_service, message_broker, queue_service, logging):
+    svc = RequestService(
+        arena_url="http://localhost:8000",
+        queue_service=queue_service,
+        message_broker=message_broker,
+        db_service=db_service,
+        logging=logging,
+    )
+    return svc
+
+
 def make_success_response() -> JobResponse:
     return JobResponse(
         job_id="test-response",
@@ -57,11 +93,7 @@ def make_pending_response() -> JobResponse:
 
 
 @pytest.mark.asyncio
-async def test_no_jobs(queue_service, logging):
-    svc = RequestService(
-        queue_service=queue_service,
-        logging=logging,
-    )
+async def test_no_jobs(svc, queue_service):
     queue_service.get_next.return_value = None
     response = await svc.poll_and_process()
     assert response is False
@@ -69,12 +101,7 @@ async def test_no_jobs(queue_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_poll_job_success(queue_service, logging, httpx_mock):
-    svc = RequestService(
-        arena_url="http://localhost:8000",
-        queue_service=queue_service,
-        logging=logging,
-    )
+async def test_poll_job_success(queue_service, svc, httpx_mock):
     job = make_job("xxx")
     queue_service.get_next.return_value = job
     queue_service.update_state.return_value = make_job("xxx")
@@ -92,12 +119,7 @@ async def test_poll_job_success(queue_service, logging, httpx_mock):
 
 
 @pytest.mark.asyncio
-async def test_poll_job_pending(queue_service, logging, httpx_mock):
-    svc = RequestService(
-        arena_url="http://localhost:8000",
-        queue_service=queue_service,
-        logging=logging,
-    )
+async def test_poll_job_pending(queue_service, svc, httpx_mock):
     job = make_job("xxx")
     queue_service.get_next.return_value = job
     queue_service.requeue_job.return_value = make_job("yyy")
@@ -115,12 +137,7 @@ async def test_poll_job_pending(queue_service, logging, httpx_mock):
 
 
 @pytest.mark.asyncio
-async def test_message_job_just_completes(queue_service, logging, message_broker):
-    svc = RequestService(
-        arena_url="http://localhost:8000",
-        queue_service=queue_service,
-        logging=logging,
-    )
+async def test_message_job_just_completes(queue_service, svc):
     job = CommandJob(
         id="test-message",
         channel="test.message.response",

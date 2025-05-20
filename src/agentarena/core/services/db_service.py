@@ -1,11 +1,12 @@
 import os.path
 from datetime import datetime
-from typing import Callable, List
+from typing import Callable
+from typing import List
 from typing import Sequence
 
 from pydantic import Field
-from sqlite_utils.db import Database
-from sqlmodel import SQLModel, Session
+from sqlmodel import Session
+from sqlmodel import SQLModel
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
@@ -49,25 +50,24 @@ class DbService:
             self.log.info("Creating DB")
             SQLModel.metadata.create_all(self.engine)
             self._created = True
+        return self
 
-    def add_audit_log(self, message):
+    def add_audit_log(self, message, session: Session):
         audit = self.create(
             AuditMessage(
                 id=self.uuid_service.make_id(),
                 created_at=int(datetime.now().timestamp()),
                 message=message,
-            )
+            ),
+            session,
         )
         self.log.info("audit", audit=audit)
 
-    def create(self, obj):
-        print(f"=============================\n{obj.model_dump_json()}")
-        self.log.info("Creating", obj=obj)
-        with Session(self.engine) as session:
-            session.add(obj)
-            session.commit()
-            session.refresh(obj)
-            return obj
+    def create(self, obj, session: Session):
+        session.add(obj)
+        session.commit()
+        session.refresh(obj)
+        return obj
 
     def get_session(self):
         return Session(self.engine)

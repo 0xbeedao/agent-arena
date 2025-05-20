@@ -1,10 +1,12 @@
 from typing import Optional
 
 from pydantic import Field
+from sqlmodel import Session
 from statemachine import State
 
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.db_service import DbService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
@@ -28,12 +30,15 @@ class RequestService:
     def __init__(
         self,
         arena_url: str = Field(description="url of arena server"),
+        db_service: DbService = Field(description="DB Service"),
         queue_service: QueueService = Field(description="Queue Service"),
         message_broker: MessageBroker = Field(),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         assert arena_url
+        assert db_service
         self.arena_url = arena_url
+        self.db_service = db_service
         self.queue_service = queue_service
         self.message_broker = message_broker
         self.logging = logging
@@ -58,11 +63,10 @@ class RequestService:
         """
         log = self.log.bind(method="process_job", job=job.id)
         log.info("processing")
-        method = job.method.lower()
         machine = RequestMachine(
             job,
-            logging=self.logging,
             arena_url=self.arena_url,
+            logging=self.logging,
             message_broker=self.message_broker,
         )
         await machine.activate_initial_state()  # type: ignore
@@ -75,16 +79,19 @@ class RequestService:
             return False
         obj = machine.response_object
         curr = state.value
-        if curr == RequestState.FAIL.value:
-            return await self.handle_fail(job, obj)
-        elif curr == RequestState.WAITING.value:
-            return await self.handle_waiting(job, obj)
-        elif curr == RequestState.COMPLETE.value:
-            return await self.handle_complete(job, obj)
-        else:
-            raise Exception(f"Invalid state {state.value}")
+        with self.db_service.get_session() as session:
+            if curr == RequestState.FAIL.value:
+                return await self.handle_fail(job, obj, session)
+            elif curr == RequestState.WAITING.value:
+                return await self.handle_waiting(job, obj, session)
+            elif curr == RequestState.COMPLETE.value:
+                return await self.handle_complete(job, obj, session)
+            else:
+                raise Exception(f"Invalid state {state.value}")
 
-    async def handle_complete(self, job, response: Optional[JobResponse]):
+    async def handle_complete(
+        self, job: CommandJob, response: Optional[JobResponse], session: Session
+    ):
         """
         Handle a completed job.
         """
@@ -98,12 +105,15 @@ class RequestService:
         result = await self.queue_service.update_state(
             job.id,
             JobState.COMPLETE.value,
+            session,
             message=message,
             data=data,  # type: ignore
         )
         return result is not None
 
-    async def handle_fail(self, job, response: Optional[JobResponse]):
+    async def handle_fail(
+        self, job: CommandJob, response: Optional[JobResponse], session: Session
+    ):
         """
         Handle a failed job.
         """
@@ -116,12 +126,14 @@ class RequestService:
         if response is not None and response.message is not None:
             message = response.message
         result = await self.queue_service.update_state(
-            job.id, JobState.FAIL.value, message
+            job.id, JobState.FAIL.value, session, message=message
         )
 
         return result is not None
 
-    async def handle_waiting(self, job, response: Optional[JobResponse]):
+    async def handle_waiting(
+        self, job: CommandJob, response: Optional[JobResponse], session: Session
+    ):
         """
         Handle a waiting job (requeue).
         """
@@ -129,5 +141,5 @@ class RequestService:
         delay = 0
         if response is not None and response.delay is not None:
             delay = response.delay
-        result = await self.queue_service.requeue_job(job, delay=delay)
+        result = await self.queue_service.requeue_job(job, session, delay=delay)
         return result is not None

@@ -1,6 +1,7 @@
-from typing import Dict, Type
+from typing import Dict
 from typing import Generic
 from typing import List
+from typing import Type
 from typing import TypeVar
 
 from fastapi import APIRouter

@@ -4,11 +4,15 @@ Provides models to manage aynchronous Jobs
 
 from datetime import datetime
 from enum import Enum
-from typing import List
 from typing import Dict
+from typing import List
 from typing import Optional
 
-from sqlmodel import SQLModel, Field, JSON, Column
+from sqlmodel import JSON
+from sqlmodel import Column
+from sqlmodel import Field
+from sqlmodel import Relationship
+from sqlmodel import SQLModel
 
 from agentarena.models.dbbase import DbBase
 
@@ -66,7 +70,8 @@ class UrlJobRequest(SQLModel, table=False):
 
 
 class CommandJobBase(SQLModel):
-    parent_id: Optional[str] = Field(default="", description="parent")
+
+    parent_id: Optional[str] = Field(default=None, foreign_key="commandjob.id")
     channel: str = Field(description="channel for publishing")
     data: Optional[Dict] = Field(
         default_factory=dict,
@@ -94,7 +99,36 @@ class CommandJobBase(SQLModel):
 
 
 class CommandJob(CommandJobBase, DbBase, table=True):
-    pass
+    # Relationships
+    parent: Optional["CommandJob"] = Relationship(back_populates="children")
+    children: List["CommandJob"] = Relationship(
+        back_populates="parent",
+        sa_relationship_kwargs={"remote_side": "CommandJob.id"},
+    )
+    history: List["CommandJobHistory"] = Relationship(back_populates="job")
+
+    def make_child(self, req: UrlJobRequest) -> "CommandJob":
+        """
+        convenience method to make a child job
+        """
+        send_at = int(datetime.now().timestamp())
+        if req.delay is not None and req.delay > 0:
+            send_at += req.delay
+
+        parent_priority = self.priority or 5
+        priority = parent_priority - 1
+        return CommandJob(
+            id="",
+            parent_id=self.id,
+            parent=self,
+            channel=req.command or self.channel,
+            data=req.data,
+            method=req.method or self.method,
+            priority=priority,
+            send_at=send_at,
+            state=JobState.IDLE.value,
+            url=req.url or "",
+        )
 
 
 class CommandJobCreate(CommandJobBase):
@@ -134,7 +168,7 @@ class CommandJobPublic(CommandJobBase):
 
 
 class CommandJobHistoryBase(SQLModel):
-    job_id: str = Field(description="Initiating job")
+    job_id: str = Field(foreign_key="commandjob.id")
     from_state: str = Field(description="Original Job state, see JobState states")
     to_state: str = Field(description="Updated Job state, see JobState states")
     message: Optional[str] = Field(
@@ -148,7 +182,7 @@ class CommandJobHistoryBase(SQLModel):
 
 
 class CommandJobHistory(DbBase, CommandJobHistoryBase, table=True):
-    pass
+    job: CommandJob = Relationship(back_populates="history")
 
 
 class CommandJobHistoryCreate(CommandJobHistoryBase):
@@ -159,74 +193,8 @@ class CommandJobHistoryPublic(CommandJobHistoryBase):
     pass
 
 
-class CommandJobRequest(SQLModel, table=False):
-    """The JSON serializable request for a CommandJob"""
-
-    id: str = Field(description="The Job ID")
-    parent_id: Optional[str] = Field(
-        default=None,
-        description="The parent CommandJob, can be null, indicating this is a top-level job",
-    )
-    channel: str = Field(
-        description="job command - this will be published as the subject on NATS"
-    )
-    data: Optional[Dict] = Field(
-        default_factory=dict,
-        sa_column=Column(JSON),
-        description="optional payload to send to Url",
-    )
-    method: str = Field(description="method, any HTTP method or 'MESSAGE' to use NATS")
-    priority: Optional[int] = Field(
-        default=5, description="priority on a scale from 1 to 10, 10 high"
-    )
-    send_at: int = Field(
-        default=0, description="Available in queue after what timestamp"
-    )
-    state: Optional[str] = Field(
-        default="idle", description="Job initial state, see JobState states"
-    )
-    url: Optional[str] = Field(description="Url to Call, or subject if using NATS")
-
-    def make_child(self, req: UrlJobRequest) -> "CommandJobRequest":
-        """
-        convenience method to make a child job
-        """
-        send_at = int(datetime.now().timestamp())
-        if req.delay is not None and req.delay > 0:
-            send_at += req.delay
-
-        parent_priority = self.priority or 5
-        priority = parent_priority - 1
-        return CommandJobRequest(
-            id="",
-            parent_id=self.id,
-            channel=req.command or self.channel,
-            data=req.data,
-            method=req.method or self.method,
-            priority=priority,
-            send_at=send_at,
-            state=JobState.IDLE.value,
-            url=req.url,
-        )
-
-    def to_job(self) -> CommandJob:
-        return CommandJob(
-            id=self.id,
-            parent_id=self.parent_id,
-            channel=self.channel,
-            data=self.data,
-            method=self.method,
-            priority=self.priority or 5,
-            send_at=self.send_at,
-            state=self.state or "idle",
-            url=self.url or "",
-            started_at=0,
-            finished_at=0,
-        )
-
-
 class CommandJobBatchRequest(SQLModel, table=False):
-    batch: CommandJobRequest = Field(
+    batch: CommandJob = Field(
         description="The job to call when children are in final state"
     )
     children: List[UrlJobRequest] = Field(

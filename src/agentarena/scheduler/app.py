@@ -6,11 +6,11 @@ import os
 import sys
 
 import better_exceptions
+import uvicorn
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import uvicorn
 
 from agentarena.core.middleware import add_logging_middleware
 from agentarena.scheduler.scheduler_container import SchedulerContainer
