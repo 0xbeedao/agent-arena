@@ -103,6 +103,7 @@ async def test_update_job(
     """Test updating a job"""
     job_create = CommandJobCreate(**sample_job_data)
     created_job, _ = await model_service.create(job_create)
+    assert created_job is not None
 
     update_data = {"state": "complete", "finished_at": int(datetime.now().timestamp())}
     job_update = CommandJobUpdate(**update_data)
@@ -123,6 +124,7 @@ async def test_delete_job(
     job_create = CommandJobCreate(**sample_job_data)
     created_job, _ = await model_service.create(job_create)
 
+    assert created_job is not None
     response = await model_service.delete(created_job.id)
 
     assert response.success is True

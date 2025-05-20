@@ -273,11 +273,10 @@ class ModelService(Generic[T]):
                 )
             session.delete(existing)
             session.flush()
-            session.refresh(existing)
 
             self.log.info(f"Deleted {obj_id}")
             self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}")
-            return ModelResponse(success=True, id=obj_id, data=existing)
+            return ModelResponse(success=True, id=obj_id)
 
     async def get_by_ids(self, obj_ids: List[str]):
         """
@@ -294,7 +293,7 @@ class ModelService(Generic[T]):
 
         with self.db_service.get_session() as session:
             stmt = select(self.model_class).filter(self.model_class.id.in_(obj_ids))
-            objects = session.exec(stmt)
+            objects = session.exec(stmt).all()
             return objects
 
     async def list(self):
@@ -305,4 +304,4 @@ class ModelService(Generic[T]):
             A list of all model instances
         """
         with self.db_service.get_session() as session:
-            return session.exec(select(self.model_class))
+            return session.exec(select(self.model_class)).all()

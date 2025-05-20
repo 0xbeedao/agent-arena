@@ -121,6 +121,9 @@ class CommandJobUpdate(SQLModel):
     started_at: Optional[int] = Field(
         default=0, description="When this job was picked up from queue"
     )
+    finished_at: Optional[int] = Field(
+        default=0, description="When this job was picked up from queue"
+    )
     url: Optional[str] = Field(
         default="", description="Url to Call, or command channel for MESSAGE"
     )
@@ -213,10 +216,10 @@ class CommandJobRequest(SQLModel, table=False):
             channel=self.channel,
             data=self.data,
             method=self.method,
-            priority=self.priority,
+            priority=self.priority or 5,
             send_at=self.send_at,
-            state=self.state,
-            url=self.url,
+            state=self.state or "idle",
+            url=self.url or "",
             started_at=0,
             finished_at=0,
         )
