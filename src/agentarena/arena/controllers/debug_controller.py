@@ -90,6 +90,7 @@ class DebugController:
             state=JobResponseState.COMPLETED.value,
             message="test",
             data=HealthStatus(name="debug_controller", state="OK", version="1"),
+            url="",
         )
 
     def get_router(self):

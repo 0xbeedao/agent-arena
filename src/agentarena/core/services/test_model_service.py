@@ -28,7 +28,7 @@ def uuid_service(logging):
 def db_service(uuid_service, logging):
     """Fixture to create an in-memory DB service"""
     service = DbService(
-        get_project_root(),
+        str(get_project_root()),
         dbfile="test.db",
         get_engine=get_engine,
         memory=True,
@@ -87,7 +87,7 @@ async def test_get_job(model_service: ModelService[CommandJob], sample_job_data:
         created_job, _ = await model_service.create(job_create, session)
 
         assert created_job is not None
-        retrieved_job, response = await model_service.get(created_job.id)
+        retrieved_job, response = await model_service.get(created_job.id, session)
 
         assert retrieved_job is not None
         assert response.success is True
@@ -111,7 +111,9 @@ async def test_update_job(
         }
         job_update = CommandJobUpdate(**update_data)
 
-        updated_job, response = await model_service.update(created_job.id, job_update)
+        updated_job, response = await model_service.update(
+            created_job.id, job_update, session
+        )
 
         assert updated_job is not None
         assert response.success is True
@@ -129,12 +131,12 @@ async def test_delete_job(
         created_job, _ = await model_service.create(job_create, session)
 
         assert created_job is not None
-        response = await model_service.delete(created_job.id)
+        response = await model_service.delete(created_job.id, session)
 
         assert response.success is True
 
         # Verify job is actually deleted
-        deleted_job, get_response = await model_service.get(created_job.id)
+        deleted_job, get_response = await model_service.get(created_job.id, session)
         assert deleted_job is None
         assert get_response.success is False
 

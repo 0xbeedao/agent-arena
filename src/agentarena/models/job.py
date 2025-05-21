@@ -128,7 +128,7 @@ class CommandJob(CommandJobBase, DbBase, table=True):
 
 
 class CommandJobCreate(CommandJobBase):
-    id: Optional[str] = Field()
+    id: Optional[str] = Field(default=None)
 
 
 class CommandJobUpdate(SQLModel):

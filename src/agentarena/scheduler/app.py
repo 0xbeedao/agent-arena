@@ -51,7 +51,10 @@ async def startup_event():
     with db.get_session() as session:
         db.add_audit_log("startup", session)
     broker = await container.message_broker()  # type: ignore
-    for svc in [container.debug_controller(), await container.queue_service()]:
+    for svc in [
+        container.debug_controller(),
+        await container.queue_service(),  # type: ignore
+    ]:
         await svc.subscribe_yourself(broker)
     log.info("Application startup complete, resources initialized and container wired.")
 

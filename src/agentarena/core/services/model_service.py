@@ -138,7 +138,6 @@ class ModelService(Generic[T]):
         parsed_obj.id = self.uuid_service.make_id()
 
         # This validateDTO is from DbBase, for business logic validation after Pydantic's parsing
-        print(f"Now creating #{parsed_obj.id}")
         validation = self.db_service.validateDTO(parsed_obj)
         if not validation.success:
             self.log.error(

@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
 from pydantic import Field
+from sqlmodel import Session
 from sqlmodel import SQLModel
 
 from agentarena.core.factories.logger_factory import LoggingService
@@ -47,9 +48,7 @@ class ModelController(Generic[T, MC, MU, MP]):
             "controller", model=model_name, path=self.base_path
         )
 
-    async def create_model(
-        self, req: MC = Field(description="The model create request")
-    ) -> MP:
+    async def create_model(self, req: MC) -> MP:
         """
         Create a new instance of the model.
 
@@ -63,16 +62,15 @@ class ModelController(Generic[T, MC, MU, MP]):
             HttpException for validation errors
         """
         self.log.info("create request")
-        obj, response = await self.model_service.create(req)
-        if response and not response.success:
-            raise HTTPException(status_code=422, detail=response.validation)
-        if not obj:
-            raise HTTPException(status_code=500, detail="internal error")
-        return self.model_public.model_validate(obj)
+        with self.model_service.get_session() as session:
+            obj, response = await self.model_service.create(req, session)
+            if response and not response.success:
+                raise HTTPException(status_code=422, detail=response.validation)
+            if not obj:
+                raise HTTPException(status_code=500, detail="internal error")
+            return self.model_public.model_validate(obj)
 
-    async def get_model(
-        self, obj_id: str = Field(description="The id of the object")
-    ) -> MP:
+    async def get_model(self, obj_id: str) -> MP:
         """
         Get an instance of the model by id
 
@@ -85,12 +83,13 @@ class ModelController(Generic[T, MC, MU, MP]):
         Raises:
             HttpException if not found or invalid
         """
-        obj, response = await self.model_service.get(obj_id)
-        if not response.success:
-            raise HTTPException(status_code=404, detail=response.error)
-        if not obj:
-            raise HTTPException(status_code=500, detail="internal error")
-        return self.model_public.model_validate(obj)
+        with self.model_service.get_session() as session:
+            obj, response = await self.model_service.get(obj_id, session)
+            if not response.success:
+                raise HTTPException(status_code=404, detail=response.error)
+            if not obj:
+                raise HTTPException(status_code=500, detail="internal error")
+            return self.model_public.model_validate(obj)
 
     async def get_model_list(self) -> List[MP]:
         """
@@ -99,13 +98,14 @@ class ModelController(Generic[T, MC, MU, MP]):
         Returns:
             A list of feature configurations
         """
-        raw = await self.model_service.list()
-        return [self.model_public.model_validate(obj) for obj in raw]
+        with self.model_service.get_session() as session:
+            raw = await self.model_service.list(session)
+            return [self.model_public.model_validate(obj) for obj in raw]
 
     async def update_model(
         self,
-        req_id: str = Field(description="The id of the object to update"),
-        req: MU = Field(description="updated model"),
+        req_id: str,
+        req: MU,
     ) -> MP:
         """
         Update the model
@@ -120,18 +120,18 @@ class ModelController(Generic[T, MC, MU, MP]):
         Raises:
             HTTPException: If the object is not found
         """
+        with self.model_service.get_session() as session:
+            obj, response = await self.model_service.update(req_id, req, session)
+            if not response.success:
+                self.log.info("Failed to update object", validation=response)
+                raise HTTPException(status_code=422, detail=response.validation)
+            if not obj:
+                raise HTTPException(status_code=500, detail="internal error")
+            data = obj
+            if hasattr(obj, "model_dump"):
+                data = obj.model_dump()
 
-        obj, response = await self.model_service.update(req_id, req)
-        if not response.success:
-            self.log.info("Failed to update object", validation=response)
-            raise HTTPException(status_code=422, detail=response.validation)
-        if not obj:
-            raise HTTPException(status_code=500, detail="internal error")
-        data = obj
-        if hasattr(obj, "model_dump"):
-            data = obj.model_dump()
-
-        return self.model_public.model_validate(data)
+            return self.model_public.model_validate(data)
 
     async def delete_model(
         self,
@@ -149,10 +149,11 @@ class ModelController(Generic[T, MC, MU, MP]):
         Raises:
             HTTPException: If the feature is not found
         """
-        response = await self.model_service.delete(obj_id)
-        if not response.success:
-            raise HTTPException(status_code=422, detail=response.validation)
-        return {"success": response.success}
+        with self.model_service.get_session() as session:
+            response = await self.model_service.delete(obj_id, session)
+            if not response.success:
+                raise HTTPException(status_code=422, detail=response.validation)
+            return {"success": response.success}
 
     def get_router(self):
         self.log.info("getting router")
