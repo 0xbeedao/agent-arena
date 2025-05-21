@@ -4,6 +4,7 @@ from fastapi import Depends
 from pydantic import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.db_service import DbService
 from agentarena.scheduler.services.request_service import RequestService
 
 
@@ -15,6 +16,7 @@ class SchedulerService:
 
     def __init__(
         self,
+        db_service: DbService = Field(),
         delay: int = Field(default=1, description="Delay in seconds between polls"),
         max_concurrent: int = Field(
             default=1, description="Maximum concurrent polling runs"
@@ -24,6 +26,7 @@ class SchedulerService:
     ):
         self.delay = delay
         self.max_concurrent = max_concurrent
+        self.db_service = db_service
         self.request_service = request_service
         self.logging = logging
         self.scheduler: AsyncIOScheduler = Depends()
@@ -72,4 +75,5 @@ class SchedulerService:
             )
 
     async def poll(self):
-        await self.request_service.poll_and_process()
+        with self.db_service.get_session() as session:
+            await self.request_service.poll_and_process(session)

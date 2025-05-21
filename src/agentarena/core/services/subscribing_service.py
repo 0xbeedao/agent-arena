@@ -3,29 +3,23 @@ from typing import List
 from typing import Tuple
 
 from agentarena.clients.message_broker import MessageBroker
-from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import ILogger
 
 
 class SubscribingService:
 
-    def __init__(
-        self,
-        subscriptions: List[Tuple[str, Callable]],
-        message_broker: MessageBroker,
-        logging: LoggingService,
-    ):
+    def __init__(self, subscriptions: List[Tuple[str, Callable]], log: ILogger):
         self._subscribed = []
         self._pending = subscriptions
-        self.message_broker = message_broker
-        self.log = logging.get_logger("controller")
+        self._log = log
 
-    async def subscribe_yourself(self):
+    async def subscribe_yourself(self, message_broker: MessageBroker):
         if not self._subscribed and self._pending:
-            client = self.message_broker.client
+            client = message_broker.client
             while self._pending:
                 pending = self._pending.pop()
                 sub = await client.subscribe(pending[0], cb=pending[1])
-                self.log.info("Subscribing", channel=pending[0])
+                self._log.info("Subscribing", channel=pending[0])
                 self._subscribed.append(sub)
 
     async def unsubscribe_yourself(self):

@@ -20,7 +20,8 @@ async def get_message_broker_connection(
 ):
     """DI method to instantiate a NATS connection"""
     assert nats_url
-    logging.get_logger("factory").info("Setup NATS message broker", url=nats_url)
+    log = logging.get_logger("factory")
+    log.info("Setup NATS message broker", url=nats_url)
     nat_conn = await nats.connect(nats_url)
     yield nat_conn
     await nat_conn.drain()

@@ -36,13 +36,13 @@ app = FastAPI(
 async def startup_event():
     """Initialize resources on application startup."""
     container.init_resources()
-    # container.wire(
-    #     modules=[
-    #         sys.modules[__name__],  # wire current module
-    #         "agentarena.scheduler.controllers.debug_controller",
-    #         "agentarena.core.controllers.model_controller",
-    #     ]
-    # )
+    container.wire(
+        modules=[
+            sys.modules[__name__],  # wire current module
+            "agentarena.scheduler.controllers.debug_controller",
+            "agentarena.core.controllers.model_controller",
+        ]
+    )
 
     logger = container.logging()
     log = logger.get_logger("scheduler")
@@ -51,8 +51,8 @@ async def startup_event():
     with db.get_session() as session:
         db.add_audit_log("startup", session)
     broker = await container.message_broker()  # type: ignore
-    controller = container.debug_controller()
-    await controller.subscribe_yourself(broker)
+    for svc in [container.debug_controller(), await container.queue_service()]:
+        await svc.subscribe_yourself(broker)
     log.info("Application startup complete, resources initialized and container wired.")
 
 

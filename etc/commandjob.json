@@ -1,0 +1,7 @@
+{
+  "id": "test-job",
+  "channel": "scheduler.debug.test.request",
+  "method": "GET",
+  "url": "http://localhost:8080/api/debug/health",
+  "state": "idle"
+}

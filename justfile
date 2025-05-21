@@ -44,3 +44,7 @@ lint:
 
 clean:
     rm arena.db
+
+nats:
+    nats-server -l logs/nats.log &
+    

@@ -6,7 +6,6 @@ from statemachine import State
 
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.core.services.db_service import DbService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
@@ -30,34 +29,31 @@ class RequestService:
     def __init__(
         self,
         arena_url: str = Field(description="url of arena server"),
-        db_service: DbService = Field(description="DB Service"),
         queue_service: QueueService = Field(description="Queue Service"),
         message_broker: MessageBroker = Field(),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         assert arena_url
-        assert db_service
         self.arena_url = arena_url
-        self.db_service = db_service
         self.queue_service = queue_service
         self.message_broker = message_broker
         self.logging = logging
         self.log = logging.get_logger("service")
 
-    async def poll_and_process(self) -> bool:
+    async def poll_and_process(self, session: Session) -> bool:
         """
         Poll the queue for jobs and process them.
         """
-        job = await self.queue_service.get_next()
+        job = await self.queue_service.get_next(session)
         if job is None:
             # self.log.debug("No job found in queue")
             return False
 
         self.log.info("Processing job", job_id=getattr(job, "id", None))
-        await self.process_job(job)
+        await self.process_job(job, session)
         return True
 
-    async def process_job(self, job: CommandJob):
+    async def process_job(self, job: CommandJob, session: Session):
         """
         Process a single job using the request state machine.
         """
@@ -79,15 +75,14 @@ class RequestService:
             return False
         obj = machine.response_object
         curr = state.value
-        with self.db_service.get_session() as session:
-            if curr == RequestState.FAIL.value:
-                return await self.handle_fail(job, obj, session)
-            elif curr == RequestState.WAITING.value:
-                return await self.handle_waiting(job, obj, session)
-            elif curr == RequestState.COMPLETE.value:
-                return await self.handle_complete(job, obj, session)
-            else:
-                raise Exception(f"Invalid state {state.value}")
+        if curr == RequestState.FAIL.value:
+            return await self.handle_fail(job, obj, session)
+        elif curr == RequestState.WAITING.value:
+            return await self.handle_waiting(job, obj, session)
+        elif curr == RequestState.COMPLETE.value:
+            return await self.handle_complete(job, obj, session)
+        else:
+            raise Exception(f"Invalid state {state.value}")
 
     async def handle_complete(
         self, job: CommandJob, response: Optional[JobResponse], session: Session

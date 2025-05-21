@@ -4,6 +4,7 @@ from typing import Dict
 from typing import Mapping
 from typing import Optional
 
+from nats.aio.msg import Msg
 from pydantic import Field
 from sqlmodel import Session
 from sqlmodel import select
@@ -55,7 +56,7 @@ class QueueService(SubscribingService):
         self.log = logging.get_logger("service")
         to_subscribe = [("arena.request.job", self.add_job_from_message)]
         # setup subscriptions
-        super().__init__(to_subscribe, message_broker, logging)
+        super().__init__(to_subscribe, self.log)
 
     async def drain(self, session, message=""):
         log = self.log.bind(method="drain")
@@ -74,8 +75,21 @@ class QueueService(SubscribingService):
             return created
         return None
 
-    async def add_job_from_message(self, *args, **kwargs):
-        self.log.info("add job from message", args=args, **kwargs)
+    async def add_job_from_message(self, msg: Msg):
+        self.log.info("add job from message", data=msg.data)
+        job = None
+        try:
+            job = CommandJob.model_validate_json(msg.data)
+        except Exception as e:
+            self.log.error("Could not accept job", e)
+
+        if job:
+            msg.Ack()
+            with self.job_service.get_session() as session:
+                self.log.info("Adding job from message", job=job)
+                await self.add_job(job, session)
+        else:
+            self.log.info("unexpected error making job from message")
 
     async def get_next(self, session: Session) -> CommandJob | None:
         now = int(datetime.now().timestamp())
@@ -83,6 +97,7 @@ class QueueService(SubscribingService):
             select(CommandJob)
             .where(CommandJob.state == JobState.IDLE.value)
             .where(CommandJob.send_at <= now)
+            .order_by(CommandJob.created_at)  # type: ignore
         )
         next = session.exec(stmt).first()
 
@@ -214,7 +229,7 @@ class QueueService(SubscribingService):
 
         log = self.log.bind(method="update_state", state=state, job_id=job_id)
 
-        job, response = await self.job_service.get(job_id)
+        job, response = await self.job_service.get(job_id, session)
 
         if job is None or not response.success:
             log.warn("No such job")
@@ -247,7 +262,7 @@ class QueueService(SubscribingService):
             ),
             session,
         )
-        sent, response = await self.job_service.update(job.id, job)
+        sent, response = await self.job_service.update(job.id, job, session)
         # send message if any
         if not response.success:
             sent = None

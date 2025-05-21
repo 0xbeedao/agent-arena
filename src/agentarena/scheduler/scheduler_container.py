@@ -24,12 +24,14 @@ from agentarena.scheduler.services.scheduler_service import SchedulerService
 
 async def get_scheduler(
     delay: int = 1,
+    db_service: DbService = Depends(),
     max_concurrent: int = 5,
     request_service: RequestService = Depends(),
     logging: LoggingService = Depends(),
 ):
     scheduler = SchedulerService(
         delay=delay,
+        db_service=db_service,
         max_concurrent=max_concurrent,
         request_service=request_service,
         logging=logging,
@@ -95,6 +97,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         ModelService[CommandJob],
         model_class=CommandJob,
         db_service=db_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -102,7 +105,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         ModelService[CommandJobHistory],
         model_class=CommandJobHistory,
         db_service=db_service,
-        table_name="jobhistories",
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -124,6 +127,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
 
     scheduler_service = providers.Resource(
         get_scheduler,
+        db_service=db_service,
         delay=config.scheduler.delay,
         max_concurrent=config.scheduler.max_concurrent,
         request_service=request_service,
@@ -142,6 +146,5 @@ class SchedulerContainer(containers.DeclarativeContainer):
     debug_controller = providers.Singleton(
         DebugController,
         job_service=commandjob_service,
-        message_broker=message_broker,
         logging=logging,
     )

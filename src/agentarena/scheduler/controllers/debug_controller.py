@@ -4,9 +4,9 @@ from typing import List
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
+from nats.aio.msg import Msg
 from pydantic import Field
 
-from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
@@ -33,7 +33,6 @@ class DebugController(SubscribingService):
         self,
         base_path: str = "/api",
         job_service: ModelService[CommandJob] = Field(description="Job Model service"),
-        message_broker: MessageBroker = Field(),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.base_path = f"{base_path}/debug"
@@ -41,7 +40,7 @@ class DebugController(SubscribingService):
         self.log = logging.get_logger("controller", path=self.base_path)
         # setup subscriptions
         subscriptions = [("scheduler.debug.>", self.log_message)]
-        super().__init__(subscriptions, message_broker, logging)
+        super().__init__(subscriptions, self.log)
 
     async def get_job(self, job_id: str = Field(description="job ID to fetch")):
         with self.job_service.get_session() as session:
@@ -120,8 +119,9 @@ class DebugController(SubscribingService):
             url="",
         )
 
-    async def log_message(self, *args, **kwargs):
-        self.log.info("received message", args=args, **kwargs)
+    async def log_message(self, msg: Msg):
+        msg.Ack()
+        self.log.info("received message", subject=msg.subject, data=msg.data)
 
     def get_router(self):
         self.log.info("getting router")
