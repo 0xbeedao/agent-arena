@@ -4,7 +4,7 @@ from typing import Mapping
 import nats
 import orjson
 from nats.aio.client import Client as NatsClient
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService

@@ -1,6 +1,6 @@
 from typing import List
 
-from pydantic import Field
+from sqlmodel import Field
 from ulid import ULID
 
 

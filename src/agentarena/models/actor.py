@@ -1,4 +1,4 @@
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.models.dbbase import DbBase
 

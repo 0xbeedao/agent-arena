@@ -132,30 +132,30 @@ class CommandJobCreate(CommandJobBase):
 
 
 class CommandJobUpdate(SQLModel):
-    channel: Optional[str] = Field(default="", description="channel for publishing")
+    channel: Optional[str] = Field(default=None, description="channel for publishing")
     data: Optional[Dict] = Field(
         default_factory=dict,
         sa_column=Column(JSON),
         description="optional payload to send to Url",
     )
-    method: Optional[str] = Field(default="GET", description="HTTP method, or MESSAGE")
+    method: Optional[str] = Field(default=None, description="HTTP method, or MESSAGE")
     priority: Optional[int] = Field(
         default=5, description="priority on a scale from 1 to 10, 10 high"
     )
     send_at: Optional[int] = Field(
-        default=0, description="Available in queue after what timestamp"
+        default=None, description="Available in queue after what timestamp"
     )
     state: Optional[str] = Field(
-        default="idle", description="Job state, see JobState states"
+        default=None, description="Job state, see JobState states"
     )
     started_at: Optional[int] = Field(
-        default=0, description="When this job was picked up from queue"
+        default=None, description="When this job was picked up from queue"
     )
     finished_at: Optional[int] = Field(
-        default=0, description="When this job was picked up from queue"
+        default=None, description="When this job was picked up from queue"
     )
     url: Optional[str] = Field(
-        default="", description="Url to Call, or command channel for MESSAGE"
+        default=None, description="Url to Call, or command channel for MESSAGE"
     )
 
 

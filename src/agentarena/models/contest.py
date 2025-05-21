@@ -8,7 +8,7 @@ from typing import Optional
 from typing import Tuple
 
 from pydantic import BaseModel
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.models.arena import Arena
 from agentarena.models.participant import Participant

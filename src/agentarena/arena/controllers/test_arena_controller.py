@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelResponse
-from agentarena.models.arena import ArenaCreateRequest
+from agentarena.models.arena import ArenaCreate
 
 
 @pytest.fixture
@@ -60,14 +60,14 @@ async def test_create_arena_success(
 ):
     arena_controller = ArenaController(
         agent_service=mock_agent_service,
-        model_service=mock_arena_service,
+        arena_service=mock_arena_service,
         feature_service=mock_feature_service,
         participant_service=mock_participant_service,
         arena_factory=mock_arena_factory,
         logging=logging,
     )
     # Arrange
-    create_request = ArenaCreateRequest(
+    create_request = ArenaCreate(
         name="Test Arena",
         description="A test arena",
         height=10,

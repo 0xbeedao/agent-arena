@@ -7,10 +7,10 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from pydantic import Field
+from sqlmodel import Field
 
 from .dbbase import DbBase
-from .feature import FeatureDTO
+from .feature import Feature
 from .judge import JudgeResultDTO
 from .player import PlayerAction
 from .player import PlayerStateDTO
@@ -27,9 +27,7 @@ class ArenaStateDTO(DbBase, table=True):
     round_no: int = Field(description="Round number", ge=0)
     narrative: Optional[str] = Field(default=None, description="Round narrative")
     state: str = Field(description="Arena state")
-    features: List[FeatureDTO] = Field(
-        default_factory=list, description="Arena features"
-    )
+    features: List[Feature] = Field(default_factory=list, description="Arena features")
     player_states: Dict[str, PlayerStateDTO] = Field(
         default_factory=dict, description="Player states"
     )

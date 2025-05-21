@@ -5,7 +5,7 @@ Agent configuration model for the Agent Arena application.
 import urllib.parse
 from typing import Optional
 
-from pydantic import Field
+from sqlmodel import Field
 
 from .dbbase import DbBase
 

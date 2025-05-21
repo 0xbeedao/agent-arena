@@ -7,8 +7,7 @@ from typing import TypeVar
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from pydantic import Field
-from sqlmodel import Session
+from sqlmodel import Field
 from sqlmodel import SQLModel
 
 from agentarena.core.factories.logger_factory import LoggingService
@@ -18,7 +17,7 @@ from agentarena.models.dbbase import DbBase
 T = TypeVar("T", bound=DbBase)
 MC = TypeVar("MC", bound=SQLModel)  # model creation type, e.g. CommandJobCreate
 MU = TypeVar("MU", bound=SQLModel)  # model update type, e.g. CommandJobUpdate
-MP = TypeVar("MP", bound=SQLModel)  # model public tyhpe, e.g. CommandJobPublic
+MP = TypeVar("MP", bound=SQLModel)  # model public type, e.g. CommandJobPublic
 
 
 class ModelController(Generic[T, MC, MU, MP]):

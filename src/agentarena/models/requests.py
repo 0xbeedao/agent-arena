@@ -5,7 +5,7 @@ JSON serializable Request and Response models that don't have backing DTOs
 from typing import Optional
 
 from pydantic import BaseModel
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.models.job import JobResponse
 

@@ -8,7 +8,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from pydantic import Field
+from sqlmodel import Field
 
 from .dbbase import DbBase
 

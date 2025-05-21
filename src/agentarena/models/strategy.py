@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel
-from pydantic import Field
+from sqlmodel import Field
 
 from .dbbase import DbBase
 from .validation import ValidationResponse

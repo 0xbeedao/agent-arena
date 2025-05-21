@@ -1,7 +1,7 @@
 from typing import Any
 from typing import Optional
 
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.models.dbbase import DbBase
 from agentarena.models.job import CommandJob

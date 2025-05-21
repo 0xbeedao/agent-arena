@@ -2,7 +2,7 @@ import json
 from enum import Enum
 
 import httpx
-from pydantic import Field
+from sqlmodel import Field
 from statemachine import State
 from statemachine import StateMachine
 

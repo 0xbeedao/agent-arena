@@ -1,7 +1,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from fastapi import Depends
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService

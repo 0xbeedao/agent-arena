@@ -5,7 +5,7 @@ from typing import Mapping
 from typing import Optional
 
 from nats.aio.msg import Msg
-from pydantic import Field
+from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import select
 

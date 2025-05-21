@@ -3,7 +3,7 @@ Responder controller for Agent Response endpoints
 """
 
 from fastapi import APIRouter
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.arena.factories.participant_factory import ParticipantFactory
 from agentarena.core.factories.logger_factory import LoggingService

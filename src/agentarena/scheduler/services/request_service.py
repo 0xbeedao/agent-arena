@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import Field
+from sqlmodel import Field
 from sqlmodel import Session
 from statemachine import State
 

@@ -6,7 +6,7 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 
-from pydantic import Field
+from sqlmodel import Field
 from statemachine import State
 from statemachine import StateMachine
 

@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
 from nats.aio.msg import Msg
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService

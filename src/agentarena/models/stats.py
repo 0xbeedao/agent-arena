@@ -7,7 +7,7 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 
-from pydantic import Field
+from sqlmodel import Field
 
 from .dbbase import DbBase
 

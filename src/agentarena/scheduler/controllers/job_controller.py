@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi import Body
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService

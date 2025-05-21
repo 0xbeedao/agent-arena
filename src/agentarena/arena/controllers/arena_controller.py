@@ -9,45 +9,42 @@ from typing import List
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from pydantic import Field
+from sqlmodel import Field
 
-from agentarena.arena.factories.arena_factory import ArenaFactory
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelResponse
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.agent import AgentDTO
-from agentarena.models.arena import Arena
-from agentarena.models.arena import ArenaCreateRequest
-from agentarena.models.arena import ArenaDTO
-from agentarena.models.feature import FeatureDTO
-from agentarena.models.feature import FeatureOriginType
-from agentarena.models.participant import ParticipantDTO
+from agentarena.models.arena import (
+    Arena,
+    ArenaPublic,
+    ArenaUpdate,
+    Feature,
+    Participant,
+)
+from agentarena.models.arena import ArenaCreate
 
 
-class ArenaController(ModelController[ArenaDTO]):
+class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPublic]):
 
     def __init__(
         self,
         base_path: str = "/api",
-        model_service: ModelService[ArenaDTO] = Field(description="The arena service"),
-        agent_service: ModelService[AgentDTO] = Field(description="The agent service"),
-        feature_service: ModelService[FeatureDTO] = Field(
+        arena_service: ModelService[Arena] = Field(description="The arena service"),
+        feature_service: ModelService[Feature] = Field(
             description="The feature service"
         ),
-        participant_service: ModelService[ParticipantDTO] = Field(
-            description="The participant service"
+        participant_service: ModelService[Participant] = Field(
+            description="The feature service"
         ),
-        arena_factory: ArenaFactory = Field(description="The arena builder factory"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
-        self.agent_service = agent_service
-        self.arena_factory = arena_factory
         self.feature_service = feature_service
         self.participant_service = participant_service
         super().__init__(
             base_path=base_path,
-            model_service=model_service,
+            model_service=arena_service,
+            model_public=ArenaPublic,
             model_name="arena",
             logging=logging,
         )
@@ -55,8 +52,8 @@ class ArenaController(ModelController[ArenaDTO]):
     # @router.post("/arena", response_model=Arena)
     async def create_arena(
         self,
-        createRequest: ArenaCreateRequest,
-    ) -> ArenaDTO:
+        req: ArenaCreate,
+    ) -> Arena:
         """
         Create a new arena.
 
@@ -66,58 +63,70 @@ class ArenaController(ModelController[ArenaDTO]):
         Returns:
             The Arena
         """
-        arenaDTO = ArenaDTO(
-            name=createRequest.name,
-            description=createRequest.description,
-            height=createRequest.height,
-            width=createRequest.width,
-            rules=createRequest.rules,
-            max_random_features=createRequest.max_random_features,
-            winning_condition=createRequest.winning_condition,
-        )
+        log = self.log.bind(method="create_arena", arena=req.name)
 
-        features = createRequest.features
-        agents = createRequest.agents
-        log = self.log.bind(method="create_arena", arena=arenaDTO.name)
+        with self.model_service.get_session() as session:
 
-        # get and validate the features
-        invalid_features = await self.feature_service.validate_list(features)
-        if invalid_features:
-            for invalidation in invalid_features:
-                log.info(f"Invalid: {invalidation.model_dump_json()}")
-            raise HTTPException(
-                status_code=422, detail=invalid_features[0].validation.model_dump_json()
-            )
-
-        # repeat for agents
-        agent_ids = [agent.agent_id for agent in agents]
-        _, problems = await self.agent_service.get_by_ids(agent_ids)
-        if problems:
-            for problem in problems:
-                log.info("Invalid agent", json=problem.model_dump_json())
-            raise HTTPException(status_code=422, detail=problems[0].model_dump_json())
-
-        # create the new arena
-        [arena, response] = await self.model_service.create(arenaDTO)
-        if not response.success:
-            log.info(
-                "Failed to create arena", json=response.validation.model_dump_json()
-            )
-            raise HTTPException(
-                status_code=422, detail=response.validation.model_dump_json()
-            )
-
-        # Map the features to the arena
-        if (len(features) + len(agents)) > 0:
-            response = await self.add_features_and_agents(arena.id, createRequest)
-            if not response.success:
-                log.info(
-                    "Failed to map features and agents",
-                    response=response.validation.model_dump_json(),
+            if req.features:
+                features, errors = await self.feature_service.create_many(
+                    req.features, session
                 )
+
+                if errors:
+                    session.rollback()
+                    raise HTTPException(status_code=422, detail=errors)
+
+            if not req.participants:
                 raise HTTPException(
-                    status_code=422, detail=response.validation.model_dump_json()
+                    status_code=422, detail="Need at least 1 participant"
                 )
+
+            participants, errors = await self.participant_service.get_by_ids(
+                req.participants, session
+            )
+
+            if errors:
+                session.rollback()
+                raise HTTPException(status_code=422, detail=errors)
+
+        # # get and validate the features
+        # invalid_features = await self.feature_service.validate_list(features)
+        # if invalid_features:
+        #     for invalidation in invalid_features:
+        #         log.info(f"Invalid: {invalidation.model_dump_json()}")
+        #     raise HTTPException(
+        #         status_code=422, detail=invalid_features[0].validation.model_dump_json()
+        #     )
+
+        # # repeat for agents
+        # agent_ids = [agent.agent_id for agent in agents]
+        # _, problems = await self.agent_service.get_by_ids(agent_ids)
+        # if problems:
+        #     for problem in problems:
+        #         log.info("Invalid agent", json=problem.model_dump_json())
+        #     raise HTTPException(status_code=422, detail=problems[0].model_dump_json())
+
+        # # create the new arena
+        # [arena, response] = await self.model_service.create(arenaDTO)
+        # if not response.success:
+        #     log.info(
+        #         "Failed to create arena", json=response.validation.model_dump_json()
+        #     )
+        #     raise HTTPException(
+        #         status_code=422, detail=response.validation.model_dump_json()
+        #     )
+
+        # # Map the features to the arena
+        # if (len(features) + len(agents)) > 0:
+        #     response = await self.add_features_and_agents(arena.id, createRequest)
+        #     if not response.success:
+        #         log.info(
+        #             "Failed to map features and agents",
+        #             response=response.validation.model_dump_json(),
+        #         )
+        #         raise HTTPException(
+        #             status_code=422, detail=response.validation.model_dump_json()
+        #         )
 
         log.info(f"Created arena: {arena.id}")
         return arena
@@ -128,7 +137,7 @@ class ArenaController(ModelController[ArenaDTO]):
     async def get_arena(
         self,
         arena_id: str,
-    ) -> ArenaDTO:
+    ) -> Arena:
         """
         Get an arena by ID.
 
@@ -152,7 +161,7 @@ class ArenaController(ModelController[ArenaDTO]):
     async def update_arena(
         self,
         arena_id: str,
-        updateRequest: ArenaCreateRequest,
+        updateRequest: ArenaCreate,
     ) -> Arena:
         """
         Update an arena.
@@ -188,7 +197,7 @@ class ArenaController(ModelController[ArenaDTO]):
                 log.info(f"Invalid agent: {problem.model_dump_json()}")
             raise HTTPException(status_code=422, detail=problems[0].model_dump_json())
 
-        arena_config = ArenaDTO(
+        arena_config = Arena(
             id=arena_id,
             name=updateRequest.name,
             description=updateRequest.description,
@@ -222,7 +231,7 @@ class ArenaController(ModelController[ArenaDTO]):
     async def add_features_and_agents(
         self,
         arena_id: str,
-        createRequest: ArenaCreateRequest,
+        createRequest: ArenaCreate,
         clean: bool = False,
     ) -> ModelResponse:
         """
@@ -255,7 +264,7 @@ class ArenaController(ModelController[ArenaDTO]):
         if len(features) > 0:
 
             feature_objects = [
-                FeatureDTO(
+                Feature(
                     name=featureReq.name,
                     description=featureReq.description,
                     position=featureReq.position,
@@ -299,23 +308,23 @@ class ArenaController(ModelController[ArenaDTO]):
         router = APIRouter(prefix=self.base_path, tags=["arena"])
 
         @router.post("/", response_model=Arena)
-        async def create(req: ArenaCreateRequest = Body(...)):
+        async def create(req: ArenaCreate = Body(...)):
             return await self.create_arena(req)
 
         @router.get("/{obj_id}", response_model=Arena)
         async def get(obj_id: str):
             return await self.get_arena(obj_id)
 
-        @router.get("/", response_model=List[ArenaDTO])
+        @router.get("/", response_model=List[Arena])
         async def list_all():
             return await self.get_model_list()
 
-        @router.get("/list", response_model=List[ArenaDTO])
+        @router.get("/list", response_model=List[Arena])
         async def list_alias():
             return await self.get_model_list()
 
-        @router.put("/", response_model=ArenaCreateRequest)
-        async def update(req_id: str, req: ArenaCreateRequest = Body(...)):
+        @router.put("/", response_model=ArenaCreate)
+        async def update(req_id: str, req: ArenaCreate = Body(...)):
             return await self.update_arena(req_id, req)
 
         @router.delete("/{obj_id}", response_model=Dict[str, bool])

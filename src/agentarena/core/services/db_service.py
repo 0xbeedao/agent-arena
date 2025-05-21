@@ -4,7 +4,7 @@ from typing import Callable
 from typing import List
 from typing import Sequence
 
-from pydantic import Field
+from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import SQLModel
 

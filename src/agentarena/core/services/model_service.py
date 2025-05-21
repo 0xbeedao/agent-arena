@@ -13,7 +13,7 @@ from typing import Type
 from typing import TypeVar
 
 from pydantic import BaseModel
-from pydantic import Field
+from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import SQLModel
 from sqlmodel import select
@@ -172,26 +172,18 @@ class ModelService(Generic[T]):
         problems: List[ModelResponse] = []
         log = self.log.bind(method="create_many")
         for obj in obj_list:
-            validation = self.db_service.validateDTO(obj)
-            if not validation.success:
-                log.error(f"Validation failed: {validation.data}")
-                problems.append(
-                    ModelResponse(success=False, data=obj, validation=validation)
-                )
+            created, problem = await self.create(obj, session)
+            if problem:
+                log.error(f"Validation failed: {problem}")
+                problems.append(problem)
+            if created:
+                responses.append(created)
             else:
-                [created, response] = await self.create(obj, session)
-                if response is not None and not response.success:
-                    log.error(f"Failed to create", error=response.error)
-                    problems.append(
-                        ModelResponse(success=False, data=obj, error=response.error)
-                    )
-                elif created is None:
-                    log.error(f"Failed to create - null response", error=None)
-                    problems.append(ModelResponse(success=False, data=obj, error=None))
-                else:
-                    responses.append(created)  # type: ignore
-                    log.info(f"Created", created=created.id)
-
+                log.warn(f"Validation failed with no problem given")
+                problems.append(ModelResponse(success=False))
+        log.debug(
+            f"Created {len(responses)} {self.model_name} objects with {len(problems)} problems"
+        )
         return responses, problems
 
     async def get(

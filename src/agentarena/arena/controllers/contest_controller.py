@@ -9,7 +9,7 @@ from typing import List
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from pydantic import Field
+from sqlmodel import Field
 
 from agentarena.arena.factories.contest_factory import ContestFactory
 from agentarena.core.controllers.model_controller import ModelController

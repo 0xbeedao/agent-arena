@@ -1,7 +1,7 @@
 from typing import Any
 
 from pydantic import BaseModel
-from pydantic import Field
+from sqlmodel import Field
 
 
 class ValidationResponse(BaseModel):

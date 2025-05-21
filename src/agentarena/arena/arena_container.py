@@ -19,10 +19,10 @@ from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.agent import AgentDTO
-from agentarena.models.arena import ArenaDTO
+from agentarena.models.arena import Arena
 from agentarena.models.contest import ContestDTO
 from agentarena.models.event import JobEvent
-from agentarena.models.feature import FeatureDTO
+from agentarena.models.feature import Feature
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.participant import ParticipantDTO
@@ -91,8 +91,8 @@ class ArenaContainer(containers.DeclarativeContainer):
     )
 
     arena_service = providers.Singleton(
-        ModelService[ArenaDTO],
-        model_class=ArenaDTO,
+        ModelService[Arena],
+        model_class=Arena,
         db_service=db_service,
         table_name="arenas",
         logging=logging,
@@ -123,8 +123,8 @@ class ArenaContainer(containers.DeclarativeContainer):
     )
 
     feature_service = providers.Singleton(
-        ModelService[FeatureDTO],
-        model_class=FeatureDTO,
+        ModelService[Feature],
+        model_class=Feature,
         db_service=db_service,
         table_name="features",
         logging=logging,
