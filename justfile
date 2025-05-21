@@ -1,10 +1,6 @@
 all: roll-logs
     just server & just poller & wait
 
-[working-directory: "frontend"]
-web:
-    pnpm run dev
-
 roll-log FILE ARCHIVE_DIR:
     if [ -f "{{FILE}}" ]; then \
         TIMESTAMP=$(date +%Y%m%d-%H%M%S); \
@@ -15,15 +11,17 @@ roll-log FILE ARCHIVE_DIR:
     fi
 
 roll-logs:
-    just roll-log agentarena-core.log logs
+    just roll-log agentarena-arena.log logs
     just roll-log agentarena-scheduler.log logs
 
 [working-directory: "src"]
 server: checkvenv
-    python scripts/agentarena.server | tee agentarena-core.log
+    just roll-log agentarena-arena.log logs
+    python scripts/agentarena.server | tee agentarena-arena.log
 
 [working-directory: "src"]
 scheduler: checkvenv
+    just roll-log agentarena-scheduler.log logs
     python scripts/agentarena.scheduler | tee agentarena-scheduler.log
 
 checkvenv:
@@ -47,4 +45,4 @@ clean:
 
 nats:
     nats-server -l logs/nats.log &
-    
+
