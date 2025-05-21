@@ -15,4 +15,4 @@ def get_engine(filename: str, memory: bool = False):
     dbfile = f"sqlite:///{fname}"
 
     connect_args = {"check_same_thread": False}
-    return create_engine(dbfile, echo=True, connect_args=connect_args)
+    return create_engine(dbfile, echo=False, connect_args=connect_args)

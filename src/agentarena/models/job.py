@@ -100,10 +100,13 @@ class CommandJobBase(SQLModel):
 
 class CommandJob(CommandJobBase, DbBase, table=True):
     # Relationships
-    parent: Optional["CommandJob"] = Relationship(back_populates="children")
+    parent: Optional["CommandJob"] = Relationship(
+        back_populates="children",
+        sa_relationship_kwargs={"remote_side": "CommandJob.id"},
+    )
     children: List["CommandJob"] = Relationship(
         back_populates="parent",
-        sa_relationship_kwargs={"remote_side": "CommandJob.id"},
+        sa_relationship_kwargs={"remote_side": "CommandJob.parent_id"},
     )
     history: List["CommandJobHistory"] = Relationship(back_populates="job")
 

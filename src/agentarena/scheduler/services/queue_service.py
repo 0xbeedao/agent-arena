@@ -81,7 +81,7 @@ class QueueService:
         stmt = (
             select(CommandJob)
             .where(CommandJob.state == JobState.IDLE.value)
-            .where(CommandJob.send_at < now)
+            .where(CommandJob.send_at <= now)
         )
         next = session.exec(stmt).first()
 
@@ -167,13 +167,17 @@ class QueueService:
 
     async def update_parent_states(self, job: CommandJob, session: Session):
         log = self.log.bind(job=job.id)
-        if not job.parent:
+        if not job.parent_id:
             log.info("No parent to update")
             return False
 
         pid = job.parent_id
         log.info("Parent is a batch, sending for revalidation", parent=pid)
-        return await self.revalidate_batch(job.parent, session)
+        parent = session.get(CommandJob, pid)
+        if not parent:
+            log.warn("unexpected couldn't get parent")
+            return False
+        return await self.revalidate_batch(parent, session)
 
     async def update_state(
         self,

@@ -10,7 +10,8 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.job import CommandJob, CommandJobCreate
+from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobCreate
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
@@ -257,25 +258,29 @@ async def test_batch_state_updates(q, db_service, job_service):
     ]
 
     batch_id = ""
+    child_ids = []
+    children = []
 
     with db_service.get_session() as session:
         batch = await q.add_job(batch_req, session)
         assert batch is not None
         batch_id = batch.id
-        children = []
         for r in requests:
             child = batch.make_child(r)
             child_job = await q.add_job(child, session)
             assert child_job is not None
+            child_ids.append(child_job.id)
 
         session.commit()
 
-    with db_service.get_session() as session:
         fresh = session.get(CommandJob, batch_id)
         assert fresh
-        # Get the child jobs
-        children = [c for c in fresh.children]
-        assert len(children) == 2
+
+        for cid in child_ids:
+            child = session.get(CommandJob, cid)
+            assert child
+            assert child.parent == fresh
+            children.append(child)
 
         # Process first child job
         child1 = children[0]
@@ -294,11 +299,12 @@ async def test_batch_state_updates(q, db_service, job_service):
         )
 
         # Now batch should be IDLE since all children are complete
+        session.commit()
         session.refresh(batch)
         assert batch.state == JobState.IDLE.value
 
         # check that we get the batch to process now
-        batch_check = await q.get_next()
+        batch_check = await q.get_next(session)
         assert batch_check is not None
         assert batch_check.id == batch.id
         assert batch_check.url == batch.url
@@ -323,19 +329,30 @@ async def test_batch_with_failed_child(
         UrlJobRequest(method="GET", url="/request2", data={}),
     ]
 
-    # Send the batch with child requests
-    child_reqs = [batch_req.make_child(r) for r in requests]
+    batch_id = ""
+    child_ids = []
+    children = []
 
     with db_service.get_session() as session:
         batch = await q.add_job(batch_req, session)
         assert batch is not None
-        children = [await q.add_job(child, session) for child in child_reqs]
-        for c in children:
-            assert c is not None
         batch_id = batch.id
+        for r in requests:
+            child = batch.make_child(r)
+            child_job = await q.add_job(child, session)
+            assert child_job is not None
+            child_ids.append(child_job.id)
 
-        # Get the child jobs
-        children = await job_service.get_where("parent_id = :pid", {"pid": batch_id})
+        session.commit()
+
+        fresh = session.get(CommandJob, batch_id)
+        assert fresh
+
+        for cid in child_ids:
+            child = session.get(CommandJob, cid)
+            assert child
+            assert child.parent == fresh
+            children.append(child)
 
         # Complete first child job successfully
         child1 = children[0]
@@ -348,6 +365,7 @@ async def test_batch_with_failed_child(
         await q.update_state(child2.id, JobState.FAIL.value, session, "Child 2 failed")
 
         # Batch should be in FAIL state since one child failed
+        session.commit()
         session.refresh(batch)
         assert batch.state == JobState.FAIL.value
 
@@ -355,7 +373,6 @@ async def test_batch_with_failed_child(
 @pytest.mark.asyncio
 async def test_batch_send_1(q, db_service):
     batch_req = CommandJobCreate(
-        id="batchreq",
         channel="test.batch",
         method="GET",
         data={"test": "toast"},
@@ -364,18 +381,35 @@ async def test_batch_send_1(q, db_service):
     )
     requests = [UrlJobRequest(url="/test/1", method="GET", data={}, delay=0)]
 
-    child_reqs = [batch_req.make_child(r) for r in requests]
+    batch_id = ""
+    child_ids = []
+    children = []
 
     with db_service.get_session() as session:
         batch = await q.add_job(batch_req, session)
         assert batch is not None
-        children = [await q.add_job(child, session) for child in child_reqs]
-        for c in children:
-            assert c is not None
+        batch_id = batch.id
+        for r in requests:
+            child = batch.make_child(r)
+            child_job = await q.add_job(child, session)
+            assert child_job is not None
+            child_ids.append(child_job.id)
+
+        session.commit()
+
+        fresh = session.get(CommandJob, batch_id)
+        assert fresh
+
+        for cid in child_ids:
+            child = session.get(CommandJob, cid)
+            assert child
+            assert child.parent == fresh
+            children.append(child)
+
         assert batch.started_at == 0
         assert batch.state == JobState.REQUEST.value
 
-        child = await q.get_next()
+        child = await q.get_next(session)
         assert child is not None
         assert child.id != batch.id
         assert child.parent_id == batch.id

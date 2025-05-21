@@ -8,8 +8,8 @@ from pydantic import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.job import CommandJobBatchRequest
 from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobBatchRequest
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
 
