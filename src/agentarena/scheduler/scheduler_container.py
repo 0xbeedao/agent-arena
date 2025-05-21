@@ -95,7 +95,6 @@ class SchedulerContainer(containers.DeclarativeContainer):
         ModelService[CommandJob],
         model_class=CommandJob,
         db_service=db_service,
-        table_name="jobs",
         logging=logging,
     )
 
@@ -143,5 +142,6 @@ class SchedulerContainer(containers.DeclarativeContainer):
     debug_controller = providers.Singleton(
         DebugController,
         job_service=commandjob_service,
+        message_broker=message_broker,
         logging=logging,
     )

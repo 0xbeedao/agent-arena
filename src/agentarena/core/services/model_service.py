@@ -195,7 +195,9 @@ class ModelService(Generic[T]):
 
         return responses, problems
 
-    async def get(self, obj_id: str) -> Tuple[Optional[T], ModelResponse]:
+    async def get(
+        self, obj_id: str, session: Session
+    ) -> Tuple[Optional[T], ModelResponse]:
         """
         Get a model instance by ID.
 
@@ -210,21 +212,20 @@ class ModelService(Generic[T]):
         model_name = self.model_name
         boundlog = self.log.bind(obj_id=obj_id)
         boundlog.info("Getting from DB")
-        with self.db_service.get_session() as session:
-            obj = session.get(self.model_class, obj_id)
+        obj = session.get(self.model_class, obj_id)
 
-            if obj is None:
-                boundlog.warn(f"Not found")
-                return None, ModelResponse(
-                    success=False,
-                    id=obj_id,
-                    error=f"{model_name} with ID {obj_id} not found",
-                )
+        if obj is None:
+            boundlog.warn(f"Not found")
+            return None, ModelResponse(
+                success=False,
+                id=obj_id,
+                error=f"{model_name} with ID {obj_id} not found",
+            )
 
-            return obj, ModelResponse(success=True, id=obj_id)
+        return obj, ModelResponse(success=True, id=obj_id)
 
     async def update(
-        self, obj_id: str, obj: SQLModel
+        self, obj_id: str, obj: SQLModel, session: Session
     ) -> Tuple[Optional[T], ModelResponse]:
         """
         Patches the object safely and saves to DB
@@ -235,19 +236,18 @@ class ModelService(Generic[T]):
             return None, ModelResponse(success=False, error="No model_class")
         log = self.log.bind(id=obj_id)
         log.info("patching")
-        with self.db_service.get_session() as session:
-            db_obj = session.get(self.model_class, obj_id)
-            if not db_obj:
-                return None, ModelResponse(success=False, error="Not found")
-            obj_data = obj.model_dump(exclude_unset=True)
-            log.debug("Values to update", updates=obj_data)
-            db_obj.sqlmodel_update(obj_data)
-            session.add(db_obj)
-            session.commit()
-            session.refresh(db_obj)
-            return db_obj, ModelResponse(success=True)
+        db_obj = session.get(self.model_class, obj_id)
+        if not db_obj:
+            return None, ModelResponse(success=False, error="Not found")
+        obj_data = obj.model_dump(exclude_unset=True)
+        log.debug("Values to update", updates=obj_data)
+        db_obj.sqlmodel_update(obj_data)
+        session.add(db_obj)
+        session.commit()
+        session.refresh(db_obj)
+        return db_obj, ModelResponse(success=True)
 
-    async def delete(self, obj_id: str) -> ModelResponse:
+    async def delete(self, obj_id: str, session: Session) -> ModelResponse:
         """
         Delete a model instance.
 
@@ -263,25 +263,22 @@ class ModelService(Generic[T]):
                 id=obj_id,
                 error=f"{self.model_name} with ID {obj_id} not found",
             )
-        with self.db_service.get_session() as session:
 
-            existing = session.get(self.model_class, obj_id)
+        existing = session.get(self.model_class, obj_id)
 
-            if existing is None:
-                self.log.warn(f"No such id {obj_id}")
-                return ModelResponse(
-                    success=False,
-                    id=obj_id,
-                    error=f"{self.model_name} with ID {obj_id} not found",
-                )
-            session.delete(existing)
-            session.flush()
-
-            self.log.info(f"Deleted {obj_id}")
-            self.db_service.add_audit_log(
-                f"Deleted {self.model_name}: {obj_id}", session
+        if existing is None:
+            self.log.warn(f"No such id {obj_id}")
+            return ModelResponse(
+                success=False,
+                id=obj_id,
+                error=f"{self.model_name} with ID {obj_id} not found",
             )
-            return ModelResponse(success=True, id=obj_id)
+        session.delete(existing)
+        session.flush()
+
+        self.log.info(f"Deleted {obj_id}")
+        self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}", session)
+        return ModelResponse(success=True, id=obj_id)
 
     async def get_by_ids(self, obj_ids: List[str], session: Session):
         """

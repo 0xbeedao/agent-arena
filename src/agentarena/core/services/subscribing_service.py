@@ -1,4 +1,7 @@
-from typing import Callable, List, Tuple
+from typing import Callable
+from typing import List
+from typing import Tuple
+
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 
