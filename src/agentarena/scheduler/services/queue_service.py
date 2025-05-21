@@ -10,6 +10,7 @@ from sqlmodel import select
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
+from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import CommandJobHistoryCreate
@@ -33,7 +34,7 @@ def make_response(job: CommandJob, data: Dict, message: str):
     )
 
 
-class QueueService:
+class QueueService(SubscribingService):
     """
     Provides DB backed job queue services
     """
@@ -51,20 +52,9 @@ class QueueService:
         self.job_service = job_service
         self.message_broker = message_broker
         self.log = logging.get_logger("service")
-        self._subscribed = []
-
-    async def subscribe_yourself(self):
-        if not self._subscribed:
-            client = self.message_broker.client
-            sub = await client.subscribe(
-                "arena.request.job", cb=self.add_job_from_message
-            )
-            self._subscribed.append(sub)
-
-    async def unsubscribe_yourself(self):
-        if self._subscribed:
-            for sub in self._subscribed:
-                await sub.unsubscribe()
+        to_subscribe = [("arena.request.job", self.add_job_from_message)]
+        # setup subscriptions
+        super().__init__(to_subscribe, message_broker, logging)
 
     async def drain(self, session, message=""):
         log = self.log.bind(method="drain")
@@ -75,9 +65,6 @@ class QueueService:
         log.info("drain complete")
 
     async def add_job(self, job: CommandJob, session: Session):
-        """
-        NATS refactor notes - this needs to be executed on the consuming side.
-        """
         if job.state == JobState.IDLE.value:
             job.started_at = 0
             job.finished_at = 0
@@ -86,8 +73,8 @@ class QueueService:
             return created
         return None
 
-    async def add_job_from_message(self, msg):
-        pass
+    async def add_job_from_message(self, *args, **kwargs):
+        self.log.info("add job from message", args=args, **kwargs)
 
     async def get_next(self, session: Session) -> CommandJob | None:
         now = int(datetime.now().timestamp())

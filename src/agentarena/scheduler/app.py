@@ -48,7 +48,8 @@ async def startup_event():
     log = logger.get_logger("scheduler")
     db = container.db_service()
     db.create_db()
-    db.add_audit_log("startup")
+    with db.get_session() as session:
+        db.add_audit_log("startup", session)
     broker = await container.message_broker()  # type: ignore
     controller = container.debug_controller()
     await controller.subscribe_yourself(broker)

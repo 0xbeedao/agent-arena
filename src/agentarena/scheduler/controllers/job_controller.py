@@ -5,10 +5,17 @@ from pydantic import Field
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.job import CommandJob
+from agentarena.models.job import (
+    CommandJob,
+    CommandJobCreate,
+    CommandJobPublic,
+    CommandJobUpdate,
+)
 
 
-class JobController(ModelController[CommandJob]):
+class JobController(
+    ModelController[CommandJob, CommandJobCreate, CommandJobUpdate, CommandJobPublic]
+):
     """
     Controller for managing CommandJob resources.
     Extends the ModelController with CommandJob as the type parameter.
@@ -33,8 +40,9 @@ class JobController(ModelController[CommandJob]):
         """
         super().__init__(
             base_path=base_path,
-            model_name="job",
+            model_name="commandjob",
             model_service=model_service,
+            model_public=CommandJobPublic,
             logging=logging,
         )
 
@@ -44,13 +52,13 @@ class JobController(ModelController[CommandJob]):
         Only exposes create and get endpoints.
         """
         self.log.info("getting job router")
-        router = APIRouter(prefix=self.base_path, tags=[self.model_name])
+        router = APIRouter(prefix=f"{self.base_path}/job", tags=[self.model_name])
 
-        @router.post("/", response_model=CommandJob)
-        async def create(req: CommandJob = Body(...)):
+        @router.post("/", response_model=CommandJobPublic)
+        async def create(req: CommandJobCreate = Body(...)):
             return await self.create_model(req)
 
-        @router.get("/{obj_id}", response_model=CommandJob)
+        @router.get("/{obj_id}", response_model=CommandJobPublic)
         async def get(obj_id: str):
             return await self.get_model(obj_id)
 

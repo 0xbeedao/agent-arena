@@ -11,7 +11,6 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.agent import AgentDTO
 from agentarena.models.job import CommandJob
-from agentarena.models.job import CommandJobRequest
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest

@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
@@ -16,6 +17,13 @@ from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
 from agentarena.scheduler.services.queue_service import QueueService
+
+
+@pytest.fixture
+def mock_nats_client():
+    client = AsyncMock()
+    client.publish = AsyncMock()
+    return client
 
 
 @pytest.fixture
@@ -64,9 +72,13 @@ def history_service(db_service, uuid_service, logging):
 
 
 @pytest.fixture
-def message_broker():
-    service = AsyncMock()
-    return service
+def message_broker(mock_nats_client, uuid_service, logging):
+    broker = MessageBroker(
+        client=mock_nats_client,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+    return broker
 
 
 @pytest.fixture
@@ -134,7 +146,7 @@ async def test_get_unique(q, db_service):
 
 
 @pytest.mark.asyncio
-async def test_update_state(q, db_service, message_broker):
+async def test_update_state(q, db_service, message_broker, mock_nats_client):
     job = CommandJob(
         id="test",
         channel="job.request.url",
@@ -157,7 +169,7 @@ async def test_update_state(q, db_service, message_broker):
         assert updated
 
         # should send final message
-        message_broker.send_response.assert_awaited_once()
+        mock_nats_client.publish.assert_awaited_once()
 
         job = session.get(CommandJob, job_id)
         assert job
