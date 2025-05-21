@@ -32,28 +32,8 @@ class JobResponseState(Enum):
     FAIL = "fail"
 
 
-class JobResponse(SQLModel, table=False):
-    job_id: str = Field(description="Job ID")
-    delay: Optional[int] = Field(
-        default=0, description="Request delay of x seconds before retry"
-    )
-    message: Optional[str] = Field(
-        default="", description="Message regarding state, e.g. an error"
-    )
-    state: str = Field(
-        description="JobResponseState field, one of ['completed', 'pending', 'fail']",
-    )
-    data: Dict = Field(
-        default_factory=dict, sa_column=Column(JSON), description="payload"
-    )
-    # Not convinced I need this
-    # child_data: Optional[List["JobResponse"]] = Field(
-    #     default=[], description="child job responses"
-    # )
-
-
 class UrlJobRequest(SQLModel, table=False):
-    command: str = Field(
+    channel: str = Field(
         default="job.url.request",
         description="job command - this will be published as the subject on NATS",
     )
@@ -67,6 +47,19 @@ class UrlJobRequest(SQLModel, table=False):
     )
     method: Optional[str] = Field(default="GET", description="HTTP method")
     url: Optional[str] = Field(description="Url to Call")
+
+
+class JobResponse(UrlJobRequest, table=False):
+    job_id: str = Field(description="Job ID")
+    message: Optional[str] = Field(
+        default="", description="Message regarding state, e.g. an error"
+    )
+    state: str = Field(
+        description="JobResponseState field, one of ['completed', 'pending', 'fail']",
+    )
+    child_data: Optional[List["JobResponse"]] = Field(
+        default=[], description="child job responses"
+    )
 
 
 class CommandJobBase(SQLModel):
@@ -124,7 +117,7 @@ class CommandJob(CommandJobBase, DbBase, table=True):
             id="",
             parent_id=self.id,
             parent=self,
-            channel=req.command or self.channel,
+            channel=req.channel or self.channel,
             data=req.data,
             method=req.method or self.method,
             priority=priority,

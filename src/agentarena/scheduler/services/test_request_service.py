@@ -83,12 +83,16 @@ def make_success_response() -> JobResponse:
         job_id="test-response",
         state=JobResponseState.COMPLETED.value,
         data={"check": "yep"},
+        url="/test",
     )
 
 
 def make_pending_response() -> JobResponse:
     return JobResponse(
-        job_id="test-response", state=JobResponseState.PENDING.value, delay=1
+        job_id="test-response",
+        state=JobResponseState.PENDING.value,
+        delay=1,
+        url="/nope",
     )
 
 

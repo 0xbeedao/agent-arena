@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 from typing import Mapping
 from typing import Optional
 
@@ -18,6 +18,19 @@ from agentarena.models.job import JobState
 
 FINAL_STATES = [JobState.FAIL.value, JobState.COMPLETE.value]
 ALL_STATES = [state.value for state in JobState]
+
+
+def make_response(job: CommandJob, data: Dict, message: str):
+    return JobResponse(
+        channel=job.channel,
+        data=data,  # type: ignore
+        delay=0,
+        method=job.method,
+        url=job.url,
+        job_id=job.id,
+        message=message,
+        state=job.state or JobState.COMPLETE.value,
+    )
 
 
 class QueueService:
@@ -119,7 +132,6 @@ class QueueService:
             return False
 
         log = self.log.bind(batch=batch.id)
-        pid = batch.id
         log.info("Revalidating")
         info = []
         ct = 0
@@ -154,15 +166,34 @@ class QueueService:
         return True
 
     async def send_final_message(
-        self, job: CommandJob, message: str = "", data: Optional[Mapping[str, Any]] = {}
+        self,
+        job: CommandJob,
+        session,
+        message: str = "",
+        data: Optional[Mapping[str, Any]] = {},
     ):
-        res = JobResponse(
-            job_id=job.id,
-            delay=0,
-            message=message,
-            state=job.state or JobState.COMPLETE.value,
-            data=data,
-        )
+        log = self.log.bind(job=job.id)
+        # if this is a batch, when we send the final message, we want all the child messages as well.
+        log.debug("sending final message")
+        res = make_response(job, data, message)  # type: ignore
+        child_data = []
+        stmt = select(CommandJob).where(CommandJob.parent_id == job.id)
+        children = session.exec(stmt)
+
+        for child in children:
+            log.debug("adding child response", child=child.id)
+            stmt = (
+                select(CommandJobHistory)
+                .where(CommandJobHistory.to_state == child.state)
+                .order_by(CommandJobHistory.created_at)  # type: ignore
+            )
+            rows = session.exec(stmt).all()
+            last = rows.pop() if rows else None
+            data = last.data if last else {}
+            child_data.append(make_response(child, data, message))
+
+        res.child_data = child_data
+
         await self.message_broker.send_response(job.channel, res)
 
     async def update_parent_states(self, job: CommandJob, session: Session):
@@ -224,7 +255,7 @@ class QueueService:
                 from_state=old_state,
                 to_state=state,
                 message=message,
-                data=data,
+                data=data,  # type: ignore
             ),
             session,
         )
@@ -235,7 +266,7 @@ class QueueService:
 
         if response.success and state in FINAL_STATES and sent is not None:
             log.debug("Sending message for final state")
-            await self.send_final_message(sent, message=message, data=data)
+            await self.send_final_message(sent, session, message=message, data=data)
 
         if sent and sent.parent_id:
             log.info("Starting update_parent_states for child request")
