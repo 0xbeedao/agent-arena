@@ -4,9 +4,9 @@ import pytest
 from pydantic import BaseModel
 
 from agentarena.arena.controllers.arena_controller import ArenaController
+from agentarena.arena.models.arena import ArenaCreate
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelResponse
-from agentarena.models.arena import ArenaCreate
 
 
 @pytest.fixture
@@ -28,18 +28,6 @@ def mock_feature_service():
 
 
 @pytest.fixture
-def mock_arena_factory():
-    service = AsyncMock()
-    return service
-
-
-@pytest.fixture
-def mock_participant_service():
-    service = AsyncMock()
-    return service
-
-
-@pytest.fixture
 def logging():
     return LoggingService(True)
 
@@ -55,15 +43,10 @@ async def test_create_arena_success(
     mock_agent_service,
     logging,
     mock_feature_service,
-    mock_participant_service,
-    mock_arena_factory,
 ):
     arena_controller = ArenaController(
-        agent_service=mock_agent_service,
         arena_service=mock_arena_service,
         feature_service=mock_feature_service,
-        participant_service=mock_participant_service,
-        arena_factory=mock_arena_factory,
         logging=logging,
     )
     # Arrange
@@ -76,7 +59,6 @@ async def test_create_arena_success(
         max_random_features=0,
         winning_condition="score",
         features=[],
-        agents=[],
     )
 
     mock_arena = ArenaStub(name="test", id="testid")
@@ -85,9 +67,7 @@ async def test_create_arena_success(
     mock_feature_service.validate_list.return_value = []
     mock_agent_service.get_by_ids.return_value = [[], []]
     # Act
-    result = await arena_controller.create_arena(
-        createRequest=create_request,
-    )
+    result = await arena_controller.create_arena(create_request)
     # Assert
     assert result == mock_arena
     mock_arena_service.create.assert_awaited_once()

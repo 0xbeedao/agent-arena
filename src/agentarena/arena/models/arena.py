@@ -12,9 +12,22 @@ from sqlmodel import SQLModel
 
 from ...models.dbbase import DbBase
 
+
+# -------- Link models
+class ContestParticipant(SQLModel, table=True):
+    """
+    Link model for Contests <-> Participants many-to-many
+    """
+
+    participant_id: Optional[str] = Field(
+        default=None, foreign_key="participant.id", primary_key=True
+    )
+    contest_id: Optional[str] = Field(
+        default=None, foreign_key="contest.id", primary_key=True
+    )
+
+
 # -------- Arena Models
-
-
 class ArenaBase(SQLModel, table=False):
     name: str = Field(description="Arena name")
     description: str = Field(description="Arena description")
@@ -97,8 +110,8 @@ class ContestBase(SQLModel, table=False):
 
     arena_id: str = Field(description="Reference to ArenaDTO", foreign_key="arena.id")
     current_round: int = Field(default=1, description="Current round")
-    player_positions: List[str] = Field(
-        default=[], description="A list of player positions"
+    player_positions: str = Field(
+        default=[], description="A semicolon delimited list of player positions"
     )
     state: str = Field(default=ContestState.CREATED.value, description="Contest state")
 
@@ -115,14 +128,22 @@ class Contest(ContestBase, DbBase, table=True):
     # relationships
 
     participants: List["Participant"] = Relationship(
-        back_populates="contests", link_model="ContestParticipant"
+        back_populates="contests", link_model=ContestParticipant
     )
+
+    def participants_by_role(self):
+        roles = {}
+        for role in ParticipantRole:
+            roles[role.value] = []
+        for p in self.participants:
+            roles[p.role] = p
+        return roles
 
 
 class ContestCreate(SQLModel, table=False):
     arena_id: str = Field(description="Arena ID", foreign_key="arena.id")
-    player_positions: List[str] = Field(
-        default=[], description="A list of player positions"
+    player_positions: str = Field(
+        default=[], description="A semicolon delimited list of player positions"
     )
     participant_ids: List[str] = Field(
         description="IDs of Participants", foreign_key="participant.id"
@@ -226,7 +247,7 @@ class Participant(ParticipantBase, DbBase, table=True):
     """
 
     contests: List[Arena] = Relationship(
-        back_populates="participants", link_model="ContestParticipant"
+        back_populates="participants", link_model=ContestParticipant
     )
 
 
@@ -254,12 +275,3 @@ class ParticipantUpdate(SQLModel):
     )
     name: Optional[str] = Field(default=None, description="Participant name")
     role: Optional[str] = Field(default=None, description="Role in arena")
-
-
-class ContestParticipant(SQLModel, table=True):
-    participant_id: Optional[str] = Field(
-        default=None, foreign_key="participant.id", primary_key=True
-    )
-    contest_id: Optional[str] = Field(
-        default=None, foreign_key="contest.id", primary_key=True
-    )

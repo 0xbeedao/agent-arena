@@ -10,8 +10,8 @@ from sqlmodel import Field
 from statemachine import State
 from statemachine import StateMachine
 
+from agentarena.arena.models.arena import Contest
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.contest import Contest
 
 from .roundmachine import RoundMachine
 from .setupmachine import SetupMachine

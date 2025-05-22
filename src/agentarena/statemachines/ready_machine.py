@@ -7,11 +7,11 @@ from sqlmodel import Field
 from statemachine import State
 from statemachine import StateMachine
 
+from agentarena.arena.models.arena import Participant
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobState
-from agentarena.models.participant import Participant
 from agentarena.scheduler.services.queue_service import QueueService
 
 
@@ -63,8 +63,8 @@ class ReadyMachine(StateMachine):
     async def _timeout_coroutine(self):
         try:
             await asyncio.sleep(self.timeout_seconds)
-            self.log.warning(f"Polling timed out after {self.timeout_seconds} seconds.")
-            await self.timeout_fail()
+            self.log.warn(f"Polling timed out after {self.timeout_seconds} seconds.")
+            await self.timeout_fail("")
         except asyncio.CancelledError:
             # Expected: task cancelled when polling ends
             pass
@@ -112,6 +112,6 @@ class ReadyMachine(StateMachine):
                     self.checked_in.append(participant.id)
                 else:
                     self.log.info("Already had this one checked in, ignoring")
-            self.are_we_done()
+            self.are_we_done("")
         else:
             log.debug("not interested")

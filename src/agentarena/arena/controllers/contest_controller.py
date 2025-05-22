@@ -3,6 +3,7 @@ ContestDTO controller for the Agent Arena application.
 Handles HTTP requests for contest operations.
 """
 
+from datetime import datetime
 from typing import Dict
 from typing import List
 
@@ -11,31 +12,36 @@ from fastapi import Body
 from fastapi import HTTPException
 from sqlmodel import Field
 
+from agentarena.arena.models.arena import Contest
+from agentarena.arena.models.arena import ContestCreate
+from agentarena.arena.models.arena import ContestPublic
+from agentarena.arena.models.arena import ContestState
+from agentarena.arena.models.arena import ContestUpdate
+from agentarena.arena.models.arena import Participant
+from agentarena.arena.models.arena import ParticipantRole
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.contest import ContestDTO
-from agentarena.models.contest import ContestRequest
-from agentarena.models.contest import ContestState
 
 
-class ContestController(ModelController[ContestDTO]):
+class ContestController(
+    ModelController[Contest, ContestCreate, ContestUpdate, ContestPublic]
+):
 
     def __init__(
         self,
         base_path: str = "/api",
-        model_service: ModelService[ContestDTO] = Field(
-            description="The contest service"
-        ),
-        contest_factory: ContestFactory = Field(
-            description="The contest builder factory"
+        model_service: ModelService[Contest] = Field(description="The contest service"),
+        participant_service: ModelService[Participant] = Field(
+            description="The feature service"
         ),
         logging: LoggingService = Field(description="Logger factory"),
     ):
-        self.contest_factory = contest_factory
+        self.participant_service = participant_service
         super().__init__(
             base_path=base_path,
             model_service=model_service,
+            model_public=ContestPublic,
             model_name="contest",
             logging=logging,
         )
@@ -43,8 +49,8 @@ class ContestController(ModelController[ContestDTO]):
     # @router.post("/contest", response_model=Dict[str, str])
     async def create_contest(
         self,
-        createRequest: ContestRequest,
-    ) -> ContestDTO:
+        req: ContestCreate,
+    ) -> Contest:
         """
         Create a new contest.
 
@@ -55,70 +61,31 @@ class ContestController(ModelController[ContestDTO]):
         Returns:
             A dictionary with the ID of the created contest
         """
-        contestDTO = ContestDTO(
-            arena_config_id=createRequest.arena_config_id,
-            current_round=1,
-            player_positions=";".join(createRequest.player_positions),
-            state=ContestState.CREATED.value,
-            start_time=None,
-            end_time=None,
-            winner=None,
-        )
-        contest, response = await self.model_service.create(contestDTO)
-        if not response.success:
-            raise HTTPException(status_code=422, detail=response.validation)
+        if not req.participant_ids:
+            raise HTTPException(status_code=422, detail="Need at least 1 participant")
 
-        # return await self.contest_factory.build(contest)
-        return contest
+        with self.model_service.get_session() as session:
+            participants = await self.participant_service.get_by_ids(
+                req.participant_ids, session
+            )
 
-    # @router.get("/contest/{contest_id}", response_model=Contest)
-    async def get_contest(
-        self,
-        contest_id: str,
-    ) -> ContestDTO:
-        """
-        Get a contest by ID.
+            if len(participants) != len(req.participant_ids):
+                session.rollback()
+                raise HTTPException(
+                    status_code=422, detail="Could not get all participants"
+                )
 
-        Args:
-            contest_id: The ID of the contest to get
+            contest, problem = await self.model_service.create(req, session)
+            if problem:
+                raise HTTPException(status_code=422, detail=problem)
+            if not contest:
+                raise HTTPException(status_code=422, detail="internal error")
 
-        Returns:
-            The contest configuration
+            for p in participants:
+                contest.participants.append(p)
 
-        Raises:
-            HTTPException: If the contest is not found
-        """
-        contest, response = await self.model_service.get(contest_id)
-        if not response.success:
-            raise HTTPException(status_code=404, detail=response.error)
-        return contest
-        # return await self.contest_factory.build(contest_obj)
-
-    # @router.put("/contest/{contest_id}", response_model=Dict[str, bool])
-    async def update_contest(
-        self,
-        contest_id: str,
-        contest: ContestDTO,
-    ) -> Dict[str, bool]:
-        """
-        Update a contest.
-
-        Args:
-            contest_id: The ID of the contest to update
-            contest: The new contest configuration
-            model_service: The contest service
-
-        Returns:
-            A dictionary indicating success
-
-        Raises:
-            HTTPException: If the contest is not found
-        """
-        contest.winner = None
-        response = await self.model_service.update(contest_id, contest)
-        if not response.success:
-            raise HTTPException(status_code=404, detail=response.validation)
-        return {"success": response.success}
+            session.commit()
+            return contest
 
     # @router.post("/contest/{contest_id}/start", response_model=Dict[str, str])
     async def start_contest(
@@ -137,72 +104,67 @@ class ContestController(ModelController[ContestDTO]):
         """
         boundlog = self.log.bind(contest_id=contest_id)
         boundlog.info("starting contest")
-        contestDTO, response = await self.model_service.get(contest_id)
-        if not response.success:
-            boundlog.error("failed to get contest")
-            raise HTTPException(status_code=404, detail=response.validation)
+        with self.model_service.get_session() as session:
+            contest, response = await self.model_service.get(contest_id, session)
+            if not response.success:
+                boundlog.error("failed to get contest")
+                raise HTTPException(status_code=404, detail=response.validation)
+            if not contest:
+                boundlog.error("failed to get contest data")
+                raise HTTPException(status_code=404, detail="internal error")
 
-        if contestDTO.state != ContestState.CREATED:
-            boundlog.error(f"contest is not in CREATED state, was: {contestDTO.state}")
-            raise HTTPException(
-                status_code=422, detail="Contest is not in CREATED state"
-            )
-
-        # sanity check, we need at least one player, announcer, judge, and participant
-        contest = await self.contest_factory.build(contestDTO)
-        arena = contest.arena
-
-        if arena.agents is None or len(arena.agents) < 4:
-            boundlog.error("No agents in arena, raising error")
-            raise HTTPException(
-                status_code=422,
-                detail="Arena needs at least 4 agents: player, announcer, judge, and participant",
-            )
-
-        agent_roles = arena.agents_by_role()
-
-        for role in ParticipantRole:
-            if agent_roles[role] is None or len(agent_roles[role]) == 0:
-                boundlog.error(f"No agents in arena for role {role}, raising error")
+            if contest.state != ContestState.CREATED.value:
+                boundlog.error(f"contest is not in CREATED state, was: {contest.state}")
                 raise HTTPException(
-                    status_code=422, detail=f"Arena needs at least one {role} agent"
+                    status_code=422, detail="Contest is not in CREATED state"
                 )
 
-        # Set contest state to STARTING
-        # and update start time
-        # contestDTO.state = ContestStatus.STARTING
-        # contestDTO.start_time = int(datetime.now().timestamp())
-        # model_service.update(contest_id, contestDTO)
+            participants = [p for p in contest.participants]
+            if len(participants) < 4:
+                boundlog.error("No agents in arena, raising error")
+                raise HTTPException(
+                    status_code=422,
+                    detail="Arena needs at least 4 agents: player, announcer, judge, and participant",
+                )
 
-        # Populate the features if needed
-        # if arena.max_random_features > 0:
-        #     random_features = []
+            roles = contest.participants_by_role()
+
+            for role in ParticipantRole:
+                key = role.value
+                if roles[key] is None or len(roles[key]) == 0:
+                    boundlog.error(f"No agents in arena for role {key}, raising error")
+                    raise HTTPException(
+                        status_code=422, detail=f"Arena needs at least one {key} agent"
+                    )
+
+            # sanity check done, let's start
+
+            # Set contest state to STARTING
+            # and update start time
+            contest.state = ContestState.STARTING.value
+            contest.start_time = int(datetime.now().timestamp())
+            await self.model_service.update(contest_id, contest, session)
 
         return {"id": contest_id}
 
     def get_router(self):
-        self.log.info("getting router")
-        router = APIRouter(prefix=self.base_path, tags=[self.model_name])
+        prefix = self.base_path
+        if not prefix.endswith(self.model_name):
+            prefix = f"{prefix}/contest"
+        self.log.info("setting up routes", path=prefix)
+        router = APIRouter(prefix=prefix, tags=["arena"])
 
-        @router.post("/", response_model=ContestDTO)
-        async def create(req: ContestRequest = Body(...)):
+        @router.post("/", response_model=Contest)
+        async def create(req: ContestCreate = Body(...)):
             return await self.create_contest(req)
 
-        @router.get("/{obj_id}", response_model=ContestDTO)
+        @router.get("/{obj_id}", response_model=Contest)
         async def get(obj_id: str):
-            return await self.get_contest(obj_id)
+            return await self.get_model(obj_id)
 
-        @router.get("", response_model=List[ContestDTO])
+        @router.get("", response_model=List[Contest])
         async def list_all():
             return await self.get_model_list()
-
-        @router.get("/list", response_model=List[ContestDTO])
-        async def list_alias():
-            return await self.get_model_list()
-
-        @router.put("/", response_model=Dict[str, bool])
-        async def update(req_id: str, req: ContestDTO = Body(...)):
-            return await self.update_contest(req_id, req)
 
         @router.delete("/{obj_id}", response_model=Dict[str, bool])
         async def delete(obj_id: str):

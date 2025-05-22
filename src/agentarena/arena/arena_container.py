@@ -7,6 +7,7 @@ from agentarena.actors.controllers.responder_controller import ResponderControll
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
+from agentarena.arena.models.arena import Arena
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.db_factory import get_database
 from agentarena.core.factories.environment_factory import get_project_root
@@ -16,7 +17,6 @@ from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.agent import AgentDTO
-from agentarena.models.arena import Arena
 from agentarena.models.contest import ContestDTO
 from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob

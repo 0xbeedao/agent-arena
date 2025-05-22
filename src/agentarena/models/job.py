@@ -190,7 +190,7 @@ class CommandJobHistoryPublic(CommandJobHistoryBase):
 
 
 class CommandJobBatchRequest(SQLModel, table=False):
-    batch: CommandJob = Field(
+    batch: CommandJobCreate = Field(
         description="The job to call when children are in final state"
     )
     children: List[UrlJobRequest] = Field(

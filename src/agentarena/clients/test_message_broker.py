@@ -6,8 +6,9 @@ import pytest
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
-from agentarena.models.job import CommandJobRequest
+from agentarena.models.job import CommandJobCreate
 from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
 
@@ -40,7 +41,7 @@ def message_broker(mock_nats_client, uuid_service, logging):
 
 @pytest.mark.asyncio
 async def test_send_job(message_broker, mock_nats_client):
-    test_job = CommandJobRequest(
+    test_job = CommandJobCreate(
         id="test",
         channel="test.command",
         data={"key": "value"},
@@ -65,7 +66,7 @@ async def test_send_job(message_broker, mock_nats_client):
 async def test_send_job_with_prefix(message_broker, mock_nats_client):
     message_broker.prefix = "custom"
     send_at = int(datetime.now().timestamp())
-    test_job = CommandJobRequest(
+    test_job = CommandJobCreate(
         id="test",
         channel="test.command",
         data={"key": "value"},
@@ -90,7 +91,7 @@ async def test_send_job_with_prefix(message_broker, mock_nats_client):
 
 @pytest.mark.asyncio
 async def test_send_batch(message_broker, mock_nats_client):
-    parent_job = CommandJobRequest(
+    parent_job = CommandJobCreate(
         channel="parent.command",
         data={"parent": "data"},
         method="POST",
@@ -102,7 +103,7 @@ async def test_send_batch(message_broker, mock_nats_client):
     )
 
     child_request = UrlJobRequest(
-        command="child.command",
+        channel="child.command",
         data={"child": "data"},
         method="GET",
         delay=0,
@@ -120,7 +121,7 @@ async def test_send_batch(message_broker, mock_nats_client):
 
 
 def test_make_child():
-    parent_job = CommandJobRequest(
+    parent_job = CommandJob(
         id="parent-id",
         channel="parent.command",
         data={"parent": "data"},
@@ -132,7 +133,7 @@ def test_make_child():
     )
 
     child_request = UrlJobRequest(
-        command="child.command",
+        channel="child.command",
         data={"child": "data"},
         method="GET",
         delay=10,
