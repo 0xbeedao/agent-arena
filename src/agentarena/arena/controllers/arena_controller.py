@@ -11,18 +11,14 @@ from fastapi import Body
 from fastapi import HTTPException
 from sqlmodel import Field
 
+from agentarena.arena.models.arena import Arena
+from agentarena.arena.models.arena import ArenaCreate
+from agentarena.arena.models.arena import ArenaPublic
+from agentarena.arena.models.arena import ArenaUpdate
+from agentarena.arena.models.arena import Feature
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.core.services.model_service import ModelResponse
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.arena import (
-    Arena,
-    ArenaPublic,
-    ArenaUpdate,
-    Feature,
-    Participant,
-)
-from agentarena.models.arena import ArenaCreate
 
 
 class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPublic]):
@@ -34,13 +30,9 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
         feature_service: ModelService[Feature] = Field(
             description="The feature service"
         ),
-        participant_service: ModelService[Participant] = Field(
-            description="The feature service"
-        ),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.feature_service = feature_service
-        self.participant_service = participant_service
         super().__init__(
             base_path=base_path,
             model_service=arena_service,
@@ -49,7 +41,6 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
             logging=logging,
         )
 
-    # @router.post("/arena", response_model=Arena)
     async def create_arena(
         self,
         req: ArenaCreate,
@@ -65,10 +56,8 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
         """
         log = self.log.bind(method="create_arena", arena=req.name)
         features = []
-        participants = []
 
         with self.model_service.get_session() as session:
-
             if req.features:
                 features, errors = await self.feature_service.create_many(
                     req.features, session  # type: ignore
@@ -78,29 +67,11 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
                     session.rollback()
                     raise HTTPException(status_code=422, detail=errors)
 
-            if not req.participants:
-                raise HTTPException(
-                    status_code=422, detail="Need at least 1 participant"
-                )
-
-            participants = await self.participant_service.get_by_ids(
-                req.participants, session
-            )
-
-            if len(participants) != len(req.participants):
-                session.rollback()
-                raise HTTPException(
-                    status_code=422, detail="Could not get all participants"
-                )
-
             arena, problem = await self.model_service.create(req, session)
             if problem:
                 raise HTTPException(status_code=422, detail=problem)
             if not arena:
                 raise HTTPException(status_code=422, detail="internal error")
-
-            for p in participants:
-                arena.participants.append(p)
 
             for f in features:
                 arena.features.append(f)
@@ -110,8 +81,11 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
         return arena
 
     def get_router(self):
-        self.log.info("getting router")
-        router = APIRouter(prefix=self.base_path, tags=["arena"])
+        prefix = self.base_path
+        if not prefix.endswith(self.model_name):
+            prefix = f"{prefix}/arena"
+        self.log.info("setting up routes", path=prefix)
+        router = APIRouter(prefix=prefix, tags=["arena"])
 
         @router.post("/", response_model=Arena)
         async def create(req: ArenaCreate = Body(...)):

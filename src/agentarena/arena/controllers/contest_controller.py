@@ -11,14 +11,12 @@ from fastapi import Body
 from fastapi import HTTPException
 from sqlmodel import Field
 
-from agentarena.arena.factories.contest_factory import ContestFactory
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.contest import ContestDTO
 from agentarena.models.contest import ContestRequest
 from agentarena.models.contest import ContestState
-from agentarena.models.participant import ParticipantRole
 
 
 class ContestController(ModelController[ContestDTO]):
