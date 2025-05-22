@@ -237,3 +237,9 @@ I'm at a good place with NATS - this is working!
 
 Now I want to have a batch automatically return the final results of the request jobs on its message callback. To do that, I want to first move to SQLModel so that
 hydrating all the history won't be so manual.
+
+## 2025-05-21 19:26:18
+
+Almost done with the SQLAlchemy conversion
+
+Need to move the `get_session` calls to the router methods - so that i can use the controller methods without starting a new session.

@@ -135,7 +135,8 @@ class ModelService(Generic[T]):
         isonow = int(datetime.now().timestamp())
         parsed_obj.created_at = isonow
         parsed_obj.updated_at = isonow
-        parsed_obj.id = self.uuid_service.make_id()
+        if parsed_obj.id is None or parsed_obj.id == "":
+            parsed_obj.id = self.uuid_service.make_id()
 
         # This validateDTO is from DbBase, for business logic validation after Pydantic's parsing
         validation = self.db_service.validateDTO(parsed_obj)

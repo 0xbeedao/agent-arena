@@ -246,7 +246,7 @@ class Participant(ParticipantBase, DbBase, table=True):
     Maps agents to arenas
     """
 
-    contests: List[Arena] = Relationship(
+    contests: List[Contest] = Relationship(
         back_populates="participants", link_model=ContestParticipant
     )
 

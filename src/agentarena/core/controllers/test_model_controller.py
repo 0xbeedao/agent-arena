@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock
 
+from fastapi import HTTPException
 import pytest
 import ulid
 
@@ -45,8 +46,8 @@ def db_service(uuid_service, logging):
 @pytest.fixture
 def model_service(db_service, uuid_service, logging):
     """Fixture to create a ModelService for features"""
-    return ModelService[Feature](
-        model_class=Feature,
+    return ModelService[CommandJob](
+        model_class=CommandJob,
         db_service=db_service,
         uuid_service=uuid_service,
         logging=logging,
@@ -61,53 +62,52 @@ def ctrl(model_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_create_success(ctrl, model_service):
+async def test_create_success(ctrl):
     # Arrange
-    job = CommandJobCreate(channel="test", method="GET", url="/test")
+    job = CommandJobCreate(id="", channel="test", method="GET", url="/test")
     # Act
     result = await ctrl.create_model(job)
     # Assert
     assert job.channel == result.channel
-    assert result.id
+    assert result.id != ""
 
 
 @pytest.mark.asyncio
-async def test_update_success(mock_service, logging):
-    ctrl = ModelController[
-        CommandJob, CommandJobCreate, CommandJobUpdate, CommandJobPublic
-    ](model_public=CommandJobPublic, model_service=mock_service, logging=logging)
+async def test_update_success(ctrl):
     # Arrange
-    job = CommandJobUpdate(channel="foo", method="GET")
-    fresh = job.model_dump()
-    fresh["id"] = ulid.ULID().hex
-    mock_service.update.return_value = (fresh, ModelResponse(success=True))
+    job = CommandJobCreate(id="testing123", channel="test", method="GET", url="/test")
+    result = await ctrl.create_model(job)
+    fid = result.id
+    update = CommandJobUpdate(channel="foo")
+
     # Act
-    await ctrl.update_model(fresh["id"], job)
-    mock_service.update.assert_called_once_with(fresh["id"], job)
+    updated = await ctrl.update_model(fid, update)
+    assert updated.id == fid
+    assert updated.method == "GET"
+    assert updated.channel == "foo"
 
 
 @pytest.mark.asyncio
-async def test_delete_success(mock_service, logging):
-    mock_service.delete.return_value = ModelResponse(success=True)
-    ctrl = ModelController[
-        CommandJob, CommandJobCreate, CommandJobUpdate, CommandJobPublic
-    ](model_public=CommandJobPublic, model_service=mock_service, logging=logging)
-
-    response = await ctrl.delete_model("test")
+async def test_delete_success(ctrl):
+    job = CommandJobCreate(id="", channel="test", method="GET", url="/test")
+    result = await ctrl.create_model(job)
+    fid = result.id
+    response = await ctrl.delete_model(fid)
     assert response["success"]
-    mock_service.delete.assert_awaited_once()
+    try:
+        await ctrl.get_model(fid)
+        assert False, "should have failed"
+    except HTTPException as e:
+        pass
 
 
 @pytest.mark.asyncio
-async def test_get_success(mock_service, logging):
-    ctrl = ModelController[
-        CommandJob, CommandJobCreate, CommandJobUpdate, CommandJobPublic
-    ](model_public=CommandJobPublic, model_service=mock_service, logging=logging)
-    job = CommandJob(channel="test", method="GET", url="/test")
+async def test_get_success(ctrl):
+    job = CommandJobCreate(channel="test", method="GET", url="/test")
     jid = ulid.ULID().hex
     job.id = jid
-    mock_service.get.return_value = [job, ModelResponse(success=True)]
-    retrieved = await ctrl.get_model("test")
+    result = await ctrl.create_model(job)
+    retrieved = await ctrl.get_model(jid)
+    assert result == retrieved
     assert retrieved.id == job.id
     assert retrieved.url == "/test"
-    mock_service.get.assert_awaited_once()
