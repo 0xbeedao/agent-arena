@@ -11,6 +11,7 @@ from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
 from sqlmodel import Field
+from sqlmodel import Session
 
 from agentarena.arena.models.arena import Contest
 from agentarena.arena.models.arena import ContestCreate
@@ -47,10 +48,7 @@ class ContestController(
         )
 
     # @router.post("/contest", response_model=Dict[str, str])
-    async def create_contest(
-        self,
-        req: ContestCreate,
-    ) -> Contest:
+    async def create_contest(self, req: ContestCreate, session: Session) -> Contest:
         """
         Create a new contest.
 
@@ -64,34 +62,30 @@ class ContestController(
         if not req.participant_ids:
             raise HTTPException(status_code=422, detail="Need at least 1 participant")
 
-        with self.model_service.get_session() as session:
-            participants = await self.participant_service.get_by_ids(
-                req.participant_ids, session
+        participants = await self.participant_service.get_by_ids(
+            req.participant_ids, session
+        )
+
+        if len(participants) != len(req.participant_ids):
+            session.rollback()
+            raise HTTPException(
+                status_code=422, detail="Could not get all participants"
             )
 
-            if len(participants) != len(req.participant_ids):
-                session.rollback()
-                raise HTTPException(
-                    status_code=422, detail="Could not get all participants"
-                )
+        contest, problem = await self.model_service.create(req, session)
+        if problem:
+            raise HTTPException(status_code=422, detail=problem)
+        if not contest:
+            raise HTTPException(status_code=422, detail="internal error")
 
-            contest, problem = await self.model_service.create(req, session)
-            if problem:
-                raise HTTPException(status_code=422, detail=problem)
-            if not contest:
-                raise HTTPException(status_code=422, detail="internal error")
+        for p in participants:
+            contest.participants.append(p)
 
-            for p in participants:
-                contest.participants.append(p)
-
-            session.commit()
-            return contest
+        # session.commit() # needed?
+        return contest
 
     # @router.post("/contest/{contest_id}/start", response_model=Dict[str, str])
-    async def start_contest(
-        self,
-        contest_id: str,
-    ) -> Dict[str, str]:
+    async def start_contest(self, contest_id: str, session: Session) -> Dict[str, str]:
         """
         Start a contest, and returns the ID of the started contest, with everything set up for first round.
 
@@ -104,46 +98,45 @@ class ContestController(
         """
         boundlog = self.log.bind(contest_id=contest_id)
         boundlog.info("starting contest")
-        with self.model_service.get_session() as session:
-            contest, response = await self.model_service.get(contest_id, session)
-            if not response.success:
-                boundlog.error("failed to get contest")
-                raise HTTPException(status_code=404, detail=response.validation)
-            if not contest:
-                boundlog.error("failed to get contest data")
-                raise HTTPException(status_code=404, detail="internal error")
+        contest, response = await self.model_service.get(contest_id, session)
+        if not response.success:
+            boundlog.error("failed to get contest")
+            raise HTTPException(status_code=404, detail=response.validation)
+        if not contest:
+            boundlog.error("failed to get contest data")
+            raise HTTPException(status_code=404, detail="internal error")
 
-            if contest.state != ContestState.CREATED.value:
-                boundlog.error(f"contest is not in CREATED state, was: {contest.state}")
+        if contest.state != ContestState.CREATED.value:
+            boundlog.error(f"contest is not in CREATED state, was: {contest.state}")
+            raise HTTPException(
+                status_code=422, detail="Contest is not in CREATED state"
+            )
+
+        participants = [p for p in contest.participants]
+        if len(participants) < 4:
+            boundlog.error("No agents in arena, raising error")
+            raise HTTPException(
+                status_code=422,
+                detail="Arena needs at least 4 agents: player, announcer, judge, and participant",
+            )
+
+        roles = contest.participants_by_role()
+
+        for role in ParticipantRole:
+            key = role.value
+            if roles[key] is None or len(roles[key]) == 0:
+                boundlog.error(f"No agents in arena for role {key}, raising error")
                 raise HTTPException(
-                    status_code=422, detail="Contest is not in CREATED state"
+                    status_code=422, detail=f"Arena needs at least one {key} agent"
                 )
 
-            participants = [p for p in contest.participants]
-            if len(participants) < 4:
-                boundlog.error("No agents in arena, raising error")
-                raise HTTPException(
-                    status_code=422,
-                    detail="Arena needs at least 4 agents: player, announcer, judge, and participant",
-                )
+        # sanity check done, let's start
 
-            roles = contest.participants_by_role()
-
-            for role in ParticipantRole:
-                key = role.value
-                if roles[key] is None or len(roles[key]) == 0:
-                    boundlog.error(f"No agents in arena for role {key}, raising error")
-                    raise HTTPException(
-                        status_code=422, detail=f"Arena needs at least one {key} agent"
-                    )
-
-            # sanity check done, let's start
-
-            # Set contest state to STARTING
-            # and update start time
-            contest.state = ContestState.STARTING.value
-            contest.start_time = int(datetime.now().timestamp())
-            await self.model_service.update(contest_id, contest, session)
+        # Set contest state to STARTING
+        # and update start time
+        contest.state = ContestState.STARTING.value
+        contest.start_time = int(datetime.now().timestamp())
+        await self.model_service.update(contest_id, contest, session)
 
         return {"id": contest_id}
 
@@ -156,18 +149,22 @@ class ContestController(
 
         @router.post("/", response_model=Contest)
         async def create(req: ContestCreate = Body(...)):
-            return await self.create_contest(req)
+            with self.model_service.get_session() as session:
+                return await self.create_contest(req, session)
 
         @router.get("/{obj_id}", response_model=Contest)
         async def get(obj_id: str):
-            return await self.get_model(obj_id)
+            with self.model_service.get_session() as session:
+                return await self.get_model(obj_id, session)
 
         @router.get("", response_model=List[Contest])
         async def list_all():
-            return await self.get_model_list()
+            with self.model_service.get_session() as session:
+                return await self.get_model_list(session)
 
         @router.delete("/{obj_id}", response_model=Dict[str, bool])
         async def delete(obj_id: str):
-            return await self.delete_model(obj_id)
+            with self.model_service.get_session() as session:
+                return await self.delete_model(obj_id, session)
 
         return router

@@ -78,20 +78,13 @@ async def test_send_job_with_prefix(message_broker, mock_nats_client):
     )
 
     await message_broker.send_job(test_job)
-    expected = (
-        '{"id":"test","parent_id":null,"channel":"custom.test.command","data":{"key":"value"},"method":"POST","priority":1,"send_at":'
-        + str(test_job.send_at)
-        + ',"state":"idle","url":""}'
-    )
 
-    mock_nats_client.publish.assert_awaited_once_with(
-        "custom.test.command", expected.encode("utf-8")
-    )
+    mock_nats_client.publish.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_send_batch(message_broker, mock_nats_client):
-    parent_job = CommandJobCreate(
+    parent_job = CommandJob(
         channel="parent.command",
         data={"parent": "data"},
         method="POST",

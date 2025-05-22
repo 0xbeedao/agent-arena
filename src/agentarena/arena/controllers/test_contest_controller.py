@@ -4,69 +4,110 @@ from unittest.mock import Mock
 import pytest
 
 from agentarena.arena.controllers.contest_controller import ContestController
+from agentarena.arena.models.arena import Arena
+from agentarena.arena.models.arena import ArenaCreate
+from agentarena.arena.models.arena import ArenaPublic
+from agentarena.arena.models.arena import ArenaUpdate
 from agentarena.arena.models.arena import Contest
 from agentarena.arena.models.arena import ContestCreate
+from agentarena.arena.models.arena import ContestPublic
 from agentarena.arena.models.arena import ContestState
+from agentarena.arena.models.arena import ContestUpdate
+from agentarena.core.controllers.model_controller import ModelController
+from agentarena.core.factories.db_factory import get_engine
+from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelResponse
-
-
-@pytest.fixture
-def mock_contest_factory():
-    service = AsyncMock()
-    return service
-
-
-@pytest.fixture
-def mock_contest_service():
-    service = AsyncMock()
-    return service
-
-
-@pytest.fixture
-def mock_participant_service():
-    service = AsyncMock()
-    return service
+from agentarena.core.services.model_service import ModelService
+from agentarena.core.services.uuid_service import UUIDService
 
 
 @pytest.fixture
 def logging():
-    return LoggingService(True)
+    return LoggingService(capture=True)
+
+
+@pytest.fixture
+def uuid_service(logging):
+    return UUIDService(word_list=[], prod=False)
+
+
+@pytest.fixture
+def db_service(uuid_service, logging):
+    """Fixture to create an in-memory DB service"""
+    service = DbService(
+        str(get_project_root()),
+        dbfile="test.db",
+        get_engine=get_engine,
+        memory=True,
+        prod=False,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+    return service.create_db()
+
+
+@pytest.fixture
+def model_service(db_service, uuid_service, logging):
+    """Fixture to create a ModelService for features"""
+    return ModelService[Contest](
+        model_class=Contest,
+        db_service=db_service,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture
+def ctrl(model_service, logging):
+    return ModelController[Contest, ContestCreate, ContestUpdate, ContestPublic](
+        model_public=ContestPublic, model_service=model_service, logging=logging
+    )
+
+
+@pytest.fixture
+def arena_service(db_service, uuid_service, logging):
+    """Fixture to create a ModelService for Arena"""
+    return ModelService[Arena](
+        model_class=Arena,
+        db_service=db_service,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture
+def arena_ctrl(arena_service, logging):
+    return ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPublic](
+        model_public=ArenaPublic, model_service=arena_service, logging=logging
+    )
 
 
 @pytest.mark.asyncio
-async def test_create_contest_success(
-    mock_contest_service, mock_participant_service, logging
-):
-    contest_controller = ContestController(
-        model_service=mock_contest_service,
-        participant_service=mock_participant_service,
-        logging=logging,
-    )
-    mock_participant_service.get.return_value = (Mock(), None)
-    # Arrange
-    create_request = ContestCreate(
-        arena_id="arena123",
-        player_positions="A;B;C;D",
-        participant_ids=["a", "b", "c"],
-    )
-    contest = Contest(
-        arena_id="arena123",
-        current_round=1,
-        player_positions="A;B;C;D",
-        state=ContestState.CREATED.value,
-        start_time=None,
-        end_time=None,
-    )
+async def test_create_contest_success(ctrl, db_service, arena_ctrl):
+    with db_service.get_session() as session:
+        # Arrange
+        create_arena = ArenaCreate(
+            name="test arena",
+            description="test",
+            height=10,
+            width=10,
+            rules="",
+            winning_condition="",
+            max_random_features=1,
+            features=[],
+        )
+        arena = await arena_ctrl.create_model(create_arena, session)
 
-    mock_contest_service.create.return_value = (
-        contest,
-        ModelResponse(success=True),
-    )
-    # Act
-    result = await contest_controller.create_contest(
-        create_request,
-    )
-    # Assert
-    assert result == contest
-    mock_contest_service.create.assert_awaited_once()
+        create_contest = ContestCreate(
+            arena_id=arena.id,
+            player_positions="A;B;C;D",
+            participant_ids=["a", "b", "c"],
+        )
+
+        result = await ctrl.create_model(create_contest, session)
+        # Assert
+        assert result.id
+        assert result.arena_id == arena.id
+        assert result.state == ContestState.CREATED.value

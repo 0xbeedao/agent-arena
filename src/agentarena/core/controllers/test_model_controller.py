@@ -1,16 +1,13 @@
-from unittest.mock import AsyncMock
-
-from fastapi import HTTPException
 import pytest
 import ulid
+from fastapi import HTTPException
 
-from agentarena.arena.models.arena import Feature
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
-from agentarena.core.services.model_service import ModelResponse, ModelService
+from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobCreate
@@ -62,52 +59,58 @@ def ctrl(model_service, logging):
 
 
 @pytest.mark.asyncio
-async def test_create_success(ctrl):
-    # Arrange
-    job = CommandJobCreate(id="", channel="test", method="GET", url="/test")
-    # Act
-    result = await ctrl.create_model(job)
-    # Assert
-    assert job.channel == result.channel
-    assert result.id != ""
+async def test_create_success(ctrl, db_service):
+    with db_service.get_session() as session:
+        # Arrange
+        job = CommandJobCreate(id="", channel="test", method="GET", url="/test")
+        # Act
+        result = await ctrl.create_model(job, session)
+        # Assert
+        assert job.channel == result.channel
+        assert result.id != ""
 
 
 @pytest.mark.asyncio
-async def test_update_success(ctrl):
-    # Arrange
-    job = CommandJobCreate(id="testing123", channel="test", method="GET", url="/test")
-    result = await ctrl.create_model(job)
-    fid = result.id
-    update = CommandJobUpdate(channel="foo")
+async def test_update_success(ctrl, db_service):
+    with db_service.get_session() as session:
+        # Arrange
+        job = CommandJobCreate(
+            id="testing123", channel="test", method="GET", url="/test"
+        )
+        result = await ctrl.create_model(job, session)
+        fid = result.id
+        update = CommandJobUpdate(channel="foo")
 
-    # Act
-    updated = await ctrl.update_model(fid, update)
-    assert updated.id == fid
-    assert updated.method == "GET"
-    assert updated.channel == "foo"
-
-
-@pytest.mark.asyncio
-async def test_delete_success(ctrl):
-    job = CommandJobCreate(id="", channel="test", method="GET", url="/test")
-    result = await ctrl.create_model(job)
-    fid = result.id
-    response = await ctrl.delete_model(fid)
-    assert response["success"]
-    try:
-        await ctrl.get_model(fid)
-        assert False, "should have failed"
-    except HTTPException as e:
-        pass
+        # Act
+        updated = await ctrl.update_model(fid, update, session)
+        assert updated.id == fid
+        assert updated.method == "GET"
+        assert updated.channel == "foo"
 
 
 @pytest.mark.asyncio
-async def test_get_success(ctrl):
-    job = CommandJobCreate(channel="test", method="GET", url="/test")
-    jid = ulid.ULID().hex
-    job.id = jid
-    result = await ctrl.create_model(job)
-    retrieved = await ctrl.get_model(jid)
-    assert result == retrieved
-    assert retrieved.id == job.id
-    assert retrieved.url == "/test"
+async def test_delete_success(ctrl, db_service):
+    with db_service.get_session() as session:
+        job = CommandJobCreate(id="", channel="test", method="GET", url="/test")
+        result = await ctrl.create_model(job, session)
+        fid = result.id
+        response = await ctrl.delete_model(fid, session)
+        assert response["success"]
+        try:
+            await ctrl.get_model(fid, session)
+            assert False, "should have failed"
+        except HTTPException as e:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_get_success(ctrl, db_service):
+    with db_service.get_session() as session:
+        job = CommandJobCreate(channel="test", method="GET", url="/test")
+        jid = ulid.ULID().hex
+        job.id = jid
+        result = await ctrl.create_model(job, session)
+        retrieved = await ctrl.get_model(jid, session)
+        assert result == retrieved
+        assert retrieved.id == job.id
+        assert retrieved.url == "/test"
