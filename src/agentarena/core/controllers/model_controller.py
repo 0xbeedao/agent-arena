@@ -155,14 +155,18 @@ class ModelController(Generic[T, MC, MU, MP]):
             return {"success": response.success}
 
     def get_router(self):
-        self.log.info("getting router")
-        router = APIRouter(prefix=self.base_path, tags=[self.model_name])
+        prefix = self.base_path
+        if not prefix.endswith(self.model_name):
+            prefix = f"{prefix}/{self.model_name}"
+        self.log.info("setting up routes", path=prefix)
+
+        router = APIRouter(prefix=prefix, tags=[self.model_name])
 
         @router.post("/", response_model=MP)
         async def create(req: MC = Body(...)):
             return await self.create_model(req)
 
-        @router.get("/{obj_id}", response_model=T)
+        @router.get("/{obj_id}", response_model=MP)
         async def get(obj_id: str):
             return await self.get_model(obj_id)
 

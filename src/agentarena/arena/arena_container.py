@@ -7,9 +7,6 @@ from agentarena.actors.controllers.responder_controller import ResponderControll
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.factories.arena_factory import ArenaFactory
-from agentarena.arena.factories.contest_factory import ContestFactory
-from agentarena.arena.factories.participant_factory import ParticipantFactory
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.db_factory import get_database
 from agentarena.core.factories.environment_factory import get_project_root
@@ -22,10 +19,8 @@ from agentarena.models.agent import AgentDTO
 from agentarena.models.arena import Arena
 from agentarena.models.contest import ContestDTO
 from agentarena.models.event import JobEvent
-from agentarena.models.feature import Feature
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobHistory
-from agentarena.models.participant import ParticipantDTO
 from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
 from agentarena.models.strategy import StrategyDTO

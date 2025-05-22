@@ -271,7 +271,7 @@ class ModelService(Generic[T]):
         self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}", session)
         return ModelResponse(success=True, id=obj_id)
 
-    async def get_by_ids(self, obj_ids: List[str], session: Session):
+    async def get_by_ids(self, obj_ids: List[str], session: Session) -> List[T]:
         """
         Get multiple model instances by their IDs.
 
@@ -286,7 +286,7 @@ class ModelService(Generic[T]):
 
         stmt = select(self.model_class).filter(self.model_class.id.in_(obj_ids))  # type: ignore
         objects = session.exec(stmt).all()
-        return objects
+        return objects  # type: ignore
 
     def get_session(self, session: Optional[Session] = None):
         if session:
