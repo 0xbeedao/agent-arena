@@ -1,0 +1,33 @@
+/* Control Panel CSS */
+Screen {
+    layout: grid;
+    grid-size: 1 2;
+    grid-rows: 1fr 3;
+}
+
+Sidebar {
+    width: 20;
+    background: $panel;
+    border: solid $primary;
+}
+
+MainPanel {
+    width: 1fr;
+    background: $boost;
+    border: solid $primary;
+}
+
+StatusBar {
+    height: 1;
+    background: $panel;
+    border: solid $primary;
+}
+
+Button {
+    width: 100%;
+    margin: 1;
+}
+
+Button:hover {
+    background: $accent;
+}
