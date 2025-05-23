@@ -6,7 +6,6 @@ from sqlmodel import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.agent import AgentDTO
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import UrlJobRequest
 from agentarena.models.requests import HealthResponse
@@ -25,13 +24,9 @@ class DebugController:
     def __init__(
         self,
         base_path: str = "/api",
-        agent_service: ModelService[AgentDTO] = Field(
-            description="The Agent DTO Service"
-        ),
         message_broker: NatsClient = Field(description="Message broker client"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
-        self.agent_service = agent_service
         self.base_path = f"{base_path}/debug"
         self.message_broker = message_broker
         self.log = logging.get_logger("controller", path=self.base_path)

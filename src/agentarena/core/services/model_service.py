@@ -64,7 +64,8 @@ class ModelService(Generic[T]):
         Args:
             model_class: The Pydantic model class (must be a subclass of DbBase)
             db_service: The database service
-            table_name: Optional table name (if not provided, will be inferred from model_class name)
+            uuid_service: The UUID service
+            logging: logging service
         """
         if not issubclass(model_class, DbBase):
             raise TypeError(

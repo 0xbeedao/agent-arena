@@ -7,7 +7,7 @@ from agentarena.actors.controllers.responder_controller import ResponderControll
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models.arena import Arena
+from agentarena.arena.models.arena import Arena, Contest, Feature, Participant
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.db_factory import get_database
 from agentarena.core.factories.environment_factory import get_project_root
@@ -16,8 +16,6 @@ from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.agent import AgentDTO
-from agentarena.models.contest import ContestDTO
 from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobHistory
@@ -69,35 +67,17 @@ class ArenaContainer(containers.DeclarativeContainer):
 
     # model services
 
-    jobevent_service = providers.Singleton(
-        ModelService[JobEvent],
-        model_class=JobEvent,
-        db_service=db_service,
-        table_name="jobevent",
-        logging=logging,
-    )
-
-    agent_service = providers.Singleton(
-        ModelService[AgentDTO],
-        model_class=AgentDTO,
-        db_service=db_service,
-        table_name="agents",
-        logging=logging,
-    )
-
     arena_service = providers.Singleton(
         ModelService[Arena],
         model_class=Arena,
         db_service=db_service,
-        table_name="arenas",
         logging=logging,
     )
 
     participant_service = providers.Singleton(
-        ModelService[ParticipantDTO],
-        model_class=ParticipantDTO,
+        ModelService[Participant],
+        model_class=Participant,
         db_service=db_service,
-        table_name="participants",
         logging=logging,
     )
 
@@ -110,10 +90,9 @@ class ArenaContainer(containers.DeclarativeContainer):
     )
 
     contest_service = providers.Singleton(
-        ModelService[ContestDTO],
-        model_class=ContestDTO,
+        ModelService[Contest],
+        model_class=Contest,
         db_service=db_service,
-        table_name="contests",
         logging=logging,
     )
 
@@ -121,15 +100,6 @@ class ArenaContainer(containers.DeclarativeContainer):
         ModelService[Feature],
         model_class=Feature,
         db_service=db_service,
-        table_name="features",
-        logging=logging,
-    )
-
-    commandjob_service = providers.Singleton(
-        ModelService[CommandJob],
-        model_class=CommandJob,
-        db_service=db_service,
-        table_name="jobs",
         logging=logging,
     )
 
@@ -141,96 +111,22 @@ class ArenaContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
-    strategy_service = providers.Singleton(
-        ModelService[StrategyDTO],
-        model_class=StrategyDTO,
-        db_service=db_service,
-        table_name="strategies",
-        logging=logging,
-    )
-
-    jobhistory_service = providers.Singleton(
-        ModelService[CommandJobHistory],
-        model_class=CommandJobHistory,
-        db_service=db_service,
-        table_name="jobhistories",
-        logging=logging,
-    )
-
-    queue_service = providers.Singleton(
-        QueueService,
-        history_service=jobhistory_service,
-        job_service=commandjob_service,
-        logging=logging,
-    )
-
-    # factory services
-
-    participant_factory = providers.Singleton(
-        ParticipantFactory,
-        agent_service=agent_service,
-        logging=logging,
-    )
-
-    arena_factory = providers.Singleton(
-        ArenaFactory,
-        participant_service=participant_service,
-        feature_service=feature_service,
-        participant_factory=participant_factory,
-        logging=logging,
-    )
-
-    contest_factory = providers.Singleton(
-        ContestFactory,
-        arena_service=arena_service,
-        participant_service=participant_service,
-        participant_factory=participant_factory,
-        arena_factory=arena_factory,
-        logging=logging,
-    )
-
     # controllers
-
-    agent_controller = providers.Singleton(
-        ModelController[AgentDTO],
-        model_name="agent",
-        model_service=agent_service,
-        logging=logging,
-    )
 
     arena_controller = providers.Singleton(
         ArenaController,
-        model_service=arena_service,
-        agent_service=agent_service,
+        arena_service=arena_service,
         feature_service=feature_service,
-        participant_service=participant_service,
-        arena_factory=arena_factory,
         logging=logging,
     )
 
     contest_controller = providers.Singleton(
         ContestController,
         model_service=contest_service,
-        contest_factory=contest_factory,
-        logging=logging,
-    )
-
-    responder_controller = providers.Singleton(
-        ResponderController,
-        participant_service=participant_service,
-        participant_factory=participant_factory,
-        logging=logging,
-    )
-
-    strategy_controller = providers.Singleton(
-        ModelController[StrategyDTO],
-        model_name="strategy",
-        model_service=strategy_service,
         logging=logging,
     )
 
     debug_controller = providers.Singleton(
         DebugController,
-        agent_service=agent_service,
         logging=logging,
     )

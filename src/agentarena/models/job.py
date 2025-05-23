@@ -50,7 +50,7 @@ class UrlJobRequest(SQLModel, table=False):
 
 
 class JobResponse(UrlJobRequest, table=False):
-    job_id: str = Field(description="Job ID")
+    job_id: str = Field(description="Job ID", foreign_key="commandjob.id")
     message: Optional[str] = Field(
         default="", description="Message regarding state, e.g. an error"
     )
@@ -58,7 +58,9 @@ class JobResponse(UrlJobRequest, table=False):
         description="JobResponseState field, one of ['completed', 'pending', 'fail']",
     )
     child_data: Optional[List["JobResponse"]] = Field(
-        default=[], description="child job responses"
+        default_factory=list,
+        sa_column=Column(JSON),
+        description="child job responses",
     )
 
 
@@ -140,7 +142,7 @@ class CommandJobUpdate(SQLModel):
     )
     method: Optional[str] = Field(default=None, description="HTTP method, or MESSAGE")
     priority: Optional[int] = Field(
-        default=5, description="priority on a scale from 1 to 10, 10 high"
+        default=None, description="priority on a scale from 1 to 10, 10 high"
     )
     send_at: Optional[int] = Field(
         default=None, description="Available in queue after what timestamp"

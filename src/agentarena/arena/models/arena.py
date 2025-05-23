@@ -3,14 +3,14 @@ Arena configuration model for the Agent Arena application.
 """
 
 from enum import Enum
-from typing import List
+from typing import Dict, List
 from typing import Optional
 
-from sqlmodel import Field
+from sqlmodel import JSON, Column, Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
 
-from ...models.dbbase import DbBase
+from agentarena.models.dbbase import DbBase
 
 
 # -------- Link models
@@ -73,6 +73,33 @@ class ArenaUpdate(SQLModel):
     )
 
 
+# -------- Round Models
+
+
+class ContestRoundBase(SQLModel, table=False):
+    """
+    Represents the state of the arena at a specific point in time.
+
+    Maps to the ARENA_STATE entity in the ER diagram.
+    """
+
+    contest_id: str = Field(
+        description="Reference to Contest", foreign_key="contest.id"
+    )
+    round_no: int = Field(description="Round number", ge=0)
+    narrative: str = Field(default=None, description="Round narrative")
+    state: str = Field(description="Arena state")
+
+
+class ContestRound(ContestRoundBase, DbBase, table=True):
+    # relationships
+
+    features: List["Feature"] = Relationship(back_populates="contestround")
+    player_states: List["PlayerState"] = Relationship(back_populates="contestround")
+    player_actions: List["PlayerAction"] = Relationship(back_populates="contestround")
+    judge_results: List["JudgeResult"] = Relationship(back_populates="contestround")
+
+
 # -------- Contest models
 
 
@@ -111,7 +138,7 @@ class ContestBase(SQLModel, table=False):
     arena_id: str = Field(description="Reference to ArenaDTO", foreign_key="arena.id")
     current_round: int = Field(default=1, description="Current round")
     player_positions: str = Field(
-        default=[], description="A semicolon delimited list of player positions"
+        default="", description="A semicolon delimited list of player positions"
     )
     state: str = Field(default=ContestState.CREATED.value, description="Contest state")
 
@@ -141,12 +168,16 @@ class Contest(ContestBase, DbBase, table=True):
 
 
 class ContestCreate(SQLModel, table=False):
+    """
+    This model is used by clients to kick off a new Contest with pre-defined objects.
+    """
+
     arena_id: str = Field(description="Arena ID", foreign_key="arena.id")
     player_positions: str = Field(
         default=[], description="A semicolon delimited list of player positions"
     )
     participant_ids: List[str] = Field(
-        description="IDs of Participants", foreign_key="participant.id"
+        description="IDs of Participants to load", foreign_key="participant.id"
     )
 
 
@@ -171,17 +202,18 @@ class FeatureOriginType(Enum):
 
 
 class FeatureBase(SQLModel, table=False):
-    arena_id: str = Field(description="Reference to ArenaDTO", foreign_key="arena.id")
+    arena_id: Optional[str] = Field(
+        description="Reference to Arena", foreign_key="arena.id"
+    )
+    contestround_id: Optional[str] = Field(
+        description="Reference to a ContestRound", foreign_key="contestround.id"
+    )
     name: str = Field(description="Feature name")
     description: str = Field(description="Feature description")
     position: str = Field(
         description="Grid coordinate as 'x,y'",
     )
     origin: str = Field(description="Feature type")
-    end_position: Optional[str] = Field(
-        default=None,
-        description="End coordinate for features with area",
-    )
 
 
 class Feature(FeatureBase, DbBase, table=True):
@@ -191,13 +223,19 @@ class Feature(FeatureBase, DbBase, table=True):
     Maps to the FEATURE entity in the ER diagram.
     """
 
-    arena: "Arena" = Relationship(back_populates="features")
+    arena: Arena = Relationship(back_populates="features")
+    contestround: ContestRound = Relationship(back_populates="features")
 
 
 class FeatureCreate(FeatureBase):
     """
     Request model for creating a feature
     """
+
+    end_position: Optional[str] = Field(
+        default=None,
+        description="End coordinate for features with area",
+    )
 
 
 class FeatureUpdate(SQLModel):
@@ -219,6 +257,29 @@ class FeatureUpdate(SQLModel):
 
 class FeaturePublic(FeatureBase):
     id: str
+
+
+# -------- Judge Results
+class JudgeResultBase(SQLModel, table=False):
+    """
+    Represents the result of a judge's evaluation.
+
+    Maps to the JUDGE_RESULT entity in the ER diagram.
+    """
+
+    contestround_id: str = Field(
+        description="Contest Round identifier", foreign_key="contestround.id"
+    )
+    result: str = Field(description="Result description")
+    reason: Optional[str] = Field(default=None, description="Reason for the result")
+
+
+class JudgeResult(JudgeResultBase, DbBase, table=True):
+    contestround: ContestRound = Relationship(back_populates="judge_results")
+
+
+class JudgeResultCreate(JudgeResultBase):
+    pass
 
 
 # -------- Participant Models
@@ -275,3 +336,65 @@ class ParticipantUpdate(SQLModel):
     )
     name: Optional[str] = Field(default=None, description="Participant name")
     role: Optional[str] = Field(default=None, description="Role in arena")
+
+
+# --- Player models
+
+
+class PlayerStateBase(SQLModel, table=False):
+    """
+    Represents the state of a player for a contest and round
+
+    Maps to the PLAYER_STATE entity in the ER diagram.
+    """
+
+    participant_id: str = Field(
+        description="Reference to Participant", foreign_key="participant.id"
+    )
+    contestround_id: str = Field(
+        description="Reference to Contest Round", foreign_key="contestround.id"
+    )
+    position: str = Field(description="Grid coordinate as 'x,y'")
+    inventory: Optional[List[str]] = Field(
+        default_factory=List, sa_column=Column(JSON), description="Player inventory"
+    )
+    health_state: str = Field(description="Health state")
+    extra: Optional[Dict] = Field(
+        default_factory=Dict, sa_column=Column(JSON), description="Additional data"
+    )
+
+
+class PlayerState(PlayerStateBase, DbBase, table=True):
+    contestround: ContestRound = Relationship(back_populates="player_states")
+
+
+class PlayerStateCreate(PlayerStateBase, table=False):
+    pass
+
+
+# --- Player actions
+class PlayerActionBase(SQLModel, table=True):
+    """
+    Represents an action taken by a player.
+
+    Maps to the PLAYER_ACTION entity in the ER diagram.
+    """
+
+    participant_id: str = Field(
+        description="Participant identifier", foreign_key="participant.id"
+    )
+    contestround_id: str = Field(
+        description="contest round ref", foreign_key="contestround.id"
+    )
+    action: str = Field(description="Action description")
+    target: Optional[str] = Field(
+        default=None, description="Target coordinate as 'x,y'"
+    )
+
+
+class PlayerAction(PlayerActionBase, DbBase, table=True):
+    contestround: ContestRound = Relationship(back_populates="player_actions")
+
+
+class PlayerActionCreate(PlayerActionBase, table=False):
+    pass
