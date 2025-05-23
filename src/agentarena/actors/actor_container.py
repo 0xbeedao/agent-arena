@@ -18,6 +18,9 @@ from agentarena.actors.models import (
     AgentPublic,
     AgentUpdate,
     Strategy,
+    StrategyCreate,
+    StrategyUpdate,
+    StrategyPublic,
 )
 
 
@@ -96,7 +99,7 @@ class ActorContainer(containers.DeclarativeContainer):
     )
 
     strategy_controller = providers.Singleton(
-        ModelController[StrategyDTO],
+        ModelController[Strategy, StrategyCreate, StrategyUpdate, StrategyPublic],
         model_name="strategy",
         model_service=strategy_service,
         logging=logging,

@@ -17,17 +17,6 @@ from sqlmodel import SQLModel
 # ---- Link Models
 
 
-class AgentStrategy(SQLModel, table=False):
-    """
-    Link Model for Agent <-> Strategy many-to-many
-    """
-
-    agent_id: str = Field(description="Agent", foreign_key="agent.id", primary_key=True)
-    strategy_id: str = Field(
-        description="Strategy", foreign_key="strategy.id", primary_key=True
-    )
-
-
 # ---- Agent Model
 
 
@@ -41,7 +30,9 @@ class AgentBase(SQLModel, table=False):
     name: str = Field(default="", description="Agent name")
     description: str = Field(default="", description="Agent description")
     endpoint: str = Field(default="", description="API endpoint for the agent")
-    api_key: Optional[str] = Field(default="", description="API key for authentication")
+    api_key: Optional[str] = Field(
+        default=None, description="API key for authentication"
+    )
     extra: Optional[Dict] = Field(
         default_factory=Dict, sa_column=Column(JSON), description="Additional data"
     )
@@ -106,11 +97,13 @@ class StrategyBase(SQLModel, table=False):
     description: str = Field(
         default="", description="Detailed description of the strategy"
     )
-    role: str = Field(default=StrategyType.PLAYER.value, description="Type of strategy")
+    role: StrategyType = Field(
+        default=StrategyType.PLAYER, description="Type of strategy"
+    )
 
 
 class Strategy(StrategyBase, DbBase, table=True):
-    agent: Agent = Relationship(back_populates="strategy")
+    agents: List["Agent"] = Relationship(back_populates="strategy")
 
 
 class StrategyUpdate(SQLModel, table=False):
@@ -122,7 +115,7 @@ class StrategyUpdate(SQLModel, table=False):
 
     name: Optional[str] = Field(default=None, description="Strategy name")
     personality: Optional[str] = Field(
-        default="", description="Personality description"
+        default=None, description="Personality description"
     )
     instructions: Optional[str] = Field(
         default=None, description="Strategy instructions"
@@ -131,6 +124,14 @@ class StrategyUpdate(SQLModel, table=False):
         default=None, description="Detailed description of the strategy"
     )
     role: Optional[str] = Field(default=None, description="Type of strategy")
+
+
+class StrategyCreate(StrategyBase):
+    pass
+
+
+class StrategyPublic(StrategyBase):
+    id: str
 
 
 #
