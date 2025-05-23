@@ -16,12 +16,8 @@ from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.event import JobEvent
-from agentarena.models.job import CommandJob
-from agentarena.models.job import CommandJobHistory
 from agentarena.models.state import ArenaStateDTO
 from agentarena.models.stats import RoundStatsDTO
-from agentarena.models.strategy import StrategyDTO
 from agentarena.scheduler.services.queue_service import QueueService
 
 
