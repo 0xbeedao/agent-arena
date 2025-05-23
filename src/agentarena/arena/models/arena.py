@@ -13,6 +13,51 @@ from sqlmodel import SQLModel
 from agentarena.models.dbbase import DbBase
 
 
+class ContestRole(str, Enum):
+    """
+    Roles for agents in contests
+    """
+
+    PLAYER = "player"
+    ARENA = "arena"
+    JUDGE = "judge"
+    ANNOUNCER = "announcer"
+
+
+class ContestState(str, Enum):
+    """
+    Status of a contest.
+    """
+
+    CREATED = "created"
+    STARTING = "starting"
+    STARTED = "started"
+    PAUSED = "paused"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class FeatureOriginType(str, Enum):
+    """
+    Enum for feature types.
+    """
+
+    REQUIRED = "required"
+    RANDOM = "random"
+
+
+class ParticipantRole(str, Enum):
+    """
+    Enum for different roles
+    """
+
+    JUDGE = "judge"
+    ARENA = "arena"
+    PLAYER = "player"
+    ANNOUNCER = "announcer"
+
+
 # -------- Link models
 class ContestParticipant(SQLModel, table=True):
     """
@@ -88,7 +133,7 @@ class ContestRoundBase(SQLModel, table=False):
     )
     round_no: int = Field(description="Round number", ge=0)
     narrative: str = Field(default=None, description="Round narrative")
-    state: str = Field(description="Arena state")
+    state: ContestState = Field(description="Arena state")
 
 
 class ContestRound(ContestRoundBase, DbBase, table=True):
@@ -103,31 +148,6 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
 # -------- Contest models
 
 
-class ContestRole(str, Enum):
-    """
-    Roles for agents in contests
-    """
-
-    PLAYER = "player"
-    ARENA = "arena"
-    JUDGE = "judge"
-    ANNOUNCER = "announcer"
-
-
-class ContestState(str, Enum):
-    """
-    Status of a contest.
-    """
-
-    CREATED = "created"
-    STARTING = "starting"
-    STARTED = "started"
-    PAUSED = "paused"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
 class ContestBase(SQLModel, table=False):
     """
     Represents a specific run of a contest between agents.
@@ -140,7 +160,9 @@ class ContestBase(SQLModel, table=False):
     player_positions: str = Field(
         default="", description="A semicolon delimited list of player positions"
     )
-    state: str = Field(default=ContestState.CREATED.value, description="Contest state")
+    state: ContestState = Field(
+        default=ContestState.CREATED, description="Contest state"
+    )
 
 
 class Contest(ContestBase, DbBase, table=True):
@@ -163,7 +185,7 @@ class Contest(ContestBase, DbBase, table=True):
         for role in ParticipantRole:
             roles[role.value] = []
         for p in self.participants:
-            roles[p.role] = p
+            roles[p.role.value] = p
         return roles
 
 
@@ -189,18 +211,6 @@ class ContestUpdate(ContestBase):
     pass
 
 
-# -------- Feature models
-
-
-class FeatureOriginType(Enum):
-    """
-    Enum for feature types.
-    """
-
-    REQUIRED = "required"
-    RANDOM = "random"
-
-
 class FeatureBase(SQLModel, table=False):
     arena_id: Optional[str] = Field(
         description="Reference to Arena", foreign_key="arena.id"
@@ -213,7 +223,7 @@ class FeatureBase(SQLModel, table=False):
     position: str = Field(
         description="Grid coordinate as 'x,y'",
     )
-    origin: str = Field(description="Feature type")
+    origin: FeatureOriginType = Field(description="Feature type")
 
 
 class Feature(FeatureBase, DbBase, table=True):
@@ -248,7 +258,9 @@ class FeatureUpdate(SQLModel):
         default=None,
         description="Grid coordinate as 'x,y'",
     )
-    origin: Optional[str] = Field(default=None, description="Feature type")
+    origin: Optional[FeatureOriginType] = Field(
+        default=None, description="Feature type"
+    )
     end_position: Optional[str] = Field(
         default=None,
         description="End coordinate for features with area",
@@ -285,21 +297,10 @@ class JudgeResultCreate(JudgeResultBase):
 # -------- Participant Models
 
 
-class ParticipantRole(Enum):
-    """
-    Enum for different roles
-    """
-
-    JUDGE = "judge"
-    ARENA = "arena"
-    PLAYER = "player"
-    ANNOUNCER = "announcer"
-
-
 class ParticipantBase(SQLModel, table=False):
     arena_id: str = Field(description="Reference to ArenaDTO", foreign_key="arena.id")
     name: str = Field(description="Participant name")
-    role: str = Field(description="Role in arena")
+    role: ParticipantRole = Field(description="Role in arena")
 
 
 class Participant(ParticipantBase, DbBase, table=True):
@@ -335,7 +336,7 @@ class ParticipantUpdate(SQLModel):
         default=None, description="Reference to ArenaDTO", foreign_key="arena.id"
     )
     name: Optional[str] = Field(default=None, description="Participant name")
-    role: Optional[str] = Field(default=None, description="Role in arena")
+    role: Optional[ParticipantRole] = Field(default=None, description="Role in arena")
 
 
 # --- Player models
@@ -373,7 +374,7 @@ class PlayerStateCreate(PlayerStateBase, table=False):
 
 
 # --- Player actions
-class PlayerActionBase(SQLModel, table=True):
+class PlayerActionBase(SQLModel, table=False):
     """
     Represents an action taken by a player.
 

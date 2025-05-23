@@ -13,26 +13,39 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
-from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJob, JobResponseState
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import CommandJobHistoryCreate
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
 
-FINAL_STATES = [JobState.FAIL.value, JobState.COMPLETE.value]
-ALL_STATES = [state.value for state in JobState]
+FINAL_STATES = [JobState.FAIL, JobState.COMPLETE]
+
+JOBSTATE_TO_RESPONSESTATE = {
+    JobState.IDLE: JobResponseState.PENDING,
+    JobState.REQUEST: JobResponseState.PENDING,
+    JobState.RESPONSE: JobResponseState.PENDING,
+    JobState.WAITING: JobResponseState.PENDING,
+    JobState.FAIL: JobResponseState.FAIL,
+    JobState.COMPLETE: JobResponseState.COMPLETE,
+}
 
 
 def make_response(job: CommandJob, data: Dict, message: str):
+    state = JOBSTATE_TO_RESPONSESTATE.get(job.state, None)
+    if not state:
+        # should never happen, unless we add more states to JobState
+        raise RuntimeError("Invalid state map")
+
     return JobResponse(
         channel=job.channel,
-        data=data,  # type: ignore
+        data=data,
         delay=0,
         method=job.method,
         url=job.url,
         job_id=job.id,
         message=message,
-        state=job.state or JobState.COMPLETE.value,
+        state=state,
     )
 
 
@@ -63,11 +76,11 @@ class QueueService(SubscribingService):
         log.info("Draining queue")
         job = await self.get_next(session)
         while job is not None:
-            await self.update_state(job.id, "fail", session, message=message)
+            await self.update_state(job.id, JobState.FAIL, session, message=message)
         log.info("drain complete")
 
     async def add_job(self, job: CommandJob, session: Session):
-        if job.state == JobState.IDLE.value:
+        if job.state == JobState.IDLE:
             job.started_at = 0
             job.finished_at = 0
         created, response = await self.job_service.create(job, session)
@@ -95,7 +108,7 @@ class QueueService(SubscribingService):
         now = int(datetime.now().timestamp())
         stmt = (
             select(CommandJob)
-            .where(CommandJob.state == JobState.IDLE.value)
+            .where(CommandJob.state == JobState.IDLE)
             .where(CommandJob.send_at <= now)
             .order_by(CommandJob.created_at)  # type: ignore
         )
@@ -104,7 +117,7 @@ class QueueService(SubscribingService):
         if not next:
             return None
         updated_job = await self.update_state(
-            next.id, JobState.REQUEST.value, session, message="picked up from queue"
+            next.id, JobState.REQUEST, session, message="picked up from queue"
         )
         self.log.debug(
             "returning next job", job=updated_job.id if updated_job else "none"
@@ -121,7 +134,7 @@ class QueueService(SubscribingService):
     ) -> CommandJob | None:
         return await self.update_state(
             job_id,
-            JobState.IDLE.value,
+            JobState.IDLE,
             session,
             message=message,
             data=data,
@@ -130,7 +143,7 @@ class QueueService(SubscribingService):
 
     async def revalidate_batch(self, batch: CommandJob, session: Session):
         current_state = batch.state
-        if current_state == JobState.IDLE.value:
+        if current_state == JobState.IDLE:
             # this batch is waiting to be picked up for final run
             return False
 
@@ -142,10 +155,10 @@ class QueueService(SubscribingService):
         failed = False
         for c in batch.children:
             ct += 1
-            if c.state == JobState.FAIL.value:
+            if c.state == JobState.FAIL:
                 failed = True
                 info.append(f"Child {c.id} in FAIL - batch fail")
-            if c.state != JobState.COMPLETE.value:
+            if c.state != JobState.COMPLETE:
                 complete = False
                 info.append(f"Child {c.id} is in {c.state} - batch pending")
 
@@ -155,11 +168,11 @@ class QueueService(SubscribingService):
 
         state = batch.state
         if failed:
-            state = JobState.FAIL.value
+            state = JobState.FAIL
         elif complete:
             if batch.url:
                 # this will kick off the final request
-                state = JobState.IDLE.value
+                state = JobState.IDLE
 
         log.debug("info from validation", info=info, state=state)
         if state and state != batch.state:
@@ -216,18 +229,14 @@ class QueueService(SubscribingService):
     async def update_state(
         self,
         job_id: str,
-        state: str,
+        state: JobState,
         session: Session,
         message: str = "",
         data: Optional[Mapping[str, Any]] = {},
         delay=0,
     ) -> CommandJob | None:
 
-        if not state in ALL_STATES:
-            self.log.warn(f"Invalid state: {state}")
-            return None
-
-        log = self.log.bind(method="update_state", state=state, job_id=job_id)
+        log = self.log.bind(method="update_state", state=state.value, job_id=job_id)
 
         job, response = await self.job_service.get(job_id, session)
 
@@ -235,7 +244,7 @@ class QueueService(SubscribingService):
             log.warn("No such job")
             return None
 
-        old_state = job.state or JobState.IDLE.value
+        old_state = job.state or JobState.IDLE
         job.state = state
         log = log.bind(state=state)
         sent = None
@@ -243,10 +252,10 @@ class QueueService(SubscribingService):
             log.info("final state for job")
             job.finished_at = int(datetime.now().timestamp())
         elif old_state != job.state:
-            if state == JobState.REQUEST.value:
+            if state == JobState.REQUEST:
                 log.info("Starting job, setting started_at")
                 job.started_at = int(datetime.now().timestamp())
-            elif state == JobState.IDLE.value:
+            elif state == JobState.IDLE:
                 # requeue
                 job.send_at = int(datetime.now().timestamp() + delay)
             else:

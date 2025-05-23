@@ -9,7 +9,7 @@ from typing import List
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from sqlmodel import Field
+from sqlmodel import Field, Session
 
 from agentarena.arena.models.arena import Arena
 from agentarena.arena.models.arena import ArenaCreate
@@ -41,10 +41,7 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
             logging=logging,
         )
 
-    async def create_arena(
-        self,
-        req: ArenaCreate,
-    ) -> Arena:
+    async def create_arena(self, req: ArenaCreate, session: Session) -> Arena:
         """
         Create a new arena.
 
@@ -57,26 +54,24 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
         log = self.log.bind(method="create_arena", arena=req.name)
         features = []
 
-        with self.model_service.get_session() as session:
-            if req.features:
-                features, errors = await self.feature_service.create_many(
-                    req.features, session  # type: ignore
-                )
+        if req.features:
+            features, errors = await self.feature_service.create_many(
+                req.features, session  # type: ignore
+            )
 
-                if errors:
-                    session.rollback()
-                    raise HTTPException(status_code=422, detail=errors)
+            if errors:
+                session.rollback()
+                raise HTTPException(status_code=422, detail=errors)
 
-            arena, problem = await self.model_service.create(req, session)
-            if problem:
-                raise HTTPException(status_code=422, detail=problem)
-            if not arena:
-                raise HTTPException(status_code=422, detail="internal error")
+        arena, result = await self.model_service.create(req, session)
+        if not result.success:
+            raise HTTPException(status_code=422, detail=result)
+        if not arena:
+            raise HTTPException(status_code=422, detail="internal error")
 
-            for f in features:
-                arena.features.append(f)
+        for f in features:
+            arena.features.append(f)
 
-            session.commit()
         log.info(f"Created arena: {arena.id}")
         return arena
 
@@ -89,26 +84,32 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
 
         @router.post("/", response_model=Arena)
         async def create(req: ArenaCreate = Body(...)):
-            return await self.create_arena(req)
+            with self.model_service.get_session() as session:
+                return await self.create_arena(req, session)
 
         @router.get("/{obj_id}", response_model=Arena)
         async def get(obj_id: str):
-            return await self.get_model(obj_id)
+            with self.model_service.get_session() as session:
+                return await self.get_model(obj_id, session)
 
         @router.get("/", response_model=List[Arena])
         async def list_all():
-            return await self.get_model_list()
+            with self.model_service.get_session() as session:
+                return await self.get_model_list(session)
 
         @router.get("/list", response_model=List[Arena])
         async def list_alias():
-            return await self.get_model_list()
+            with self.model_service.get_session() as session:
+                return await self.get_model_list(session)
 
         @router.put("/", response_model=ArenaCreate)
         async def update(req_id: str, req: ArenaUpdate = Body(...)):
-            return await self.update_model(req_id, req)
+            with self.model_service.get_session() as session:
+                return await self.update_model(req_id, req, session)
 
         @router.delete("/{obj_id}", response_model=Dict[str, bool])
         async def delete(obj_id: str):
-            return await self.delete_model(obj_id)
+            with self.model_service.get_session() as session:
+                return await self.delete_model(obj_id, session)
 
         return router

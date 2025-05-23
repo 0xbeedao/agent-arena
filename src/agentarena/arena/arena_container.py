@@ -16,7 +16,7 @@ from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.state import ArenaStateDTO
+from agentarena.arena.models.arena import ContestRound
 from agentarena.models.stats import RoundStatsDTO
 from agentarena.scheduler.services.queue_service import QueueService
 
@@ -78,8 +78,8 @@ class ArenaContainer(containers.DeclarativeContainer):
     )
 
     arenastate_service = providers.Singleton(
-        ModelService[ArenaStateDTO],
-        model_class=ArenaStateDTO,
+        ModelService[ContestRound],
+        model_class=ContestRound,
         db_service=db_service,
         table_name="arena_states",
         logging=logging,

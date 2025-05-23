@@ -111,12 +111,12 @@ async def test_get(q, db_service):
         next = await q.add_job(job, session)
         assert next is not None
         assert next.started_at == 0
-        assert next.state == JobState.IDLE.value
+        assert next.state == JobState.IDLE
 
         retrieved = await q.get_next(session)
         assert retrieved is not None
         assert retrieved.id == next.id
-        assert retrieved.state == JobState.REQUEST.value
+        assert retrieved.state == JobState.REQUEST
         assert retrieved.started_at > 0
 
 
@@ -139,7 +139,7 @@ async def test_get_unique(q, db_service):
         assert live_job is not None
         assert live_job.id == next.id
         assert live_job.started_at > datetime.now().timestamp() - 1000
-        assert live_job.state == JobState.REQUEST.value
+        assert live_job.state == JobState.REQUEST
 
         no_job = await q.get_next(session)
         assert no_job is None
@@ -164,7 +164,7 @@ async def test_update_state(q, db_service, message_broker, mock_nats_client):
         job_id = live_job.id
 
         updated = await q.update_state(
-            job_id, JobState.COMPLETE.value, session, message="test message"
+            job_id, JobState.COMPLETE, session, message="test message"
         )
         assert updated
 
@@ -203,13 +203,13 @@ async def test_requeue_job(q, db_service):
 
         # Mark the original job as complete so it's not in the queue
         await q.update_state(
-            orig_id, JobState.COMPLETE.value, session, message="finishing original"
+            orig_id, JobState.COMPLETE, session, message="finishing original"
         )
 
         # Requeue the job
         requeued = await q.requeue_job(orig_id, session, delay=0)
         assert requeued is not None
-        assert requeued.state == JobState.IDLE.value
+        assert requeued.state == JobState.IDLE
         assert (
             abs(datetime.now().timestamp() - requeued.send_at) < 5
         )  # should be approximately now
@@ -235,12 +235,12 @@ async def test_get_idle_batch(q, db_service):
         next = await q.add_job(job, session)
         assert next is not None
         assert next.started_at == 0
-        assert next.state == JobState.IDLE.value
+        assert next.state == JobState.IDLE
 
         retrieved = await q.get_next(session)
         assert retrieved is not None
         assert retrieved.id == next.id
-        assert retrieved.state == JobState.REQUEST.value
+        assert retrieved.state == JobState.REQUEST
         assert retrieved.started_at > 0
 
 
@@ -251,7 +251,7 @@ async def test_batch_state_updates(q, db_service, job_service):
         channel="test.batch.request",
         method="MESSAGE",
         data={"batch": "data"},
-        state=JobState.REQUEST.value,
+        state=JobState.REQUEST,
         url="/batch",
     )
 
@@ -296,31 +296,27 @@ async def test_batch_state_updates(q, db_service, job_service):
 
         # Process first child job
         child1 = children[0]
-        await q.update_state(
-            child1.id, JobState.COMPLETE.value, session, "Child 1 complete"
-        )
+        await q.update_state(child1.id, JobState.COMPLETE, session, "Child 1 complete")
 
         # Batch should still be in REQUEST state since one child is pending
         session.refresh(batch)
-        assert batch.state == JobState.REQUEST.value
+        assert batch.state == JobState.REQUEST
 
         # Process second child job
         child2 = children[1]
-        await q.update_state(
-            child2.id, JobState.COMPLETE.value, session, "Child 2 complete"
-        )
+        await q.update_state(child2.id, JobState.COMPLETE, session, "Child 2 complete")
 
         # Now batch should be IDLE since all children are complete
         session.commit()
         session.refresh(batch)
-        assert batch.state == JobState.IDLE.value
+        assert batch.state == JobState.IDLE
 
         # check that we get the batch to process now
         batch_check = await q.get_next(session)
         assert batch_check is not None
         assert batch_check.id == batch.id
         assert batch_check.url == batch.url
-        assert batch_check.state == JobState.REQUEST.value
+        assert batch_check.state == JobState.REQUEST
 
 
 @pytest.mark.asyncio
@@ -332,7 +328,7 @@ async def test_batch_with_failed_child(
         method="POST",
         url="/batch",
         data={},
-        state=JobState.REQUEST.value,
+        state=JobState.REQUEST,
     )
 
     # Create request summaries for child jobs
@@ -368,18 +364,16 @@ async def test_batch_with_failed_child(
 
         # Complete first child job successfully
         child1 = children[0]
-        await q.update_state(
-            child1.id, JobState.COMPLETE.value, session, "Child 1 complete"
-        )
+        await q.update_state(child1.id, JobState.COMPLETE, session, "Child 1 complete")
 
         # Fail the second child job
         child2 = children[1]
-        await q.update_state(child2.id, JobState.FAIL.value, session, "Child 2 failed")
+        await q.update_state(child2.id, JobState.FAIL, session, "Child 2 failed")
 
         # Batch should be in FAIL state since one child failed
         session.commit()
         session.refresh(batch)
-        assert batch.state == JobState.FAIL.value
+        assert batch.state == JobState.FAIL
 
 
 @pytest.mark.asyncio
@@ -389,7 +383,7 @@ async def test_batch_send_1(q, db_service):
         method="GET",
         data={"test": "toast"},
         url="/test",
-        state=JobState.REQUEST.value,
+        state=JobState.REQUEST,
     )
     requests = [UrlJobRequest(url="/test/1", method="GET", data={}, delay=0)]
 
@@ -419,14 +413,14 @@ async def test_batch_send_1(q, db_service):
             children.append(child)
 
         assert batch.started_at == 0
-        assert batch.state == JobState.REQUEST.value
+        assert batch.state == JobState.REQUEST
 
         child = await q.get_next(session)
         assert child is not None
         assert child.id != batch.id
         assert child.parent_id == batch.id
         assert child.url == "/test/1"
-        assert child.state == JobState.REQUEST.value
+        assert child.state == JobState.REQUEST
         assert child.started_at > 0
 
         # child is in request, batch is in request - nothing in q
@@ -435,7 +429,7 @@ async def test_batch_send_1(q, db_service):
 
         # complete the child, should trigger parent updates
         updated = await q.update_state(
-            child.id, JobState.COMPLETE.value, session, message="success"
+            child.id, JobState.COMPLETE, session, message="success"
         )
         assert updated is not None
         assert updated.id == child.id
@@ -445,4 +439,4 @@ async def test_batch_send_1(q, db_service):
         ready_batch = await q.get_next(session)
         assert ready_batch is not None
         assert ready_batch.id == batch.id
-        assert ready_batch.state == JobState.REQUEST.value
+        assert ready_batch.state == JobState.REQUEST

@@ -23,7 +23,7 @@ def make_job(name: str):
         data={"test": 1},
         finished_at=0,
         send_at=0,
-        state=JobState.IDLE.value,
+        state=JobState.IDLE,
         started_at=int(datetime.now().timestamp()),
         url=f"http://localhost:8000/{name}",
     )
@@ -67,12 +67,11 @@ def db_service(uuid_service, logging):
 
 
 @pytest.fixture
-def svc(db_service, message_broker, queue_service, logging):
+def svc(message_broker, queue_service, logging):
     svc = RequestService(
         arena_url="http://localhost:8000",
         queue_service=queue_service,
         message_broker=message_broker,
-        db_service=db_service,
         logging=logging,
     )
     return svc
@@ -81,7 +80,7 @@ def svc(db_service, message_broker, queue_service, logging):
 def make_success_response() -> JobResponse:
     return JobResponse(
         job_id="test-response",
-        state=JobResponseState.COMPLETED.value,
+        state=JobResponseState.COMPLETE,
         data={"check": "yep"},
         url="/test",
     )
@@ -90,70 +89,74 @@ def make_success_response() -> JobResponse:
 def make_pending_response() -> JobResponse:
     return JobResponse(
         job_id="test-response",
-        state=JobResponseState.PENDING.value,
+        state=JobResponseState.PENDING,
         delay=1,
         url="/nope",
     )
 
 
 @pytest.mark.asyncio
-async def test_no_jobs(svc, queue_service):
-    queue_service.get_next.return_value = None
-    response = await svc.poll_and_process()
-    assert response is False
-    queue_service.get_next.assert_awaited_once()
+async def test_no_jobs(svc, queue_service, db_service):
+    with db_service.get_session() as session:
+        queue_service.get_next.return_value = None
+        response = await svc.poll_and_process(session)
+        assert response is False
+        queue_service.get_next.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_poll_job_success(queue_service, svc, httpx_mock):
-    job = make_job("xxx")
-    queue_service.get_next.return_value = job
-    queue_service.update_state.return_value = make_job("xxx")
+async def test_poll_job_success(queue_service, svc, httpx_mock, db_service):
+    with db_service.get_session() as session:
+        job = make_job("xxx")
+        queue_service.get_next.return_value = job
+        queue_service.update_state.return_value = make_job("xxx")
 
-    job_response = make_success_response()
-    httpx_mock.add_response(
-        status_code=200,
-        method="GET",
-        url="http://localhost:8000/xxx",
-        content=job_response.model_dump_json(),
-    )
+        job_response = make_success_response()
+        httpx_mock.add_response(
+            status_code=200,
+            method="GET",
+            url="http://localhost:8000/xxx",
+            content=job_response.model_dump_json(),
+        )
 
-    success = await svc.poll_and_process()
-    assert success
-
-
-@pytest.mark.asyncio
-async def test_poll_job_pending(queue_service, svc, httpx_mock):
-    job = make_job("xxx")
-    queue_service.get_next.return_value = job
-    queue_service.requeue_job.return_value = make_job("yyy")
-
-    job_response = make_pending_response()
-    httpx_mock.add_response(
-        status_code=200,
-        method="GET",
-        url="http://localhost:8000/xxx",
-        content=job_response.model_dump_json(),
-    )
-
-    success = await svc.poll_and_process()
-    assert success
+        success = await svc.poll_and_process(session)
+        assert success
 
 
 @pytest.mark.asyncio
-async def test_message_job_just_completes(queue_service, svc):
-    job = CommandJob(
-        id="test-message",
-        channel="test.message.response",
-        method="MESSAGE",
-        data={"test": 1},
-        finished_at=0,
-        send_at=0,
-        state=JobState.IDLE.value,
-        started_at=int(datetime.now().timestamp()),
-        url="",
-    )
+async def test_poll_job_pending(queue_service, svc, httpx_mock, db_service):
+    with db_service.get_session() as session:
+        job = make_job("xxx")
+        queue_service.get_next.return_value = job
+        queue_service.requeue_job.return_value = make_job("yyy")
 
-    queue_service.get_next.return_value = job
-    success = await svc.poll_and_process()
-    assert success
+        job_response = make_pending_response()
+        httpx_mock.add_response(
+            status_code=200,
+            method="GET",
+            url="http://localhost:8000/xxx",
+            content=job_response.model_dump_json(),
+        )
+
+        success = await svc.poll_and_process(session)
+        assert success
+
+
+@pytest.mark.asyncio
+async def test_message_job_just_completes(queue_service, svc, db_service):
+    with db_service.get_session() as session:
+        job = CommandJob(
+            id="test-message",
+            channel="test.message.response",
+            method="MESSAGE",
+            data={"test": 1},
+            finished_at=0,
+            send_at=0,
+            state=JobState.IDLE,
+            started_at=int(datetime.now().timestamp()),
+            url="",
+        )
+
+        queue_service.get_next.return_value = job
+        success = await svc.poll_and_process(session)
+        assert success

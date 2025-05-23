@@ -142,7 +142,7 @@ class RequestMachine(StateMachine):
             await self.state_failure("")
         elif state == JobResponseState.PENDING.value:
             await self.state_pending("")
-        elif state == JobResponseState.COMPLETED.value:
+        elif state == JobResponseState.COMPLETE.value:
             await self.state_complete("")
         else:
             self.log.warn(f"invalid state: {state}")

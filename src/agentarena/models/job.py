@@ -17,7 +17,7 @@ from sqlmodel import SQLModel
 from agentarena.models.dbbase import DbBase
 
 
-class JobState(Enum):
+class JobState(str, Enum):
     IDLE = "idle"
     REQUEST = "request"
     RESPONSE = "response"
@@ -26,8 +26,8 @@ class JobState(Enum):
     COMPLETE = "complete"
 
 
-class JobResponseState(Enum):
-    COMPLETED = "completed"
+class JobResponseState(str, Enum):
+    COMPLETE = "complete"
     PENDING = "pending"
     FAIL = "fail"
 
@@ -54,7 +54,7 @@ class JobResponse(UrlJobRequest, table=False):
     message: Optional[str] = Field(
         default="", description="Message regarding state, e.g. an error"
     )
-    state: str = Field(
+    state: JobResponseState = Field(
         description="JobResponseState field, one of ['completed', 'pending', 'fail']",
     )
     child_data: Optional[List["JobResponse"]] = Field(
@@ -62,6 +62,7 @@ class JobResponse(UrlJobRequest, table=False):
         sa_column=Column(JSON),
         description="child job responses",
     )
+    url: Optional[str] = Field(default="")
 
 
 class CommandJobBase(SQLModel):
@@ -80,7 +81,9 @@ class CommandJobBase(SQLModel):
     send_at: int = Field(
         default=0, description="Available in queue after what timestamp"
     )
-    state: str = Field(default="idle", description="Job state, see JobState states")
+    state: JobState = Field(
+        default=JobState.IDLE, description="Job state, see JobState states"
+    )
     started_at: int = Field(
         default=0, description="When this job was picked up from queue"
     )
@@ -124,13 +127,13 @@ class CommandJob(CommandJobBase, DbBase, table=True):
             method=req.method or self.method,
             priority=priority,
             send_at=send_at,
-            state=JobState.IDLE.value,
+            state=JobState.IDLE,
             url=req.url or "",
         )
 
 
 class CommandJobCreate(CommandJobBase):
-    id: Optional[str] = Field(default=None)
+    id: Optional[str] = Field(default="")
 
 
 class CommandJobUpdate(SQLModel):
@@ -147,7 +150,7 @@ class CommandJobUpdate(SQLModel):
     send_at: Optional[int] = Field(
         default=None, description="Available in queue after what timestamp"
     )
-    state: Optional[str] = Field(
+    state: Optional[JobState] = Field(
         default=None, description="Job state, see JobState states"
     )
     started_at: Optional[int] = Field(
@@ -167,8 +170,8 @@ class CommandJobPublic(CommandJobBase):
 
 class CommandJobHistoryBase(SQLModel):
     job_id: str = Field(foreign_key="commandjob.id")
-    from_state: str = Field(description="Original Job state, see JobState states")
-    to_state: str = Field(description="Updated Job state, see JobState states")
+    from_state: JobState = Field(description="Original Job state, see JobState states")
+    to_state: JobState = Field(description="Updated Job state, see JobState states")
     message: Optional[str] = Field(
         default="", description="Message associated with state change"
     )

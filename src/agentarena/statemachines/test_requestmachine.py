@@ -20,7 +20,7 @@ def make_job():
         channel="test.arena.job",
         url="http://localhost:8000/test",
         method="GET",
-        state=JobState.IDLE.value,
+        state=JobState.IDLE,
         data={"test": "toast"},
     )
 
@@ -28,20 +28,20 @@ def make_job():
 def make_success_response() -> JobResponse:
     return JobResponse(
         job_id="test-response",
-        state=JobResponseState.COMPLETED.value,
+        state=JobResponseState.COMPLETE,
         data={"check": "yep"},
     )
 
 
 def make_pending_response() -> JobResponse:
-    return JobResponse(job_id="test-response", state=JobResponseState.PENDING.value)
+    return JobResponse(job_id="test-response", state=JobResponseState.PENDING)
 
 
 @pytest.mark.asyncio
 async def test_initial_state(logging):
     job = make_job()
     machine = RequestMachine(job, logging=logging)
-    await machine.activate_initial_state()
+    await machine.activate_initial_state()  # type: ignore
     assert machine.current_state.id == RequestState.IDLE.value
 
 
@@ -57,7 +57,7 @@ async def test_success_call(logging, httpx_mock):
 
     machine = RequestMachine(job, logging=logging, arena_url="http://localhost:8000")
 
-    await machine.activate_initial_state()
+    await machine.activate_initial_state()  # type: ignore
     await machine.start_request("start")
     assert machine.current_state.id == RequestState.COMPLETE.value
 
@@ -73,7 +73,7 @@ async def test_fail_call(logging, httpx_mock):
 
     machine = RequestMachine(job, logging=logging, arena_url="http://localhost:8000")
 
-    await machine.activate_initial_state()
+    await machine.activate_initial_state()  # type: ignore
     await machine.start_request("test")
     assert machine.current_state.id == RequestState.FAIL.value
 
@@ -90,6 +90,6 @@ async def test_pending_call(logging, httpx_mock):
 
     machine = RequestMachine(job, logging=logging, arena_url="http://localhost:8000")
 
-    await machine.activate_initial_state()
+    await machine.activate_initial_state()  # type: ignore
     await machine.start_request("test")
     assert machine.current_state.id == RequestState.WAITING.value

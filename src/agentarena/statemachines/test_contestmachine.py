@@ -4,8 +4,8 @@ from agentarena.arena.models.arena import ContestState
 from agentarena.arena.models.arena import Participant
 from agentarena.arena.models.arena import ParticipantRole
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.strategy import Strategy
-from agentarena.models.strategy import StrategyType
+from agentarena.actors.models import Strategy
+from agentarena.actors.models import StrategyType
 from agentarena.statemachines.contestmachine import ContestMachine
 
 

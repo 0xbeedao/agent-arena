@@ -82,7 +82,7 @@ class DebugController:
         self.log.info("health OK")
         return HealthResponse(
             job_id="1",
-            state=JobResponseState.COMPLETED.value,
+            state=JobResponseState.COMPLETE,
             message="test",
             data=HealthStatus(name="debug_controller", state="OK", version="1"),
             url="",

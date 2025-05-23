@@ -7,6 +7,7 @@ from agentarena.models.dbbase import DbBase
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
+from agentarena.models.job import JobState
 
 
 class JobEvent(DbBase, table=True):
@@ -14,7 +15,7 @@ class JobEvent(DbBase, table=True):
     command: str = Field(description="job command")
     data: Any = Field(description="job payload")
     message: Optional[str] = Field(description="message regarding data")
-    state: str = Field(description="state of event, a JobState")
+    state: JobResponseState = Field(description="state of event, a JobState")
 
     @staticmethod
     def from_job_and_response(job: CommandJob, response: JobResponse):
@@ -22,9 +23,9 @@ class JobEvent(DbBase, table=True):
             response = JobResponse(
                 job_id=job.id,
                 data="",
-                command=JobCommandType.REQUEST.value,
+                command=job.command,
                 message="",
-                state=JobResponseState.COMPLETED.value,
+                state=JobResponseState.COMPLETE,
             )
         return JobEvent(
             job_id=job.id,
