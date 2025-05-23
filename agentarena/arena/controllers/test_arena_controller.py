@@ -1,22 +1,14 @@
-from unittest.mock import AsyncMock
-
 import pytest
-from pydantic import BaseModel
 
 from agentarena.arena.controllers.arena_controller import ArenaController
-from agentarena.arena.models.arena import (
-    Arena,
-    ArenaCreate,
-    ArenaPublic,
-    ArenaUpdate,
-    Feature,
-)
-from agentarena.core.controllers.model_controller import ModelController
+from agentarena.arena.models.arena import Arena
+from agentarena.arena.models.arena import ArenaCreate
+from agentarena.arena.models.arena import Feature
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
-from agentarena.core.services.model_service import ModelResponse, ModelService
+from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 
 

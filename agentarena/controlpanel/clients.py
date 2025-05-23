@@ -1,8 +1,9 @@
 """API Clients for Control Panel."""
 
+from typing import Any
+from typing import Dict
+
 import httpx
-from typing import Dict, Any, Optional
-import typer
 
 
 class BaseClient:

@@ -1,9 +1,10 @@
 """Control Panel Main Application."""
 
 import typer
-from typing import Optional
 
-from .clients import ArenaClient, SchedulerClient, ActorClient
+from .clients import ActorClient
+from .clients import ArenaClient
+from .clients import SchedulerClient
 from .ui import ControlPanelUI
 
 

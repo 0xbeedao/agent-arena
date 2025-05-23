@@ -14,34 +14,33 @@ roll-logs:
     just roll-log agentarena-arena.log logs
     just roll-log agentarena-scheduler.log logs
 
-[working-directory: "src"]
+control: checkvenv
+    PYTHONPATH=. python scripts/agentarena.controlpanel
+
 server: checkvenv
     just roll-log agentarena-arena.log logs
-    python scripts/agentarena.server | tee agentarena-arena.log
+    PYTHONPATH=. python scripts/agentarena.server | tee agentarena-arena.log
 
-[working-directory: "src"]
 scheduler: checkvenv
     just roll-log agentarena-scheduler.log logs
-    python scripts/agentarena.scheduler | tee agentarena-scheduler.log
+    PYTHONPATH=. python scripts/agentarena.scheduler | tee agentarena-scheduler.log
 
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"
 
-[working-directory: "src"]
 load: checkvenv
-    python scripts/load_fixtures.py etc/fixtures
+    PYTHONPATH=. python scripts/load_fixtures.py etc/fixtures
 
 test: checkvenv
-    PYTHONPATH=src pytest
+    PYTHONPATH=. pytest
 
-[working-directory: "src"]
 lint:
-    autoflake -r -v -i --remove-all-unused-imports ./*
-    isort --sl .
-    black .
+    autoflake -r -v -i --remove-all-unused-imports agentarena/*
+    isort --sl --gitignore agentarena
+    black agentarena notebooks
 
 clean:
-    rm arena.db
+    rm *.db
 
 nats:
     nats-server -l logs/nats.log &

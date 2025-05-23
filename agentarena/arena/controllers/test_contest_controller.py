@@ -1,9 +1,5 @@
-from unittest.mock import AsyncMock
-from unittest.mock import Mock
-
 import pytest
 
-from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.models.arena import Arena
 from agentarena.arena.models.arena import ArenaCreate
 from agentarena.arena.models.arena import ArenaPublic
@@ -18,7 +14,6 @@ from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
-from agentarena.core.services.model_service import ModelResponse
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 

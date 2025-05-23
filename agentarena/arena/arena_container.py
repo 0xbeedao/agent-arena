@@ -3,12 +3,14 @@ import os
 from dependency_injector import containers
 from dependency_injector import providers
 
-from agentarena.actors.controllers.responder_controller import ResponderController
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models.arena import Arena, Contest, Feature, Participant
-from agentarena.core.controllers.model_controller import ModelController
+from agentarena.arena.models.arena import Arena
+from agentarena.arena.models.arena import Contest
+from agentarena.arena.models.arena import ContestRound
+from agentarena.arena.models.arena import Feature
+from agentarena.arena.models.arena import Participant
 from agentarena.core.factories.db_factory import get_database
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
@@ -16,9 +18,7 @@ from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.arena.models.arena import ContestRound
 from agentarena.models.stats import RoundStatsDTO
-from agentarena.scheduler.services.queue_service import QueueService
 
 
 def get_wordlist(

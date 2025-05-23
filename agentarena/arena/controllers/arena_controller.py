@@ -9,7 +9,8 @@ from typing import List
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
-from sqlmodel import Field, Session
+from sqlmodel import Field
+from sqlmodel import Session
 
 from agentarena.arena.models.arena import Arena
 from agentarena.arena.models.arena import ArenaCreate

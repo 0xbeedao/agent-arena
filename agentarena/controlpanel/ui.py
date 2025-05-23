@@ -1,10 +1,15 @@
 """Control Panel UI using Textual."""
 
-from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Header, Footer, Static, Button, Tree, Label
+from textual.app import App
+from textual.app import ComposeResult
+from textual.containers import Horizontal
+from textual.containers import Vertical
 from textual.reactive import reactive
-from typing import Dict, Any
+from textual.widgets import Button
+from textual.widgets import Footer
+from textual.widgets import Header
+from textual.widgets import Label
+from textual.widgets import Static
 
 
 class Sidebar(Static):
@@ -57,7 +62,6 @@ class ControlPanelUI(App):
 
     def setup(self) -> None:
         """Setup the UI components."""
-        pass
 
     def main_loop(self) -> None:
         """Run the main UI loop."""

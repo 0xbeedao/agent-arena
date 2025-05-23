@@ -2,7 +2,10 @@
 
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 
 class OpenAPIParser:
@@ -23,7 +26,6 @@ class OpenAPIParser:
     def load_from_url(self, server: str, url: str) -> None:
         """Load OpenAPI spec from URL."""
         # Implementation will use httpx to fetch from /openapi.json
-        pass
 
     def get_endpoints(self, server: str) -> List[Dict[str, Any]]:
         """Get all endpoints for a server."""

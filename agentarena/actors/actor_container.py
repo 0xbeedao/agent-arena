@@ -3,25 +3,22 @@ import os
 from dependency_injector import containers
 from dependency_injector import providers
 
-from agentarena.actors.controllers.actor_controller import ActorController
+from agentarena.actors.models import Agent
+from agentarena.actors.models import AgentCreate
+from agentarena.actors.models import AgentPublic
+from agentarena.actors.models import AgentUpdate
+from agentarena.actors.models import Strategy
+from agentarena.actors.models import StrategyCreate
+from agentarena.actors.models import StrategyPublic
+from agentarena.actors.models import StrategyUpdate
 from agentarena.core.controllers.model_controller import ModelController
-from agentarena.core.factories.environment_factory import get_project_root
-from agentarena.core.services import uuid_service
 from agentarena.core.factories.db_factory import get_database
+from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.actors.models import (
-    Agent,
-    AgentCreate,
-    AgentPublic,
-    AgentUpdate,
-    Strategy,
-    StrategyCreate,
-    StrategyUpdate,
-    StrategyPublic,
-)
 
 
 def get_wordlist(

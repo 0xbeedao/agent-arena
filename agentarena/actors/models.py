@@ -1,18 +1,16 @@
 from enum import Enum
-from sqlmodel import Column, Field
-from urllib.parse import urljoin
-
-from agentarena.models.dbbase import DbBase
-from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Tuple
+from urllib.parse import urljoin
 
 from sqlmodel import JSON
+from sqlmodel import Column
 from sqlmodel import Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
+
+from agentarena.models.dbbase import DbBase
 
 # ---- Link Models
 

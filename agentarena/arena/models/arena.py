@@ -3,10 +3,13 @@ Arena configuration model for the Agent Arena application.
 """
 
 from enum import Enum
-from typing import Dict, List
+from typing import Dict
+from typing import List
 from typing import Optional
 
-from sqlmodel import JSON, Column, Field
+from sqlmodel import JSON
+from sqlmodel import Column
+from sqlmodel import Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
 

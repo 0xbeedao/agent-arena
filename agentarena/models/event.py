@@ -7,7 +7,6 @@ from agentarena.models.dbbase import DbBase
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
-from agentarena.models.job import JobState
 
 
 class JobEvent(DbBase, table=True):
