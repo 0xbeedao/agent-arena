@@ -13,13 +13,13 @@ from fastapi import HTTPException
 from sqlmodel import Field
 from sqlmodel import Session
 
-from agentarena.arena.models.arena import Contest
-from agentarena.arena.models.arena import ContestCreate
-from agentarena.arena.models.arena import ContestPublic
-from agentarena.arena.models.arena import ContestState
-from agentarena.arena.models.arena import ContestUpdate
-from agentarena.arena.models.arena import Participant
-from agentarena.arena.models.arena import ParticipantRole
+from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestCreate
+from agentarena.arena.models import ContestPublic
+from agentarena.arena.models import ContestState
+from agentarena.arena.models import ContestUpdate
+from agentarena.arena.models import Participant
+from agentarena.arena.models import ParticipantRole
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService

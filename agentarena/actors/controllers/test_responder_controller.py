@@ -4,7 +4,7 @@ import pytest
 from pydantic import BaseModel
 
 # from agentarena.actors.controllers.responder_controller import ResponderController
-# from agentarena.arena.models.arena import Participant
+# from agentarena.models.arena.models import Participant
 from agentarena.core.factories.logger_factory import LoggingService
 
 # from agentarena.models.requests import HealthResponse

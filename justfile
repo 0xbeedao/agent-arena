@@ -17,10 +17,10 @@ roll-logs:
 control: checkvenv
     PYTHONPATH=. python scripts/agentarena.controlpanel
 
-server: checkvenv
+arena: checkvenv
     just roll-log agentarena-arena.log logs
-    PYTHONPATH=. python scripts/agentarena.server | tee agentarena-arena.log
-
+    PYTHONPATH=. python scripts/agentarena.arena
+#  | tee agentarena-arena.log
 scheduler: checkvenv
     just roll-log agentarena-scheduler.log logs
     PYTHONPATH=. python scripts/agentarena.scheduler | tee agentarena-scheduler.log

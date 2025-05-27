@@ -147,6 +147,37 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
     player_actions: List["PlayerAction"] = Relationship(back_populates="contestround")
     judge_results: List["JudgeResult"] = Relationship(back_populates="contestround")
 
+    round_stats: "ContestRoundStats" = Relationship(
+        back_populates="contestround", sa_relationship_kwargs={"uselist": False}
+    )
+
+
+class ContestRoundStatsBase(SQLModel, table=False):
+    """
+    Statistics for a round.
+
+    Maps to the ROUND_STATS entity in the ER diagram.
+    """
+
+    contestround_id: str = Field(description="Reference to ArenaState")
+    actions_count: int = Field(description="Number of actions in the round")
+    duration_ms: int = Field(description="Round duration in milliseconds")
+    metrics_json: Dict = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="Additional metrics as JSON",
+    )
+
+
+class ContestRoundStats(ContestRoundStatsBase, DbBase, table=True):
+    """
+    Represents the statistics for a specific contest round.
+
+    Maps to the ROUND_STATS entity in the ER diagram.
+    """
+
+    contestround: ContestRound = Relationship(back_populates="round_stats")
+
 
 # -------- Contest models
 

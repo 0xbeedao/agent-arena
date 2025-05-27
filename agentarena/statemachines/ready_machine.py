@@ -7,7 +7,7 @@ from sqlmodel import Field
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models.arena import Participant
+from agentarena.arena.models import Participant
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.event import JobEvent
 from agentarena.models.job import CommandJob

@@ -6,19 +6,18 @@ from dependency_injector import providers
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models.arena import Arena
-from agentarena.arena.models.arena import Contest
-from agentarena.arena.models.arena import ContestRound
-from agentarena.arena.models.arena import Feature
-from agentarena.arena.models.arena import Participant
-from agentarena.core.factories.db_factory import get_database
+from agentarena.arena.models import Arena, ContestRoundStats
+from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestRound
+from agentarena.arena.models import Feature
+from agentarena.arena.models import Participant
+from agentarena.core.factories.db_factory import get_database, get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.stats import RoundStatsDTO
 
 
 def get_wordlist(
@@ -32,6 +31,7 @@ def get_wordlist(
 class ArenaContainer(containers.DeclarativeContainer):
 
     config = providers.Configuration()
+    prod = getattr(os.environ, "ARENA_ENV", "dev") == "prod"
 
     projectroot = providers.Resource(get_project_root)
     wordlist = providers.Resource(get_wordlist, projectroot, config.uuid.wordlist)
@@ -40,7 +40,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         LoggingService,
         capture=config.arena.logging.capture,
         level=config.arena.logging.level,
-        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
+        prod=prod,
         name="arena",
         logger_levels=config.arena.logging.loggers,
     )
@@ -48,15 +48,15 @@ class ArenaContainer(containers.DeclarativeContainer):
     uuid_service = providers.Singleton(
         UUIDService,
         word_list=wordlist,
-        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
+        prod=prod,
     )
 
     db_service = providers.Singleton(
         DbService,
         projectroot,
         config.arena.db.filename,
-        get_database=get_database,
-        prod=getattr(os.environ, "ARENA_ENV", "dev") == "prod",
+        get_engine=get_engine,
+        prod=prod,
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -99,11 +99,10 @@ class ArenaContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
-    roundstats_service = providers.Singleton(
-        ModelService[RoundStatsDTO],
-        model_class=RoundStatsDTO,
+    contestroundstats_service = providers.Singleton(
+        ModelService[ContestRoundStats],
+        model_class=ContestRoundStats,
         db_service=db_service,
-        table_name="roundstats",
         logging=logging,
     )
 

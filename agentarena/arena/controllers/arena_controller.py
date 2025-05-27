@@ -12,11 +12,11 @@ from fastapi import HTTPException
 from sqlmodel import Field
 from sqlmodel import Session
 
-from agentarena.arena.models.arena import Arena
-from agentarena.arena.models.arena import ArenaCreate
-from agentarena.arena.models.arena import ArenaPublic
-from agentarena.arena.models.arena import ArenaUpdate
-from agentarena.arena.models.arena import Feature
+from agentarena.arena.models import Arena
+from agentarena.arena.models import ArenaCreate
+from agentarena.arena.models import ArenaPublic
+from agentarena.arena.models import ArenaUpdate
+from agentarena.arena.models import Feature
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService

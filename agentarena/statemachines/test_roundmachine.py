@@ -1,10 +1,10 @@
 from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyType
-from agentarena.arena.models.arena import Arena
-from agentarena.arena.models.arena import Contest
-from agentarena.arena.models.arena import ContestState
-from agentarena.arena.models.arena import Participant
-from agentarena.arena.models.arena import ParticipantRole
+from agentarena.arena.models import Arena
+from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestState
+from agentarena.arena.models import Participant
+from agentarena.arena.models import ParticipantRole
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.statemachines.roundmachine import RoundMachine
 

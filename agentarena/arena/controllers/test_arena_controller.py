@@ -1,9 +1,9 @@
 import pytest
 
 from agentarena.arena.controllers.arena_controller import ArenaController
-from agentarena.arena.models.arena import Arena
-from agentarena.arena.models.arena import ArenaCreate
-from agentarena.arena.models.arena import Feature
+from agentarena.arena.models import Arena
+from agentarena.arena.models import ArenaCreate
+from agentarena.arena.models import Feature
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
