@@ -9,9 +9,10 @@ import httpx
 class BaseClient:
     """Base API client class."""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
-        self.base_url = base_url
-        self.client = httpx.Client(base_url=base_url)
+    def __init__(self, config={}):
+        self.base_url = config["url"]
+        self.client = httpx.Client(base_url=self.base_url)
+        self.config = config
 
     def get(self, endpoint: str) -> Dict[str, Any]:
         """GET request to API endpoint."""
@@ -41,17 +42,11 @@ class BaseClient:
 class ArenaClient(BaseClient):
     """Client for Arena API."""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
-        super().__init__(f"{base_url}/arena")
-
     # Arena-specific methods will be added here
 
 
 class SchedulerClient(BaseClient):
     """Client for Scheduler API."""
-
-    def __init__(self, base_url: str = "http://localhost:8000"):
-        super().__init__(f"{base_url}/scheduler")
 
     # Scheduler-specific methods will be added here
 
@@ -59,7 +54,11 @@ class SchedulerClient(BaseClient):
 class ActorClient(BaseClient):
     """Client for Actor API."""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
-        super().__init__(f"{base_url}/actor")
-
     # Actor-specific methods will be added here
+
+
+class MessageBrokerClient:
+    """Client for Messages"""
+
+    def __init__(self, config={}):
+        self.config = config

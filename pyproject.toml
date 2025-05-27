@@ -31,6 +31,7 @@ dependencies = [
     "asgi-correlation-id>=4.3.4",
     "sqlmodel>=0.0.24",
     "textual>=0.56.0",
+    "pyyaml",
 ]
 
 [project.optional-dependencies]

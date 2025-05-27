@@ -1,11 +1,23 @@
 """Control Panel Main Application."""
 
 import typer
+import yaml
+
+from agentarena.util.files import find_file_upwards
 
 from .clients import ActorClient
 from .clients import ArenaClient
+from .clients import MessageBrokerClient
 from .clients import SchedulerClient
 from .ui import ControlPanelUI
+
+
+def read_config():
+    yamlfile = find_file_upwards("agent-arena-config.yaml")
+    assert yamlfile, "Where is my config file?"
+    with open(yamlfile, "r") as f:
+        yaml_data = yaml.safe_load(yamlfile)
+    return yaml_data
 
 
 class ControlPanelApp:
@@ -13,10 +25,12 @@ class ControlPanelApp:
 
     def __init__(self):
         self.ui = ControlPanelUI()
+        self.config = read_config()
         self.clients = {
-            "arena": ArenaClient(),
-            "scheduler": SchedulerClient(),
-            "actor": ActorClient(),
+            "arena": ArenaClient(self.config.arena),
+            "scheduler": SchedulerClient(self.config.scheduler),
+            "actor": ActorClient(self.config.actor),
+            "broker": MessageBrokerClient(self.config.messagebroker),
         }
 
     def run(self):
@@ -30,8 +44,6 @@ app = typer.Typer()
 
 @app.command()
 def start(
-    host: str = typer.Option("localhost", help="API server host"),
-    port: int = typer.Option(8000, help="API server port"),
     debug: bool = typer.Option(False, help="Enable debug mode"),
 ):
     """Start the control panel application."""
