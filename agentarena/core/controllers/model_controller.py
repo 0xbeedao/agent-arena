@@ -26,6 +26,8 @@ class ModelController(Generic[T, MC, MU, MP]):
         self,
         base_path: str = "/api",
         model_name: str = Field("The model name"),
+        model_create: Type[MC] = Field(description="The create model"),
+        model_update: Type[MU] = Field(description="The update model"),
         model_public: Type[MP] = Field(description="The public model"),
         model_service: ModelService[T] = Field(
             description="The model service for this model"
@@ -42,6 +44,8 @@ class ModelController(Generic[T, MC, MU, MP]):
         """
         self.base_path = f"{base_path}/{model_name}"
         self.model_name = model_name
+        self.model_create = model_create
+        self.model_update = model_update
         self.model_public = model_public
         self.model_service = model_service
         self.log = logging.get_logger(
@@ -61,7 +65,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         Raises:
             HttpException for validation errors
         """
-        self.log.info("create request")
+        self.log.info("create request", req=req)
         obj, response = await self.model_service.create(req, session)
         if response and not response.success:
             raise HTTPException(status_code=422, detail=response.validation)
@@ -151,10 +155,30 @@ class ModelController(Generic[T, MC, MU, MP]):
 
         router = APIRouter(prefix=prefix, tags=[self.model_name])
 
-        @router.post("/", response_model=MP)
-        async def create(req: MC = Body(...)):
-            with self.model_service.get_session() as session:
-                return await self.create_model(req, session)
+        # Use a factory function to properly create routes with correct types
+        def create_endpoint():
+            @router.post("/", response_model=MP)
+            async def create(req: MC = Body(...)):
+                with self.model_service.get_session() as session:
+                    return await self.create_model(req, session)
+
+            # Manually set the annotation to the concrete type
+            create.__annotations__["req"] = self.model_create
+            return create
+
+        def update_endpoint():
+            @router.patch("/", response_model=MP)
+            async def update(req_id: str, req: MU = Body(...)):
+                with self.model_service.get_session() as session:
+                    return await self.update_model(req_id, req, session)
+
+            # Manually set the annotation to the concrete type
+            update.__annotations__["req"] = self.model_update
+            return update
+
+        # Create the endpoints
+        create_endpoint()
+        update_endpoint()
 
         @router.get("/{obj_id}", response_model=MP)
         async def get(obj_id: str):
@@ -165,11 +189,6 @@ class ModelController(Generic[T, MC, MU, MP]):
         async def list_all():
             with self.model_service.get_session() as session:
                 return await self.get_model_list(session)
-
-        @router.patch("/", response_model=MP)
-        async def update(req_id: str, req: MU = Body(...)):
-            with self.model_service.get_session() as session:
-                return await self.update_model(req_id, req, session)
 
         @router.delete("/{obj_id}", response_model=Dict[str, bool])
         async def delete(obj_id: str):

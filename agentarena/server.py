@@ -36,23 +36,18 @@ app = FastAPI(
 async def startup_event():
     """Initialize resources on application startup."""
     container.init_resources()
-    # Wire the container after resources are initialized
-    # Note: wiring might be better suited after specific resource initialization if dependencies exist
-    # For now, global wiring after all init should be fine.
-    # container.wire(
-    #     modules=[
-    #         sys.modules[__name__],  # wire current module
-    #         "agentarena.arena.controllers.arena_controller",
-    #         "agentarena.arena.controllers.contest_controller",
-    #         "agentarena.arena.controllers.debug_controller",
-    #         "agentarena.core.controllers.model_controller",
-    #     ]
-    # )
-    # Add initial audit log after resources (like db_service) are ready
-    # db_service = container.db_service()
-    # await db_service.add_audit_log("startup_complete")
     logger = container.logging()
-    log = logger.get_logger("server", module="server")
+    log = logger.get_logger("arena")
+    db = container.db_service()
+    db.create_db()
+    with db.get_session() as session:
+        db.add_audit_log("startup", session)
+    # broker = await container.message_broker()  # type: ignore
+    # for svc in [
+    #     container.debug_controller(),
+    #     await container.queue_service(),  # type: ignore
+    # ]:
+    #     await svc.subscribe_yourself(broker)
     log.info("Application startup complete, resources initialized and container wired.")
 
 

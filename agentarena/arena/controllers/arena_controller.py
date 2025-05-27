@@ -56,9 +56,11 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
         features = []
 
         if req.features:
-            features, errors = await self.feature_service.create_many(
+            features, validations = await self.feature_service.create_many(
                 req.features, session  # type: ignore
             )
+
+            errors = [v for v in validations if not v.success]
 
             if errors:
                 session.rollback()

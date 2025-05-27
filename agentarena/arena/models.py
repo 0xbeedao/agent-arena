@@ -249,10 +249,14 @@ class ContestUpdate(ContestBase):
 
 class FeatureBase(SQLModel, table=False):
     arena_id: Optional[str] = Field(
-        description="Reference to Arena", foreign_key="arena.id"
+        default=None,
+        description="Reference to Arena",
+        foreign_key="arena.id",
     )
     contestround_id: Optional[str] = Field(
-        description="Reference to a ContestRound", foreign_key="contestround.id"
+        default=None,
+        description="Reference to a ContestRound",
+        foreign_key="contestround.id",
     )
     name: str = Field(description="Feature name")
     description: str = Field(description="Feature description")

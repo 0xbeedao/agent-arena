@@ -94,6 +94,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         ModelService[Arena],
         model_class=Arena,
         db_service=db_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -101,6 +102,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         ModelService[Participant],
         model_class=Participant,
         db_service=db_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -108,7 +110,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         ModelService[ContestRound],
         model_class=ContestRound,
         db_service=db_service,
-        table_name="arena_states",
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -116,6 +118,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         ModelService[Contest],
         model_class=Contest,
         db_service=db_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -123,6 +126,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         ModelService[Feature],
         model_class=Feature,
         db_service=db_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -130,6 +134,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         ModelService[ContestRoundStats],
         model_class=ContestRoundStats,
         db_service=db_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -147,6 +152,8 @@ class ArenaContainer(containers.DeclarativeContainer):
             Participant, ParticipantCreate, ParticipantUpdate, ParticipantPublic
         ],
         model_name="participant",
+        model_create=ParticipantCreate,
+        model_update=ParticipantUpdate,
         model_public=ParticipantPublic,
         model_service=participant_service,
         logging=logging,
