@@ -17,12 +17,19 @@ class ILogger(Protocol):
 class LoggingService:
 
     def __init__(
-        self, capture=False, prod=False, level="DEBUG", name="arena", logger_levels=None
+        self,
+        capture=False,
+        prod=False,
+        level="DEBUG",
+        name="arena",
+        logger_levels=None,
+        logfile="",
     ):
         self.capture = capture
         self.name = name
         self.prod = prod
         self.level = level
+        self.logfile = logfile if logfile else f"{name}.log"
         self.logger_levels = logger_levels or {}
         self._setup = False
 
@@ -49,25 +56,49 @@ class LoggingService:
                     ],
                 )
             else:
-                # In development mode, use a renderer that works well with Rich
-                mainrenderer = (
-                    JSONRenderer() if self.prod else ConsoleRenderer(colors=False)
-                )
-                structlog.configure(
-                    processors=[
-                        structlog.contextvars.merge_contextvars,
-                        structlog.processors.add_log_level,
-                        structlog.processors.StackInfoRenderer(),
-                        structlog.dev.set_exc_info,
-                        structlog.processors.TimeStamper(fmt="iso"),
-                        mainrenderer,
-                    ],
-                    logger_factory=structlog.stdlib.LoggerFactory(),
-                    wrapper_class=structlog.stdlib.BoundLogger,
-                    cache_logger_on_first_use=True,
-                )
+                # In development mode, log to both console and file
+                if self.prod:
+                    mainrenderer = JSONRenderer()
+                    structlog.configure(
+                        processors=[
+                            structlog.contextvars.merge_contextvars,
+                            structlog.processors.add_log_level,
+                            structlog.processors.StackInfoRenderer(),
+                            structlog.dev.set_exc_info,
+                            structlog.processors.TimeStamper(fmt="iso"),
+                            mainrenderer,
+                        ],
+                        logger_factory=structlog.stdlib.LoggerFactory(),
+                        wrapper_class=structlog.stdlib.BoundLogger,
+                        cache_logger_on_first_use=True,
+                    )
+                else:
+                    # Configure file logging with JSONRenderer
+                    file_handler = logging.FileHandler(self.logfile)
+                    file_handler.setFormatter(
+                        ProcessorFormatter(processor=JSONRenderer())
+                    )
+                    logging.getLogger().addHandler(file_handler)
+
+                    # Configure console logging with ConsoleRenderer
+                    mainrenderer = ConsoleRenderer(colors=False)
+                    structlog.configure(
+                        processors=[
+                            structlog.contextvars.merge_contextvars,
+                            structlog.processors.add_log_level,
+                            structlog.processors.StackInfoRenderer(),
+                            structlog.dev.set_exc_info,
+                            structlog.processors.TimeStamper(fmt="iso"),
+                            mainrenderer,
+                        ],
+                        logger_factory=structlog.stdlib.LoggerFactory(),
+                        wrapper_class=structlog.stdlib.BoundLogger,
+                        cache_logger_on_first_use=True,
+                    )
             log = structlog.get_logger("structlog")
-            log.info("Set up logging with structlog", app=self.name)
+            log.info(
+                "Set up logging with structlog", app=self.name, logfile=self.logfile
+            )
             # Configure Uvicorn loggers to use structlog
             uvicorn_logger = logging.getLogger("uvicorn")
             uvicorn_logger.handlers = []  # Clear default handlers

@@ -9,24 +9,12 @@ from pathlib import Path
 import httpx
 import typer
 
+from agentarena.util.files import find_directory_of_file
+
 # Determine the project root directory
-script_path = Path(__file__)
-project_root = script_path.parent.parent.parent
-
-# Change working directory to project root
+project_root = find_directory_of_file("agent-arena-config.yaml")
 os.chdir(project_root)
-
-# Check for config file
-config_file = os.path.join(project_root, "agent-arena-config.yaml")
-if not os.path.exists(config_file):
-    print(f"Cannot find the config file: {config_file}")
-    sys.exit(1)
-
-src_dir = os.path.join(project_root, "src")
-sys.path.append(src_dir)
-print(f"added path: {src_dir}")
-
-
+sys.path.append(".")
 app = typer.Typer(help="CLI tool to load fixtures into a FastAPI application")
 
 # Base URL of your FastAPI server
@@ -52,7 +40,7 @@ def load_fixture_file(file_path: Path) -> dict:
     """Load JSON data from a fixture file."""
     if not file_path.exists():
         typer.echo(f"Error: Fixture file {file_path} does not exist.", err=True)
-        return None
+        return {}
     with open(file_path, "r") as f:
         return json.load(f)
 

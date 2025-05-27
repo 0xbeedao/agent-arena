@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from dependency_injector import containers
 from dependency_injector import providers
@@ -20,6 +21,18 @@ from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 
 
+def get_logfile(
+    projectroot: str,
+    config: str,
+):
+    filename = config.replace("<projectroot>", str(projectroot))
+    return (
+        os.path.join(projectroot, filename)
+        if not filename.startswith("/")
+        else filename
+    )
+
+
 def get_wordlist(
     projectroot: str,
     word_file: str,
@@ -34,7 +47,16 @@ class ArenaContainer(containers.DeclarativeContainer):
     prod = getattr(os.environ, "ARENA_ENV", "dev") == "prod"
 
     projectroot = providers.Resource(get_project_root)
-    wordlist = providers.Resource(get_wordlist, projectroot, config.uuid.wordlist)
+    logfile = get_logfile = providers.Resource(
+        get_logfile,
+        projectroot=projectroot,
+        config=config.arena.logging.logfile,
+    )
+    wordlist = providers.Resource(
+        get_wordlist,
+        projectroot,
+        config.uuid.wordlist,
+    )
 
     logging = providers.Singleton(
         LoggingService,
@@ -42,6 +64,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         level=config.arena.logging.level,
         prod=prod,
         name="arena",
+        logfile=logfile,
         logger_levels=config.arena.logging.loggers,
     )
 
