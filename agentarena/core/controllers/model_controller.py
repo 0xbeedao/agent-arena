@@ -29,7 +29,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         model_create: Type[MC] = Field(description="The create model"),
         model_update: Type[MU] = Field(description="The update model"),
         model_public: Type[MP] = Field(description="The public model"),
-        model_service: ModelService[T] = Field(
+        model_service: ModelService[T, MC] = Field(
             description="The model service for this model"
         ),
         logging: LoggingService = Field(description="Logger factory"),

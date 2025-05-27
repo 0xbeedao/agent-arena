@@ -14,6 +14,7 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobCreate
 from agentarena.models.job import CommandJobHistory
 from agentarena.models.job import CommandJobHistoryCreate
 from agentarena.models.job import JobResponse
@@ -57,10 +58,12 @@ class QueueService(SubscribingService):
 
     def __init__(
         self,
-        history_service: ModelService[CommandJobHistory] = Field(
+        history_service: ModelService[CommandJobHistory, CommandJobHistory] = Field(
             description="Job History Service"
         ),
-        job_service: ModelService[CommandJob] = Field(description="job model service"),
+        job_service: ModelService[CommandJob, CommandJobCreate] = Field(
+            description="job model service"
+        ),
         message_broker: MessageBroker = Field(description="Message broker"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
@@ -80,7 +83,7 @@ class QueueService(SubscribingService):
             await self.update_state(job.id, JobState.FAIL, session, message=message)
         log.info("drain complete")
 
-    async def add_job(self, job: CommandJob, session: Session):
+    async def add_job(self, job: CommandJobCreate, session: Session):
         if job.state == JobState.IDLE:
             job.started_at = 0
             job.finished_at = 0
@@ -93,7 +96,7 @@ class QueueService(SubscribingService):
         self.log.info("add job from message", data=msg.data)
         job = None
         try:
-            job = CommandJob.model_validate_json(msg.data)
+            job = CommandJobCreate.model_validate_json(msg.data)
         except Exception as e:
             self.log.error("Could not accept job", e)
 

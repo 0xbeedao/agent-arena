@@ -2,7 +2,7 @@
     "python.defaultInterpreterPath": "./.venv/bin.python3.11",
     "python.terminal.activateEnvironment": true,
     "python.testing.pytestArgs": [
-        "src"
+        "agentarena"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

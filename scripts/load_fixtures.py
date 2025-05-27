@@ -13,7 +13,7 @@ from agentarena.util.files import find_directory_of_file
 
 # Determine the project root directory
 project_root = find_directory_of_file("agent-arena-config.yaml")
-os.chdir(project_root)
+os.chdir(str(project_root))
 sys.path.append(".")
 app = typer.Typer(help="CLI tool to load fixtures into a FastAPI application")
 

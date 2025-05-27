@@ -12,11 +12,12 @@ from fastapi import HTTPException
 from sqlmodel import Field
 from sqlmodel import Session
 
-from agentarena.arena.models import Arena
+from agentarena.arena.models import Arena, FeatureOriginType
 from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import ArenaPublic
 from agentarena.arena.models import ArenaUpdate
 from agentarena.arena.models import Feature
+from agentarena.arena.models import FeatureCreate
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
@@ -27,8 +28,10 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
     def __init__(
         self,
         base_path: str = "/api",
-        arena_service: ModelService[Arena] = Field(description="The arena service"),
-        feature_service: ModelService[Feature] = Field(
+        arena_service: ModelService[Arena, ArenaCreate] = Field(
+            description="The arena service"
+        ),
+        feature_service: ModelService[Feature, FeatureCreate] = Field(
             description="The feature service"
         ),
         logging: LoggingService = Field(description="Logger factory"),
@@ -53,27 +56,34 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
             The Arena
         """
         log = self.log.bind(method="create_arena", arena=req.name)
-        features = []
-
-        if req.features:
-            features, validations = await self.feature_service.create_many(
-                req.features, session  # type: ignore
-            )
-
-            errors = [v for v in validations if not v.success]
-
-            if errors:
-                session.rollback()
-                raise HTTPException(status_code=422, detail=errors)
-
+        features = req.features
+        req.features = []
         arena, result = await self.model_service.create(req, session)
         if not result.success:
             raise HTTPException(status_code=422, detail=result)
         if not arena:
             raise HTTPException(status_code=422, detail="internal error")
 
+        log = log.bind(arena_id=arena.id)
+
         for f in features:
-            arena.features.append(f)
+            feature = Feature(
+                id="",
+                name=f.name,
+                description=f.description,
+                position=f.position,
+                # end_position=f.end_position,
+                origin=f.origin or FeatureOriginType.REQUIRED,
+            )
+            log.info("Creating feature")
+            feature, result = await self.feature_service.create(feature, session)
+            if not result.success:
+                raise HTTPException(status_code=422, detail=result)
+            if not feature:
+                raise HTTPException(status_code=422, detail="internal error")
+            arena.features.append(feature)
+
+        session.commit()
 
         log.info(f"Created arena: {arena.id}")
         return arena

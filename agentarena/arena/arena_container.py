@@ -7,10 +7,13 @@ from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
 from agentarena.arena.models import Arena
+from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestRoundStats
 from agentarena.arena.models import Feature
+from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
 from agentarena.arena.models import ParticipantPublic
@@ -91,7 +94,7 @@ class ArenaContainer(containers.DeclarativeContainer):
     # model services
 
     arena_service = providers.Singleton(
-        ModelService[Arena],
+        ModelService[Arena, ArenaCreate],
         model_class=Arena,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -99,7 +102,7 @@ class ArenaContainer(containers.DeclarativeContainer):
     )
 
     participant_service = providers.Singleton(
-        ModelService[Participant],
+        ModelService[Participant, ParticipantCreate],
         model_class=Participant,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -107,7 +110,7 @@ class ArenaContainer(containers.DeclarativeContainer):
     )
 
     arenastate_service = providers.Singleton(
-        ModelService[ContestRound],
+        ModelService[ContestRound, ContestRound],
         model_class=ContestRound,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -115,7 +118,7 @@ class ArenaContainer(containers.DeclarativeContainer):
     )
 
     contest_service = providers.Singleton(
-        ModelService[Contest],
+        ModelService[Contest, ContestCreate],
         model_class=Contest,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -123,7 +126,7 @@ class ArenaContainer(containers.DeclarativeContainer):
     )
 
     feature_service = providers.Singleton(
-        ModelService[Feature],
+        ModelService[Feature, FeatureCreate],
         model_class=Feature,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -131,7 +134,7 @@ class ArenaContainer(containers.DeclarativeContainer):
     )
 
     contestroundstats_service = providers.Singleton(
-        ModelService[ContestRoundStats],
+        ModelService[ContestRoundStats, ContestRound],
         model_class=ContestRoundStats,
         db_service=db_service,
         uuid_service=uuid_service,

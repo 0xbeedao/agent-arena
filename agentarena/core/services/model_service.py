@@ -40,10 +40,11 @@ class ModelResponse(BaseModel):
     data: Optional[Any] = None
 
 
-T = TypeVar("T", bound=DbBase)
+T = TypeVar("T", bound=DbBase)  # SQLModel with a table
+MC = TypeVar("MC", bound=SQLModel)  # model create
 
 
-class ModelService(Generic[T]):
+class ModelService(Generic[T, MC]):
     """
     Generic service for model operations.
 
@@ -159,7 +160,7 @@ class ModelService(Generic[T]):
         )
 
     async def create_many(
-        self, obj_list: List[T], session: Session
+        self, obj_list: List[SQLModel], session: Session
     ) -> Tuple[List[T], List[ModelResponse]]:
         """
         Create multiple model instances.

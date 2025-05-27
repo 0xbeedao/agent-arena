@@ -4,6 +4,7 @@ from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.models import Arena
 from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Feature
+from agentarena.arena.models import FeatureCreate
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
@@ -40,7 +41,7 @@ def db_service(uuid_service, logging):
 @pytest.fixture
 def arena_service(db_service, uuid_service, logging):
     """Fixture to create a ModelService for arenas"""
-    return ModelService[Arena](
+    return ModelService[Arena, ArenaCreate](
         model_class=Arena,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -51,7 +52,7 @@ def arena_service(db_service, uuid_service, logging):
 @pytest.fixture
 def feature_service(db_service, uuid_service, logging):
     """Fixture to create a ModelService for features"""
-    return ModelService[Feature](
+    return ModelService[Feature, FeatureCreate](
         model_class=Feature,
         db_service=db_service,
         uuid_service=uuid_service,

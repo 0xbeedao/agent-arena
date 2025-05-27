@@ -40,7 +40,7 @@ def uuid_service():
 def db_service(uuid_service, logging):
     """Fixture to create an in-memory DB service"""
     service = DbService(
-        get_project_root(),
+        str(get_project_root()),
         dbfile="test.db",
         get_engine=get_engine,
         memory=True,
@@ -53,7 +53,7 @@ def db_service(uuid_service, logging):
 
 @pytest.fixture
 def job_service(db_service, uuid_service, logging):
-    return ModelService[CommandJob](
+    return ModelService[CommandJob, CommandJobCreate](
         db_service=db_service,
         model_class=CommandJob,
         uuid_service=uuid_service,
@@ -63,7 +63,7 @@ def job_service(db_service, uuid_service, logging):
 
 @pytest.fixture
 def history_service(db_service, uuid_service, logging):
-    return ModelService[CommandJobHistory](
+    return ModelService[CommandJobHistory, CommandJobHistory](
         db_service=db_service,
         model_class=CommandJobHistory,
         uuid_service=uuid_service,

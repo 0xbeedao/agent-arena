@@ -55,7 +55,7 @@ def uuid_service():
 def db_service(uuid_service, logging):
     """Fixture to create an in-memory DB service"""
     service = DbService(
-        get_project_root(),
+        str(get_project_root()),
         dbfile="test.db",
         get_engine=get_engine,
         memory=True,

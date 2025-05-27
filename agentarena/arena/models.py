@@ -100,7 +100,7 @@ class Arena(ArenaBase, DbBase, table=True):
 
 
 class ArenaCreate(ArenaBase):
-    features: List["FeatureCreate"] = Field(description="Required Features to Create")
+    features: List["Feature"] = Field(description="Required Features to Create")
 
 
 class ArenaPublic(ArenaBase):

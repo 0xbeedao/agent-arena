@@ -14,6 +14,7 @@ from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobCreate
 from agentarena.models.job import CommandJobHistory
 from agentarena.scheduler.controllers.debug_controller import DebugController
 from agentarena.scheduler.controllers.job_controller import JobController
@@ -94,7 +95,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
     # model services
 
     commandjob_service = providers.Singleton(
-        ModelService[CommandJob],
+        ModelService[CommandJob, CommandJobCreate],
         model_class=CommandJob,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -102,7 +103,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
     )
 
     jobhistory_service = providers.Singleton(
-        ModelService[CommandJobHistory],
+        ModelService[CommandJobHistory, CommandJobHistory],
         model_class=CommandJobHistory,
         db_service=db_service,
         uuid_service=uuid_service,

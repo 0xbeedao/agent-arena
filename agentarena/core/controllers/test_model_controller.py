@@ -43,7 +43,7 @@ def db_service(uuid_service, logging):
 @pytest.fixture
 def model_service(db_service, uuid_service, logging):
     """Fixture to create a ModelService for features"""
-    return ModelService[CommandJob](
+    return ModelService[CommandJob, CommandJobCreate](
         model_class=CommandJob,
         db_service=db_service,
         uuid_service=uuid_service,

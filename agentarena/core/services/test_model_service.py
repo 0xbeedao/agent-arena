@@ -42,7 +42,7 @@ def db_service(uuid_service, logging):
 @pytest.fixture
 def model_service(db_service, uuid_service, logging):
     """Fixture to create a ModelService for CommandJob"""
-    return ModelService[CommandJob](
+    return ModelService[CommandJob, CommandJobCreate](
         model_class=CommandJob,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -65,7 +65,7 @@ def sample_job_data() -> Dict:
 
 @pytest.mark.asyncio
 async def test_create_job(
-    model_service: ModelService[CommandJob], sample_job_data: Dict
+    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
 ):
     """Test creating a job"""
     job_create = CommandJobCreate(**sample_job_data)
@@ -80,7 +80,9 @@ async def test_create_job(
 
 
 @pytest.mark.asyncio
-async def test_get_job(model_service: ModelService[CommandJob], sample_job_data: Dict):
+async def test_get_job(
+    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
+):
     """Test getting a job by ID"""
     job_create = CommandJobCreate(**sample_job_data)
     with model_service.get_session() as session:
@@ -97,7 +99,7 @@ async def test_get_job(model_service: ModelService[CommandJob], sample_job_data:
 
 @pytest.mark.asyncio
 async def test_update_job(
-    model_service: ModelService[CommandJob], sample_job_data: Dict
+    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
 ):
     """Test updating a job"""
     job_create = CommandJobCreate(**sample_job_data)
@@ -123,7 +125,7 @@ async def test_update_job(
 
 @pytest.mark.asyncio
 async def test_delete_job(
-    model_service: ModelService[CommandJob], sample_job_data: Dict
+    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
 ):
     """Test deleting a job"""
     job_create = CommandJobCreate(**sample_job_data)
@@ -143,7 +145,7 @@ async def test_delete_job(
 
 @pytest.mark.asyncio
 async def test_list_jobs(
-    model_service: ModelService[CommandJob], sample_job_data: Dict
+    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
 ):
     """Test listing jobs"""
     # Create 3 jobs

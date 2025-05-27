@@ -19,6 +19,7 @@ from agentarena.arena.models import ContestPublic
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import ContestUpdate
 from agentarena.arena.models import Participant
+from agentarena.arena.models import ParticipantCreate
 from agentarena.arena.models import ParticipantRole
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
@@ -32,8 +33,10 @@ class ContestController(
     def __init__(
         self,
         base_path: str = "/api",
-        model_service: ModelService[Contest] = Field(description="The contest service"),
-        participant_service: ModelService[Participant] = Field(
+        model_service: ModelService[Contest, ContestCreate] = Field(
+            description="The contest service"
+        ),
+        participant_service: ModelService[Participant, ParticipantCreate] = Field(
             description="The feature service"
         ),
         logging: LoggingService = Field(description="Logger factory"),
