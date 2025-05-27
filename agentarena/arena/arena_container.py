@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 from dependency_injector import containers
 from dependency_injector import providers
@@ -7,12 +6,17 @@ from dependency_injector import providers
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models import Arena, ContestRoundStats
+from agentarena.arena.models import Arena
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestRound
+from agentarena.arena.models import ContestRoundStats
 from agentarena.arena.models import Feature
 from agentarena.arena.models import Participant
-from agentarena.core.factories.db_factory import get_database, get_engine
+from agentarena.arena.models import ParticipantCreate
+from agentarena.arena.models import ParticipantPublic
+from agentarena.arena.models import ParticipantUpdate
+from agentarena.core.controllers.model_controller import ModelController
+from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services import uuid_service
@@ -135,6 +139,16 @@ class ArenaContainer(containers.DeclarativeContainer):
         ArenaController,
         arena_service=arena_service,
         feature_service=feature_service,
+        logging=logging,
+    )
+
+    participant_controller = providers.Singleton(
+        ModelController[
+            Participant, ParticipantCreate, ParticipantUpdate, ParticipantPublic
+        ],
+        model_name="participant",
+        model_public=ParticipantPublic,
+        model_service=participant_service,
         logging=logging,
     )
 

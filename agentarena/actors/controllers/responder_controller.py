@@ -5,9 +5,9 @@ Responder controller for Agent Response endpoints
 from fastapi import APIRouter
 from sqlmodel import Field
 
-from agentarena.models.factories.participant_factory import ParticipantFactory
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
+from agentarena.models.factories.participant_factory import ParticipantFactory
 from agentarena.models.participant import Participant
 from agentarena.models.participant import ParticipantDTO
 from agentarena.models.requests import HealthResponse

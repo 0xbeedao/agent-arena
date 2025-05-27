@@ -20,21 +20,6 @@ app = typer.Typer(help="CLI tool to load fixtures into a FastAPI application")
 # Base URL of your FastAPI server
 BASE_URL = "http://localhost:8000/api"
 
-# Determine the project root directory
-script_path = Path(__file__)
-project_root = script_path.parent.parent.parent
-
-# Change working directory to project root
-os.chdir(project_root)
-
-# Check for config file
-config_file = os.path.join(project_root, "agent-arena-config.yaml")
-if not os.path.exists(config_file):
-    print(f"Cannot find the config file: {config_file}")
-    sys.exit(1)
-
-sys.path.append(os.path.abspath("./src"))
-
 
 def load_fixture_file(file_path: Path) -> dict:
     """Load JSON data from a fixture file."""
@@ -43,6 +28,27 @@ def load_fixture_file(file_path: Path) -> dict:
         return {}
     with open(file_path, "r") as f:
         return json.load(f)
+
+
+def load_participant_fixture(fixture_file: Path):
+    fixture_data = load_fixture_file(Path(fixture_file))
+    try:
+        response = httpx.post(f"{BASE_URL}/participant/", json=fixture_data)
+        if response.status_code == 200:
+            obj_id = json.loads(response.content)["id"]
+            typer.echo(
+                f"Successfully created participant from {fixture_file}: {obj_id}"
+            )
+            return obj_id
+        else:
+            typer.echo(
+                f"Error loading fixtures: {response.status_code} - {response}",
+                err=True,
+            )
+            return None
+    except httpx.RequestError as e:
+        typer.echo(f"Request error: {e} processing {fixture_file}", err=True)
+        return None
 
 
 def load_strategy_fixture(fixture_file: Path):
@@ -195,48 +201,57 @@ def load_fixtures(
         typer.echo(f"Cannot find fixture dir: {norm_dir}")
         raise typer.Exit(code=1)
 
-    files = glob(os.path.join(fixture_dir, "*strategy-*.json"))
-    strategies = {
-        "judge": [],
-        "arena": [],
-        "player": [],
-        "announcer": [],
-    }
-    agents = {"judge": [], "arena": [], "player": [], "announcer": []}
+    files = glob(os.path.join(fixture_dir, "*participant-*.json"))
+    participants = []
     for fixture_file in files:
-        strategy_id, role = load_strategy_fixture(Path(fixture_file))
-        if strategy_id is None:
+        participant = load_participant_fixture(Path(fixture_file))
+        if participant is None:
             typer.echo("Error")
             raise typer.Exit(code=1)
-        strategies[role].append(strategy_id)
+        participants.append(participant)
+    typer.echo(f"Loaded {len(participants)} participants")
+    # files = glob(os.path.join(fixture_dir, "*strategy-*.json"))
+    # strategies = {
+    #     "judge": [],
+    #     "arena": [],
+    #     "player": [],
+    #     "announcer": [],
+    # }
+    # agents = {"judge": [], "arena": [], "player": [], "announcer": []}
+    # for fixture_file in files:
+    #     strategy_id, role = load_strategy_fixture(Path(fixture_file))
+    #     if strategy_id is None:
+    #         typer.echo("Error")
+    #         raise typer.Exit(code=1)
+    #     strategies[role].append(strategy_id)
 
-        agent_id, name = make_agent(strategy_id, fixture_file)
-        if agent_id is None:
-            typer.echo("Error")
-            raise typer.Exit(code=1)
-        agents[role].append((agent_id, name))
+    #     agent_id, name = make_agent(strategy_id, fixture_file)
+    #     if agent_id is None:
+    #         typer.echo("Error")
+    #         raise typer.Exit(code=1)
+    #     agents[role].append((agent_id, name))
 
-    # now that we've got some agents, let's use them
-    # first lets just print what we've got
-    typer.echo("Agents created")
+    # # now that we've got some agents, let's use them
+    # # first lets just print what we've got
+    # typer.echo("Agents created")
 
-    arena_files = glob(os.path.join(fixture_dir, "arena-*.json"))
-    arenas = []
-    for arena_fixture in arena_files:
-        arena_id = load_arena_fixture(Path(arena_fixture), players=2, agents=agents)
-        typer.echo(f"created arena: {arena_id}")
-        arenas.append(arena_id)
+    # arena_files = glob(os.path.join(fixture_dir, "arena-*.json"))
+    # arenas = []
+    # for arena_fixture in arena_files:
+    #     arena_id = load_arena_fixture(Path(arena_fixture), players=2, agents=agents)
+    #     typer.echo(f"created arena: {arena_id}")
+    #     arenas.append(arena_id)
 
-    contest_files = glob(os.path.join(fixture_dir, "contest-*.json"))
-    contests = []
-    for contest_fixture in contest_files:
-        for arena_id in arenas:
-            contest_id = load_contest_fixture(Path(contest_fixture), arena_id)
-            typer.echo(f"Created contest: {contest_id}")
+    # contest_files = glob(os.path.join(fixture_dir, "contest-*.json"))
+    # contests = []
+    # for contest_fixture in contest_files:
+    #     for arena_id in arenas:
+    #         contest_id = load_contest_fixture(Path(contest_fixture), arena_id)
+    #         typer.echo(f"Created contest: {contest_id}")
 
-            contest = httpx.get((f"{BASE_URL}/contest/{contest_id}"))
-            c = json.loads(contest.content)
-            print(json.dumps(c, indent=4, sort_keys=True))
+    #         contest = httpx.get((f"{BASE_URL}/contest/{contest_id}"))
+    #         c = json.loads(contest.content)
+    #         print(json.dumps(c, indent=4, sort_keys=True))
 
 
 if __name__ == "__main__":

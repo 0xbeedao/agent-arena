@@ -78,6 +78,7 @@ add_logging_middleware(app)
 routers = [
     container.contest_controller().get_router(),
     container.arena_controller().get_router(),
+    container.participant_controller().get_router(),
     container.debug_controller().get_router(),
 ]
 [app.include_router(router) for router in routers]

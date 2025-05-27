@@ -159,7 +159,9 @@ class ContestRoundStatsBase(SQLModel, table=False):
     Maps to the ROUND_STATS entity in the ER diagram.
     """
 
-    contestround_id: str = Field(description="Reference to ArenaState")
+    contestround_id: str = Field(
+        description="Reference to ArenaState", foreign_key="contestround.id"
+    )
     actions_count: int = Field(description="Number of actions in the round")
     duration_ms: int = Field(description="Round duration in milliseconds")
     metrics_json: Dict = Field(
@@ -332,7 +334,6 @@ class JudgeResultCreate(JudgeResultBase):
 
 
 class ParticipantBase(SQLModel, table=False):
-    arena_id: str = Field(description="Reference to ArenaDTO", foreign_key="arena.id")
     name: str = Field(description="Participant name")
     role: ParticipantRole = Field(description="Role in arena")
 
