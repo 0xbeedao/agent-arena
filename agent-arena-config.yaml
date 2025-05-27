@@ -41,7 +41,7 @@ scheduler:
       service: DEBUG
       controller: DEBUG
   max_concurrent: 5
-  url: http://localhost:8080
+  url: http://localhost:8002
 
 uuid:
   wordlist: <projectroot>/etc/words.csv

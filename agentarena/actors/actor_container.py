@@ -3,6 +3,7 @@ import os
 from dependency_injector import containers
 from dependency_injector import providers
 
+from agentarena.actors.controllers.responder_controller import ResponderController
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
 from agentarena.actors.models import AgentPublic
@@ -65,14 +66,14 @@ class ActorContainer(containers.DeclarativeContainer):
     # model services
 
     agent_service = providers.Singleton(
-        ModelService[Agent],
+        ModelService[Agent, AgentCreate],
         model_class=Agent,
         db_service=db_service,
         logging=logging,
     )
 
     strategy_service = providers.Singleton(
-        ModelService[Strategy],
+        ModelService[Strategy, StrategyCreate],
         model_class=Strategy,
         db_service=db_service,
         logging=logging,
@@ -90,8 +91,6 @@ class ActorContainer(containers.DeclarativeContainer):
 
     responder_controller = providers.Singleton(
         ResponderController,
-        participant_service=participant_service,
-        participant_factory=participant_factory,
         logging=logging,
     )
 

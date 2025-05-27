@@ -14,6 +14,9 @@ roll-logs:
     just roll-log agentarena-arena.log logs
     just roll-log agentarena-scheduler.log logs
 
+actor: checkvenv
+    PYTHONPATH=. python scripts/agentarena.actor
+
 control: checkvenv
     PYTHONPATH=. python scripts/agentarena.controlpanel
 

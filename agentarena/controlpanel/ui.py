@@ -26,16 +26,44 @@ class MainPanel(Static):
     """Main content panel."""
 
     current_view = reactive("dashboard")
+    participants = reactive([])
+
+    def __init__(self, clients={}):
+        super().__init__()
+        self.clients = clients
+
+    def compose_dashboard(self) -> Vertical:
+        """Compose dashboard view."""
+        container = Vertical()
+        container.compose_add_child(
+            Button("Load Participants", id="load-participants-btn")
+        )
+        if self.participants:
+            container.compose_add_child(Label("Participants:"))
+            for participant in self.participants:
+                container.compose_add_child(Label(participant["name"]))
+        return container
 
     def watch_current_view(self, view_name: str) -> None:
         """Update view when current_view changes."""
         self.remove_children()
         if view_name == "dashboard":
-            self.mount(Label("Dashboard Content"))
+            self.mount(self.compose_dashboard())
         elif view_name == "jobviz":
             self.mount(Label("Job Visualizer Content"))
         elif view_name == "contests":
             self.mount(Label("Contests Content"))
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses in main panel."""
+        if event.button.id == "load-participants-btn":
+            client = self.clients["arena"]
+            assert client, "Missing Arena client"
+            try:
+                self.participants = await client.get_participants()
+                self.current_view = "dashboard"  # Refresh the view
+            except Exception as e:
+                self.notify(f"Error loading participants: {str(e)}", severity="error")
 
 
 class StatusBar(Static):
@@ -51,12 +79,16 @@ class ControlPanelUI(App):
 
     CSS_PATH = "controlpanel.css"
 
+    def __init__(self, clients={}):
+        super().__init__()
+        self.clients = clients
+
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
         with Horizontal():
             yield Sidebar()
-            yield MainPanel()
+            yield MainPanel(self.clients)
         yield StatusBar()
         yield Footer()
 
@@ -67,8 +99,8 @@ class ControlPanelUI(App):
         """Run the main UI loop."""
         self.run()
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle sidebar button presses."""
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses."""
         button_id = event.button.id
         if button_id == "dashboard-btn":
             self.query_one(MainPanel).current_view = "dashboard"
@@ -76,3 +108,5 @@ class ControlPanelUI(App):
             self.query_one(MainPanel).current_view = "jobviz"
         elif button_id == "contests-btn":
             self.query_one(MainPanel).current_view = "contests"
+        elif button_id == "load-participants-btn":
+            await self.query_one(MainPanel).on_button_pressed(event)

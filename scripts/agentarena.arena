@@ -10,5 +10,5 @@ import uvicorn
 if __name__ == "__main__":
     print(f"Starting Agent Arena server")
     uvicorn.run(
-        "agentarena.server:app", host="0.0.0.0", port=8000, reload=True, workers=4
+        "agentarena.arena.app:app", host="0.0.0.0", port=8000, reload=True, workers=4
     )

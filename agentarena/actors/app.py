@@ -27,8 +27,8 @@ yamlFile = os.path.join(project_root, "agent-arena-config.yaml")
 container.config.from_yaml(yamlFile)
 # Create the FastAPI application
 app = FastAPI(
-    title="Agent Arena (Scheduler) API",
-    description="API for the Scheduler portion of the app",
+    title="Agent Arena (Actors) API",
+    description="API for the Actors portion of the app",
     version="0.1.0",
 )
 
@@ -39,30 +39,28 @@ async def startup_event():
     container.wire(
         modules=[
             sys.modules[__name__],  # wire current module
-            "agentarena.scheduler.controllers.debug_controller",
-            "agentarena.core.controllers.model_controller",
         ]
     )
 
     logger = container.logging()
-    log = logger.get_logger("scheduler")
+    log = logger.get_logger("actors")
     db = container.db_service()
     db.create_db()
     with db.get_session() as session:
         db.add_audit_log("startup", session)
     broker = await container.message_broker()  # type: ignore
-    for svc in [
-        container.debug_controller(),
-        await container.queue_service(),  # type: ignore
-    ]:
-        await svc.subscribe_yourself(broker)
+    # for svc in [
+    #     container.debug_controller(),
+    #     await container.queue_service(),  # type: ignore
+    # ]:
+    #     await svc.subscribe_yourself(broker)
     log.info("Application startup complete, resources initialized and container wired.")
 
 
 async def shutdown_event():
     """Shutdown resources on application stop."""
-    controller = container.debug_controller()
-    await controller.unsubscribe_yourself()
+    # controller = container.debug_controller()
+    # await controller.unsubscribe_yourself()
     await container.shutdown_resources()  # type: ignore
 
 
@@ -81,7 +79,10 @@ add_logging_middleware(app)
 
 # Include routers
 routers = [
-    container.job_controller().get_router(),
+    container.agent_controller().get_router(),
+    container.strategy_controller().get_router(),
+    container.responder_controller().get_router(),
+    container.participant_controller().get_router(),
     container.debug_controller().get_router(),
 ]
 [app.include_router(router) for router in routers]
@@ -119,8 +120,8 @@ if __name__ == "__main__":
     if not os.path.exists(yamlFile):
         print(f"Cannot find the config file: {yamlFile}")
         sys.exit(1)
-    log = container.logging().get_logger("scheduler")
+    log = container.logging().get_logger("actors")
     log.info(f"path: {container.projectroot()}")
     log.info("Starting app with uvicorn")
 
-    uvicorn.run("agentarena.scheduler.app:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("agentarena.actors.app:app", host="0.0.0.0", port=8080, reload=True)

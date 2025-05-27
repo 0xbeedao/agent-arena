@@ -42,7 +42,9 @@ class BaseClient:
 class ArenaClient(BaseClient):
     """Client for Arena API."""
 
-    # Arena-specific methods will be added here
+    def get_participants(self) -> Dict[str, Any]:
+        """Get list of all participants."""
+        return self.get("/api/participant")
 
 
 class SchedulerClient(BaseClient):
@@ -54,7 +56,7 @@ class SchedulerClient(BaseClient):
 class ActorClient(BaseClient):
     """Client for Actor API."""
 
-    # Actor-specific methods will be added here
+    pass
 
 
 class MessageBrokerClient:
