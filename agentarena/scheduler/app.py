@@ -123,4 +123,4 @@ if __name__ == "__main__":
     log.info(f"path: {container.projectroot()}")
     log.info("Starting app with uvicorn")
 
-    uvicorn.run("agentarena.scheduler.app:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("agentarena.scheduler.app:app", host="0.0.0.0", port=8002, reload=True)

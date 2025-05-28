@@ -1,18 +1,19 @@
 /* Control Panel CSS */
-Screen {
+/* Screen {
     layout: grid;
     grid-size: 1 2;
     grid-rows: 1fr 3;
-}
+} */
 
-Sidebar {
+/* Sidebar {
     width: 20;
     background: $panel;
     border: solid $primary;
-}
+} */
 
-MainPanel {
+DashboardView {
     width: 1fr;
+    align-vertical: top;
     background: $boost;
     border: solid $primary;
 }
@@ -24,10 +25,17 @@ StatusBar {
 }
 
 Button {
-    width: 100%;
     margin: 1;
 }
 
 Button:hover {
     background: $accent;
+}
+
+.container {
+    align-vertical: top;
+}
+
+#buttons {
+    height: 4;
 }

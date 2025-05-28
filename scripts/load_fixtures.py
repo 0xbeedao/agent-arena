@@ -18,7 +18,8 @@ sys.path.append(".")
 app = typer.Typer(help="CLI tool to load fixtures into a FastAPI application")
 
 # Base URL of your FastAPI server
-BASE_URL = "http://localhost:8000/api"
+ARENA_URL = "http://localhost:8000/api"
+ACTOR_URL = "http://localhost:8001/api"
 
 
 def load_fixture_file(file_path: Path) -> dict:
@@ -33,7 +34,7 @@ def load_fixture_file(file_path: Path) -> dict:
 def load_arena_fixture(fixture_file: str):
     fixture_data = load_fixture_file(Path(fixture_file))
     try:
-        response = httpx.post(f"{BASE_URL}/arena/", json=fixture_data)
+        response = httpx.post(f"{ARENA_URL}/arena/", json=fixture_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
             typer.echo(f"Successfully created arena from {fixture_file}: {obj_id}")
@@ -52,7 +53,7 @@ def load_arena_fixture(fixture_file: str):
 def load_participant_fixture(fixture_file: Path):
     fixture_data = load_fixture_file(Path(fixture_file))
     try:
-        response = httpx.post(f"{BASE_URL}/participant/", json=fixture_data)
+        response = httpx.post(f"{ARENA_URL}/participant/", json=fixture_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
             typer.echo(
@@ -73,7 +74,7 @@ def load_participant_fixture(fixture_file: Path):
 def load_strategy_fixture(fixture_file: Path):
     fixture_data = load_fixture_file(Path(fixture_file))
     try:
-        response = httpx.post(f"{BASE_URL}/strategy/", json=fixture_data)
+        response = httpx.post(f"{ACTOR_URL}/strategy/", json=fixture_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
             typer.echo(f"Successfully created strategy from {fixture_file}: {obj_id}")
@@ -109,7 +110,7 @@ def make_agent(strategy_id: str, fname: str):
     json_data = json.dumps(agent_data)
 
     try:
-        response = httpx.post(f"{BASE_URL}/agent/", json=agent_data)
+        response = httpx.post(f"{ARENA_URL}/agent/", json=agent_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
             typer.echo(f"Successfully created agent from strategy {fname}: {obj_id}")
@@ -172,7 +173,7 @@ def load_contest_fixture(fname: str, arena_id: str, players=2, parts={}):
     fixture_json = json.dumps(contest_req)
 
     try:
-        response = httpx.post(f"{BASE_URL}/contest/", json=contest_req)
+        response = httpx.post(f"{ARENA_URL}/contest/", json=contest_req)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
             typer.echo(f"Successfully created contest from {fname}: {obj_id}")
@@ -221,20 +222,20 @@ def load_fixtures(
         participants.append(arena)
     typer.echo(f"Loaded {len(arenas)} arenas")
 
-    # files = glob(os.path.join(fixture_dir, "*strategy-*.json"))
-    # strategies = {
-    #     "judge": [],
-    #     "arena": [],
-    #     "player": [],
-    #     "announcer": [],
-    # }
-    # agents = {"judge": [], "arena": [], "player": [], "announcer": []}
-    # for fixture_file in files:
-    #     strategy_id, role = load_strategy_fixture(Path(fixture_file))
-    #     if strategy_id is None:
-    #         typer.echo("Error")
-    #         raise typer.Exit(code=1)
-    #     strategies[role].append(strategy_id)
+    files = glob(os.path.join(fixture_dir, "*strategy-*.json"))
+    strategies = {
+        "judge": [],
+        "arena": [],
+        "player": [],
+        "announcer": [],
+    }
+    strategies = {"judge": [], "arena": [], "player": [], "announcer": []}
+    for fixture_file in files:
+        strategy_id, role = load_strategy_fixture(Path(fixture_file))
+        if strategy_id is None or role is None:
+            typer.echo(f"Error, could not load strategy from {fixture_file}", err=True)
+            raise typer.Exit(code=1)
+        strategies[role].append(strategy_id)
 
     #     agent_id, name = make_agent(strategy_id, fixture_file)
     #     if agent_id is None:

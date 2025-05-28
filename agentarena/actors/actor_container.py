@@ -12,8 +12,12 @@ from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPublic
 from agentarena.actors.models import StrategyUpdate
+from agentarena.clients.message_broker import (
+    MessageBroker,
+    get_message_broker_connection,
+)
 from agentarena.core.controllers.model_controller import ModelController
-from agentarena.core.factories.db_factory import get_database
+from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services import uuid_service
@@ -47,17 +51,30 @@ class ActorContainer(containers.DeclarativeContainer):
         logger_levels=config.actor.logging.loggers,
     )
 
+    message_broker_connection = providers.Resource(
+        get_message_broker_connection,
+        config.messagebroker.url,
+        logging,
+    )
+
     uuid_service = providers.Singleton(
         UUIDService,
         word_list=wordlist,
         prod=prod,
     )
 
+    message_broker = providers.Singleton(
+        MessageBroker,
+        client=message_broker_connection,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
     db_service = providers.Singleton(
         DbService,
         projectroot,
         config.actor.db.filename,
-        get_database=get_database,
+        get_engine=get_engine,
         prod=prod,
         uuid_service=uuid_service,
         logging=logging,
@@ -69,6 +86,7 @@ class ActorContainer(containers.DeclarativeContainer):
         ModelService[Agent, AgentCreate],
         model_class=Agent,
         db_service=db_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -76,6 +94,7 @@ class ActorContainer(containers.DeclarativeContainer):
         ModelService[Strategy, StrategyCreate],
         model_class=Strategy,
         db_service=db_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 
@@ -84,19 +103,25 @@ class ActorContainer(containers.DeclarativeContainer):
     agent_controller = providers.Singleton(
         ModelController[Agent, AgentCreate, AgentUpdate, AgentPublic],
         model_name="agent",
-        model_service=agent_service,
+        model_create=AgentCreate,
+        model_update=AgentUpdate,
         model_public=AgentPublic,
+        model_service=agent_service,
         logging=logging,
     )
 
     responder_controller = providers.Singleton(
         ResponderController,
+        agent_service=agent_service,
         logging=logging,
     )
 
     strategy_controller = providers.Singleton(
         ModelController[Strategy, StrategyCreate, StrategyUpdate, StrategyPublic],
         model_name="strategy",
+        model_create=StrategyCreate,
+        model_public=StrategyPublic,
+        model_update=StrategyUpdate,
         model_service=strategy_service,
         logging=logging,
     )

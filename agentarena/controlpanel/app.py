@@ -1,8 +1,10 @@
 """Control Panel Main Application."""
 
+import os
 import typer
 import yaml
 
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.util.files import find_file_upwards
 
 from .clients import ActorClient
@@ -11,6 +13,8 @@ from .clients import MessageBrokerClient
 from .clients import SchedulerClient
 from .ui import ControlPanelUI
 from .clients import ActorClient
+
+prod = getattr(os.environ, "ARENA_ENV", "dev") == "prod"
 
 
 def read_config():
@@ -26,6 +30,13 @@ class ControlPanelApp:
 
     def __init__(self):
         config = read_config()
+        logger = LoggingService(
+            capture=False,
+            prod=prod,
+            level="DEBUG",
+            name="control",
+        )
+        self._structlog = logger.get_logger("control")
         clients = {
             "arena": ArenaClient(config["arena"]),
             "scheduler": SchedulerClient(config["scheduler"]),
@@ -33,12 +44,14 @@ class ControlPanelApp:
             "broker": MessageBrokerClient(config["messagebroker"]),
         }
         self.config = config
-        self.ui = ControlPanelUI(clients)
+        self.ui = ControlPanelUI(clients, logger)
         self.clients = clients
+        self._structlog.info("setup complete")
 
     def run(self):
         """Run the control panel application."""
         self.ui.setup()
+        self._structlog.info("starting main loop")
         self.ui.main_loop()
 
 

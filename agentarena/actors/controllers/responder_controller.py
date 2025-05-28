@@ -18,24 +18,24 @@ class ResponderController:
     def __init__(
         self,
         base_path: str = "/api/responder",
-        participant_service: ModelService[Participant, ParticipantCreate] = Field(
+        agent_service: ModelService[Participant, ParticipantCreate] = Field(
             description="the participant service"
         ),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.base_path = f"{base_path}/responder"
-        self.participant_service = participant_service
+        self.agent_service = agent_service
         self.log = logging.get_logger("controller", path=self.base_path)
 
     async def healthcheck(
-        self, participant_id: str, job_id: str, session: Session
+        self, agent_id: str, job_id: str, session: Session
     ) -> HealthResponse:
-        p, response = await self.participant_service.get(participant_id, session)
+        p, response = await self.agent_service.get(agent_id, session)
 
         if not response.success or not p:
             return HealthResponse(
                 state=JobResponseState.FAIL,
-                message=f"no such responder: {participant_id}",
+                message=f"no such responder: {agent_id}",
                 job_id=job_id,
             )
 
@@ -51,7 +51,7 @@ class ResponderController:
 
         @router.get("/{participant_id}/health/{job_id}", response_model=HealthResponse)
         async def health(participant_id: str, job_id: str):
-            with self.participant_service.db_service.get_session() as session:
+            with self.agent_service.db_service.get_session() as session:
                 return await self.healthcheck(participant_id, job_id, session)
 
         return router

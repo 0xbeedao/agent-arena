@@ -13,13 +13,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from agentarena.core.middleware import add_logging_middleware
-from agentarena.scheduler.scheduler_container import SchedulerContainer
+from .actor_container import ActorContainer
 from agentarena.util.files import find_directory_of_file
 
 better_exceptions.MAX_LENGTH = None
 
 # Initialize the container
-container = SchedulerContainer()
+container = ActorContainer()
 project_root = find_directory_of_file("agent-arena-config.yaml")
 assert project_root is not None, "Can't find config"
 
@@ -82,8 +82,7 @@ routers = [
     container.agent_controller().get_router(),
     container.strategy_controller().get_router(),
     container.responder_controller().get_router(),
-    container.participant_controller().get_router(),
-    container.debug_controller().get_router(),
+    # container.debug_controller().get_router(),
 ]
 [app.include_router(router) for router in routers]
 
@@ -124,4 +123,4 @@ if __name__ == "__main__":
     log.info(f"path: {container.projectroot()}")
     log.info("Starting app with uvicorn")
 
-    uvicorn.run("agentarena.actors.app:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("agentarena.actors.app:app", host="0.0.0.0", port=8001, reload=True)

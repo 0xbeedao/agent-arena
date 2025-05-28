@@ -1,13 +1,4 @@
-from sqlite_utils import Database
 from sqlmodel import create_engine
-
-
-def get_database(filename: str, memory: bool = False) -> Database:
-    if memory:
-        return Database(memory=True)
-
-    print(f"opening db at: {filename}")
-    return Database(filename)
 
 
 def get_engine(filename: str, memory: bool = False):

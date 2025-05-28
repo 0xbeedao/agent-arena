@@ -11,40 +11,46 @@ class BaseClient:
 
     def __init__(self, config={}):
         self.base_url = config["url"]
-        self.client = httpx.Client(base_url=self.base_url)
         self.config = config
 
-    def get(self, endpoint: str) -> Dict[str, Any]:
+    async def get(self, endpoint: str) -> Dict[str, Any]:
         """GET request to API endpoint."""
-        response = self.client.get(endpoint)
-        response.raise_for_status()
-        return response.json()
+        async with httpx.AsyncClient(base_url=self.base_url) as client:
+            response = await client.get(endpoint)
+            response.raise_for_status()
+            return response.json()
 
-    def post(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def post(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """POST request to API endpoint."""
-        response = self.client.post(endpoint, json=data)
-        response.raise_for_status()
-        return response.json()
+        async with httpx.AsyncClient(base_url=self.base_url) as client:
+            response = await client.post(endpoint, json=data)
+            response.raise_for_status()
+            return response.json()
 
-    def put(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def put(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """PUT request to API endpoint."""
-        response = self.client.put(endpoint, json=data)
-        response.raise_for_status()
-        return response.json()
+        async with httpx.AsyncClient(base_url=self.base_url) as client:
+            response = await client.put(endpoint, json=data)
+            response.raise_for_status()
+            return response.json()
 
-    def delete(self, endpoint: str) -> Dict[str, Any]:
+    async def delete(self, endpoint: str) -> Dict[str, Any]:
         """DELETE request to API endpoint."""
-        response = self.client.delete(endpoint)
-        response.raise_for_status()
-        return response.json()
+        async with httpx.AsyncClient(base_url=self.base_url) as client:
+            response = await client.delete(endpoint)
+            response.raise_for_status()
+            return response.json()
 
 
 class ArenaClient(BaseClient):
     """Client for Arena API."""
 
-    def get_participants(self) -> Dict[str, Any]:
+    async def get_participants(self) -> Dict[str, Any]:
         """Get list of all participants."""
-        return self.get("/api/participant")
+        async with httpx.AsyncClient(base_url=self.base_url) as client:
+            response = await client.get("/api/participant")
+            response.raise_for_status()
+            return response.json()
 
 
 class SchedulerClient(BaseClient):
