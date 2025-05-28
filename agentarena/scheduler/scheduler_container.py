@@ -120,6 +120,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
 
     request_service = providers.Singleton(
         RequestService,
+        actor_url=config.actor.url,
         arena_url=config.arena.url,
         queue_service=queue_service,
         message_broker=message_broker,

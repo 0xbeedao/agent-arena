@@ -1,4 +1,7 @@
 {
   "name": "Alcyone",
-  "role": "judge"
+  "role": "judge",
+  "description": "Test Player",
+  "endpoint": "$ACTOR$/agent/$ID$",
+  "api_key": ""
 }

@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Dict
 from typing import List
 from typing import Optional
+from urllib.parse import urljoin
 
 from sqlmodel import JSON
 from sqlmodel import Column
@@ -338,14 +339,41 @@ class JudgeResultCreate(JudgeResultBase):
 
 
 class ParticipantBase(SQLModel, table=False):
-    name: str = Field(description="Participant name")
-    role: ParticipantRole = Field(description="Role in arena")
+    api_key: Optional[str] = Field(
+        default=None,
+        description="API key for authentication",
+    )
+    description: str = Field(
+        default="",
+        description="Agent description",
+    )
+    extra: Optional[Dict] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="Additional data",
+    )
+    endpoint: str = Field(
+        default="",
+        description="API endpoint for the agent",
+    )
+    name: str = Field(
+        description="Participant name",
+        max_length=100,
+        min_length=1,
+    )
+    role: ParticipantRole = Field(
+        description="Role in arena",
+    )
 
 
 class Participant(ParticipantBase, DbBase, table=True):
     """
     Maps agents to arenas
     """
+
+    def url(self, path: str = ""):
+        cleaned = urljoin(self.endpoint, path)
+        return cleaned.replace("$ID$", self.id)
 
     contests: List[Contest] = Relationship(
         back_populates="participants", link_model=ContestParticipant

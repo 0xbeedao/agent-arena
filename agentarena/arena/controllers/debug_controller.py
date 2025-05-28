@@ -5,9 +5,9 @@ from nats.aio.client import Client as NatsClient
 from sqlmodel import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import UrlJobRequest
-from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
 
 
@@ -79,11 +79,13 @@ class DebugController:
 
     async def healthOK(self):
         self.log.info("health OK")
-        return HealthResponse(
+        return JobResponse(
             job_id="1",
             state=JobResponseState.COMPLETE,
             message="test",
-            data=HealthStatus(name="debug_controller", state="OK", version="1"),
+            data=HealthStatus(
+                name="debug_controller", state="OK", version="1"
+            ).model_dump(),
             url="",
         )
 
@@ -107,7 +109,7 @@ class DebugController:
         # async def send_request(req: UrlJobRequest = Body(...)):
         #     return await self.send_request_job(req)
 
-        @router.get("/health", response_model=HealthResponse)
+        @router.get("/health", response_model=JobResponse)
         async def health():
             return await self.healthOK()
 

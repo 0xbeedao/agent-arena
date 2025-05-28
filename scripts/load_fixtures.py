@@ -36,9 +36,10 @@ def load_arena_fixture(fixture_file: str):
     try:
         response = httpx.post(f"{ARENA_URL}/arena/", json=fixture_data)
         if response.status_code == 200:
-            obj_id = json.loads(response.content)["id"]
+            obj = json.loads(response.content)
+            obj_id = obj["id"]
             typer.echo(f"Successfully created arena from {fixture_file}: {obj_id}")
-            return obj_id
+            return obj
         else:
             typer.echo(
                 f"Error loading fixtures: {response.status_code} - {response}",
@@ -55,11 +56,12 @@ def load_participant_fixture(fixture_file: Path):
     try:
         response = httpx.post(f"{ARENA_URL}/participant/", json=fixture_data)
         if response.status_code == 200:
-            obj_id = json.loads(response.content)["id"]
+            obj = json.loads(response.content)
+            obj_id = obj["id"]
             typer.echo(
                 f"Successfully created participant from {fixture_file}: {obj_id}"
             )
-            return obj_id
+            return obj
         else:
             typer.echo(
                 f"Error loading fixtures: {response.status_code} - {response}",
@@ -76,45 +78,35 @@ def load_strategy_fixture(fixture_file: Path):
     try:
         response = httpx.post(f"{ACTOR_URL}/strategy/", json=fixture_data)
         if response.status_code == 200:
-            obj_id = json.loads(response.content)["id"]
+            obj = json.loads(response.content)
+            obj_id = obj["id"]
             typer.echo(f"Successfully created strategy from {fixture_file}: {obj_id}")
-            return obj_id, fixture_data["role"]
+            return obj
         else:
             typer.echo(
                 f"Error loading fixtures: {response.status_code} - {response}",
                 err=True,
             )
-            return None, None
+            return None
     except httpx.RequestError as e:
         typer.echo(f"Request error: {e} processing {fixture_file}", err=True)
-        return None, None
+        return None
 
 
-def make_agent(strategy_id: str, fname: str):
-    fixture = os.path.basename(fname)
-    name, _ = os.path.splitext(fixture)
-    name = name.replace("strategy", "agent")
-    metadata = {"fixture": fixture}
-
-    # TODO - make actor with strategy instead
-
+def make_agent(participant, strategy):
     agent_data = {
-        "name": name,
-        "description": f"A test agent using {name}",
-        "endpoint": "/api/responders/$AGENT$",
-        "api_key": "",
-        "extra": metadata,
-        "strategy_id": strategy_id,
+        "strategy_id": strategy["id"],
+        "name": participant["name"],
     }
 
     json_data = json.dumps(agent_data)
 
     try:
-        response = httpx.post(f"{ARENA_URL}/agent/", json=agent_data)
+        response = httpx.post(f"{ACTOR_URL}/agent/", json=agent_data)
         if response.status_code == 200:
             obj_id = json.loads(response.content)["id"]
-            typer.echo(f"Successfully created agent from strategy {fname}: {obj_id}")
-            return obj_id, name
+            typer.echo(f"Successfully created agent from strategy: {obj_id}")
+            return response
         else:
             print("error with json:\n", json_data)
             typer.echo(
@@ -122,8 +114,8 @@ def make_agent(strategy_id: str, fname: str):
                 err=True,
             )
     except httpx.RequestError as e:
-        typer.echo(f"Request error: {e} processing {fname}", err=True)
-        return None, None
+        typer.echo(f"Request error making agent: {e}", err=True)
+        return None
 
 
 def load_contest_fixture(fname: str, arena_id: str, players=2, parts={}):
@@ -203,13 +195,18 @@ def load_fixtures(
         raise typer.Exit(code=1)
 
     files = glob(os.path.join(fixture_dir, "participant-*.json"))
-    participants = []
+    participants = {
+        "judge": [],
+        "arena": [],
+        "player": [],
+        "announcer": [],
+    }
     for fixture_file in files:
         participant = load_participant_fixture(Path(fixture_file))
         if participant is None:
             typer.echo("Error")
             raise typer.Exit(code=1)
-        participants.append(participant)
+        participants[str(participant["role"])].append(participant)
     typer.echo(f"Loaded {len(participants)} participants")
 
     files = glob(os.path.join(fixture_dir, "arena-*.json"))
@@ -219,7 +216,7 @@ def load_fixtures(
         if arena is None:
             typer.echo("Error")
             raise typer.Exit(code=1)
-        participants.append(arena)
+        arenas.append(arena)
     typer.echo(f"Loaded {len(arenas)} arenas")
 
     files = glob(os.path.join(fixture_dir, "*strategy-*.json"))
@@ -231,11 +228,29 @@ def load_fixtures(
     }
     strategies = {"judge": [], "arena": [], "player": [], "announcer": []}
     for fixture_file in files:
-        strategy_id, role = load_strategy_fixture(Path(fixture_file))
-        if strategy_id is None or role is None:
+        strategy = load_strategy_fixture(Path(fixture_file))
+        if strategy is None:
             typer.echo(f"Error, could not load strategy from {fixture_file}", err=True)
             raise typer.Exit(code=1)
-        strategies[role].append(strategy_id)
+        strategies[str(strategy["role"])].append(strategy)
+
+    # make agents for each strategy
+    agents = {"judge": [], "arena": [], "player": [], "announcer": []}
+    for role, participants in participants.items():
+        if role not in strategies or len(strategies[role]) == 0:
+            typer.echo(f"No strategies for role {role}, skipping agent creation")
+            continue
+
+        strats = strategies[role]
+
+        for participant in participants:
+            agent = make_agent(participant, secrets.choice(strats))
+            if not agent:
+                typer.echo(f"Error creating agent for {participant}")
+                raise typer.Exit(code=1)
+            agents[role].append(agent)
+
+        typer.echo(f"{len(agents[role])} {role} Agents created")
 
     #     agent_id, name = make_agent(strategy_id, fixture_file)
     #     if agent_id is None:

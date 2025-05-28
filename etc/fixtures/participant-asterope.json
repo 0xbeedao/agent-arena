@@ -1,4 +1,7 @@
 {
   "name": "Asterope",
-  "role": "player"
+  "role": "player",
+  "description": "Test Player",
+  "endpoint": "$ACTOR$/agent/$ID$",
+  "api_key": ""
 }

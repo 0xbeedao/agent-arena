@@ -28,12 +28,15 @@ class RequestService:
 
     def __init__(
         self,
+        actor_url: str = Field(description="url of actor service"),
         arena_url: str = Field(description="url of arena server"),
         queue_service: QueueService = Field(description="Queue Service"),
         message_broker: MessageBroker = Field(),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         assert arena_url
+        assert actor_url
+        self.actor_url = actor_url
         self.arena_url = arena_url
         self.queue_service = queue_service
         self.message_broker = message_broker
@@ -62,6 +65,7 @@ class RequestService:
         machine = RequestMachine(
             job,
             arena_url=self.arena_url,
+            actor_url=self.actor_url,
             logging=self.logging,
             message_broker=self.message_broker,
         )

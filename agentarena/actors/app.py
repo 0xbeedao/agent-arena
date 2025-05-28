@@ -13,8 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from agentarena.core.middleware import add_logging_middleware
-from .actor_container import ActorContainer
 from agentarena.util.files import find_directory_of_file
+
+from .actor_container import ActorContainer
 
 better_exceptions.MAX_LENGTH = None
 
@@ -81,7 +82,6 @@ add_logging_middleware(app)
 routers = [
     container.agent_controller().get_router(),
     container.strategy_controller().get_router(),
-    container.responder_controller().get_router(),
     # container.debug_controller().get_router(),
 ]
 [app.include_router(router) for router in routers]

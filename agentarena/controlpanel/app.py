@@ -1,6 +1,7 @@
 """Control Panel Main Application."""
 
 import os
+
 import typer
 import yaml
 
@@ -12,7 +13,6 @@ from .clients import ArenaClient
 from .clients import MessageBrokerClient
 from .clients import SchedulerClient
 from .ui import ControlPanelUI
-from .clients import ActorClient
 
 prod = getattr(os.environ, "ARENA_ENV", "dev") == "prod"
 

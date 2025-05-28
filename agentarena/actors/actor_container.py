@@ -3,19 +3,15 @@ import os
 from dependency_injector import containers
 from dependency_injector import providers
 
-from agentarena.actors.controllers.responder_controller import ResponderController
+from agentarena.actors.controllers.agent_controller import AgentController
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
-from agentarena.actors.models import AgentPublic
-from agentarena.actors.models import AgentUpdate
 from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPublic
 from agentarena.actors.models import StrategyUpdate
-from agentarena.clients.message_broker import (
-    MessageBroker,
-    get_message_broker_connection,
-)
+from agentarena.clients.message_broker import MessageBroker
+from agentarena.clients.message_broker import get_message_broker_connection
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
@@ -101,18 +97,9 @@ class ActorContainer(containers.DeclarativeContainer):
     # Controllers
 
     agent_controller = providers.Singleton(
-        ModelController[Agent, AgentCreate, AgentUpdate, AgentPublic],
-        model_name="agent",
-        model_create=AgentCreate,
-        model_update=AgentUpdate,
-        model_public=AgentPublic,
-        model_service=agent_service,
-        logging=logging,
-    )
-
-    responder_controller = providers.Singleton(
-        ResponderController,
+        AgentController,
         agent_service=agent_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 

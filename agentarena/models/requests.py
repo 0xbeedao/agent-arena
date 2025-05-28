@@ -7,8 +7,6 @@ from typing import Optional
 from pydantic import BaseModel
 from sqlmodel import Field
 
-from agentarena.models.job import JobResponse
-
 
 class HealthStatus(BaseModel):
     """
@@ -18,11 +16,3 @@ class HealthStatus(BaseModel):
     name: str = Field(description="Responding service name")
     state: str = Field(description="state name, ['OK', <errorstate>]")
     version: Optional[str] = Field(default="", description="service version")
-
-
-class HealthResponse(JobResponse):
-    """
-    The wrapped async HealthResponse
-    """
-
-    data: HealthStatus = Field(description="Health Status response")

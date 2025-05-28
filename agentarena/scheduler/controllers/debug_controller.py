@@ -13,10 +13,10 @@ from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobCreate
 from agentarena.models.job import CommandJobPublic
+from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
-from agentarena.models.requests import HealthResponse
 from agentarena.models.requests import HealthStatus
 
 
@@ -32,7 +32,9 @@ class DebugController(SubscribingService):
     def __init__(
         self,
         base_path: str = "/api",
-        job_service: ModelService[CommandJob] = Field(description="Job Model service"),
+        job_service: ModelService[CommandJob, CommandJobCreate] = Field(
+            description="Job Model service"
+        ),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.base_path = f"{base_path}/debug"
@@ -58,7 +60,7 @@ class DebugController(SubscribingService):
             method=req.method or "GET",
             priority=5,
             send_at=send_at,
-            state=JobState.IDLE.value,
+            state=JobState.IDLE,
             started_at=0,
             finished_at=0,
             url=req.url or "",
@@ -80,7 +82,7 @@ class DebugController(SubscribingService):
             method="MESSAGE",
             priority=5,
             send_at=send_at,
-            state=JobState.IDLE.value,
+            state=JobState.IDLE,
             url="",
         )
         with self.job_service.get_session() as session:
@@ -111,11 +113,13 @@ class DebugController(SubscribingService):
 
     async def healthOK(self):
         self.log.info("health OK")
-        return HealthResponse(
+        return JobResponse(
             job_id="1",
-            state=JobResponseState.COMPLETE.value,
+            state=JobResponseState.COMPLETE,
             message="test",
-            data=HealthStatus(name="debug_controller", state="OK", version="1"),
+            data=HealthStatus(
+                name="debug_controller", state="OK", version="1"
+            ).model_dump(),
             url="",
         )
 
@@ -139,7 +143,7 @@ class DebugController(SubscribingService):
         async def send_request(req: UrlJobRequest = Body(...)):
             return await self.send_request_job(req)
 
-        @router.get("/health", response_model=HealthResponse)
+        @router.get("/health", response_model=JobResponse)
         async def health():
             return await self.healthOK()
 

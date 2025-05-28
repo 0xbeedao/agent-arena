@@ -58,6 +58,7 @@ class RequestMachine(StateMachine):
     def __init__(
         self,
         job: CommandJob,
+        actor_url: str = Field(description="url of actor server"),
         arena_url: str = Field(description="url of arena server"),
         message_broker: MessageBroker = Field(),
         logging: LoggingService = Field(description="Logger factory"),
@@ -68,6 +69,7 @@ class RequestMachine(StateMachine):
         :param job: Optional job or context object for the request.
         """
         self.arena_url = arena_url
+        self.actor_url = actor_url
         self.job = job
         self.response_object: JobResponse | None = None
         self.log = logging.get_logger("machine", job=job.id)
@@ -182,5 +184,6 @@ class RequestMachine(StateMachine):
         url = self.job.url or ""
         url = url.replace("$JOB$", self.job.id)
         url = url.replace("$ARENA$", self.arena_url)
+        url = url.replace("$ACTOR$", self.actor_url)
         self.log.info(f"resolved url is {url} from {self.job.url}")
         return url

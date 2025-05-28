@@ -62,8 +62,6 @@ class SchedulerClient(BaseClient):
 class ActorClient(BaseClient):
     """Client for Actor API."""
 
-    pass
-
 
 class MessageBrokerClient:
     """Client for Messages"""

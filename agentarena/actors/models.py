@@ -1,11 +1,7 @@
 from enum import Enum
-from typing import Dict
 from typing import List
 from typing import Optional
-from urllib.parse import urljoin
 
-from sqlmodel import JSON
-from sqlmodel import Column
 from sqlmodel import Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
@@ -20,24 +16,16 @@ from agentarena.models.dbbase import DbBase
 
 class AgentBase(SQLModel, table=False):
     """
-    Configuration for an agent.
+    Configuration for an agent participant.
 
     Maps to the AGENT_CONFIG entity in the ER diagram.
     """
 
-    name: str = Field(default="", description="Agent name")
-    description: str = Field(default="", description="Agent description")
-    endpoint: str = Field(default="", description="API endpoint for the agent")
-    api_key: Optional[str] = Field(
-        default=None, description="API key for authentication"
-    )
-    extra: Optional[Dict] = Field(
-        default_factory=Dict, sa_column=Column(JSON), description="Additional data"
+    name: str = Field(
+        default="",
+        description="Name of the agent participant - should match the participant name",
     )
     strategy_id: str = Field(foreign_key="strategy.id")
-
-    def url(self, path: str = ""):
-        return urljoin(self.endpoint, path)
 
 
 class Agent(AgentBase, DbBase, table=True):
@@ -50,22 +38,23 @@ class AgentCreate(AgentBase, table=False):
 
 
 class AgentUpdate(SQLModel, table=False):
-    name: Optional[str] = Field(default=None, description="Agent name")
-    description: Optional[str] = Field(default=None, description="Agent description")
-    endpoint: Optional[str] = Field(
-        default=None, description="API endpoint for the agent"
+    participant_id: Optional[str] = Field(
+        default=None,
+        foreign_key="participant.id",
+        description="ID of the participant",
     )
-    api_key: Optional[str] = Field(
-        default=None, description="API key for authentication"
+    strategy_id: Optional[str] = Field(
+        default=None,
+        foreign_key="strategy.id",
     )
-    extra: Optional[Dict] = Field(
-        default_factory=Dict, sa_column=Column(JSON), description="Additional data"
-    )
-    strategy_id: Optional[str] = Field(default=None, foreign_key="strategy.id")
 
 
-class AgentPublic(AgentBase):
-    id: str
+class AgentPublic(AgentBase, table=False):
+    """
+    Public representation of an Agent.
+    """
+
+    id: str = Field(default=None, description="Unique identifier for the Agent")
 
 
 # ---- Strategy models
@@ -101,7 +90,11 @@ class StrategyBase(SQLModel, table=False):
 
 
 class Strategy(StrategyBase, DbBase, table=True):
-    agents: List["Agent"] = Relationship(back_populates="strategy")
+    participants: List["Agent"] = Relationship(back_populates="strategy")
+    agents: List[Agent] = Relationship(
+        back_populates="strategy",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
 
 
 class StrategyUpdate(SQLModel, table=False):
