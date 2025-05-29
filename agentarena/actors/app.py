@@ -50,18 +50,21 @@ async def startup_event():
     with db.get_session() as session:
         db.add_audit_log("startup", session)
     broker = await container.message_broker()  # type: ignore
-    # for svc in [
-    #     container.debug_controller(),
-    #     await container.queue_service(),  # type: ignore
-    # ]:
-    #     await svc.subscribe_yourself(broker)
+    for svc in [
+        await container.agent_controller(),  # type: ignore
+    ]:
+        await svc.subscribe_yourself(broker)
+
+    # Setup routers after all dependencies are initialized
+    await setup_routers()
+
     log.info("Application startup complete, resources initialized and container wired.")
 
 
 async def shutdown_event():
     """Shutdown resources on application stop."""
-    # controller = container.debug_controller()
-    # await controller.unsubscribe_yourself()
+    controller = await container.agent_controller()  # type: ignore
+    await controller.unsubscribe_yourself()
     await container.shutdown_resources()  # type: ignore
 
 
@@ -78,13 +81,21 @@ app.add_middleware(
 )
 add_logging_middleware(app)
 
-# Include routers
-routers = [
-    container.agent_controller().get_router(),
-    container.strategy_controller().get_router(),
-    # container.debug_controller().get_router(),
-]
-[app.include_router(router) for router in routers]
+# Module-level variable to store routers after initialization
+routers = None
+
+
+async def setup_routers():
+    """Setup and include all routers."""
+    global routers
+    agent_controller = await container.agent_controller()  # type: ignore
+    routers = [
+        agent_controller.get_router(),
+        container.strategy_controller().get_router(),
+        # (await container.debug_controller()).get_router(),
+    ]
+    for router in routers:
+        app.include_router(router)
 
 
 # Add exception handlers

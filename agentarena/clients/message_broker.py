@@ -12,6 +12,7 @@ from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
+from nats.aio.msg import Msg
 
 
 async def get_message_broker_connection(
@@ -38,6 +39,17 @@ class MessageBroker:
         self.prefix = ""
         self.uuid_service = uuid_service
         self.log = logging.get_logger("factory")
+
+    async def publish_response(self, msg: Msg, response: JobResponse):
+        """
+        Publish a response to the message broker.
+        """
+        self.log.debug("Publishing response", job_id=response.job_id)
+        json = response.model_dump_json()
+        channel = msg.reply or response.channel
+        if self.prefix and not channel.startswith(f"{self.prefix}."):
+            channel = f"{self.prefix}.{channel}"
+        await self.client.publish(channel, json.encode("utf-8"))
 
     async def send_job(self, req: CommandJob):
         """

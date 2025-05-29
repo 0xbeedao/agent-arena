@@ -99,6 +99,7 @@ class ActorContainer(containers.DeclarativeContainer):
     agent_controller = providers.Singleton(
         AgentController,
         agent_service=agent_service,
+        message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,
     )
