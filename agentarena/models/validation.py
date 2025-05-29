@@ -13,6 +13,4 @@ class ValidationResponse(BaseModel):
 
     success: bool = Field(description="Is the data valid?")
     message: str = Field(description="Validation message")
-    data: Any = Field(
-        default_factory=dict, description="Additional data related to validation"
-    )
+    data: str = Field(description="Additional data related to validation")

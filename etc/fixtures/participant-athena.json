@@ -1,0 +1,7 @@
+{
+  "name": "Athena",
+  "role": "judge",
+  "description": "Athena is a judge in the game, overseeing the proceedings and ensuring fairness.",
+  "endpoint": "$ACTOR$/agent/$ID$",
+  "api_key": ""
+}

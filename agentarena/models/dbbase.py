@@ -30,5 +30,5 @@ class DbBase(SQLModel, table=False):
         return ValidationResponse(
             success=True,
             message="Validation successful.",
-            data={},
+            data="",
         )

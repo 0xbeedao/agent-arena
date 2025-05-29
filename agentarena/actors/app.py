@@ -50,10 +50,8 @@ async def startup_event():
     with db.get_session() as session:
         db.add_audit_log("startup", session)
     broker = await container.message_broker()  # type: ignore
-    for svc in [
-        await container.agent_controller(),  # type: ignore
-    ]:
-        await svc.subscribe_yourself(broker)
+    agent_controller = await container.agent_controller()  # type: ignore
+    await agent_controller.subscribe_yourself(broker)
 
     # Setup routers after all dependencies are initialized
     await setup_routers()

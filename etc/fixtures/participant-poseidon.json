@@ -1,0 +1,7 @@
+{
+  "name": "Poseidon",
+  "role": "arena",
+  "description": "Poseidon provides a stormy arena.",
+  "endpoint": "$ACTOR$/agent/$ID$",
+  "api_key": ""
+}

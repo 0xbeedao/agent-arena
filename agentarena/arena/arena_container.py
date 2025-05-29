@@ -165,6 +165,7 @@ class ArenaContainer(containers.DeclarativeContainer):
     contest_controller = providers.Singleton(
         ContestController,
         model_service=contest_service,
+        participant_service=participant_service,
         logging=logging,
     )
 

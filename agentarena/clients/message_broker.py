@@ -4,6 +4,7 @@ from typing import Mapping
 import nats
 import orjson
 from nats.aio.client import Client as NatsClient
+from nats.aio.msg import Msg
 from sqlmodel import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
@@ -12,7 +13,6 @@ from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
-from nats.aio.msg import Msg
 
 
 async def get_message_broker_connection(
@@ -77,7 +77,7 @@ class MessageBroker:
         batch: CommandJob = req.batch.model_copy()
         batch.id = batch_id
         # batch should not get picked up until complete
-        batch.state = JobState.REQUEST.value
+        batch.state = JobState.REQUEST
         await self.send_job(batch)
         jobs = [batch.make_child(req) for req in req.children]
 

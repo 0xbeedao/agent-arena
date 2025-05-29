@@ -75,9 +75,9 @@ class ContestController(
                 status_code=422, detail="Could not get all participants"
             )
 
-        contest, problem = await self.model_service.create(req, session)
-        if problem:
-            raise HTTPException(status_code=422, detail=problem)
+        contest, result = await self.model_service.create(req, session)
+        if not result.success:
+            raise HTTPException(status_code=422, detail=result.model_dump_json())
         if not contest:
             raise HTTPException(status_code=422, detail="internal error")
 

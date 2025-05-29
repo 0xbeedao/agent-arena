@@ -1,0 +1,7 @@
+{
+  "name": "Odysseus",
+  "role": "announcer",
+  "description": "Odysseus is the announcer for the game, providing updates and commentary.",
+  "endpoint": "$ACTOR$/agent/$ID$",
+  "api_key": ""
+}

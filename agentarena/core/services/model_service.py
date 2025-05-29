@@ -4,6 +4,7 @@ Provides a reusable service for CRUD operations on any model that inherits from 
 """
 
 from datetime import datetime
+import json
 from typing import Any
 from typing import Generic
 from typing import List
@@ -37,7 +38,7 @@ class ModelResponse(BaseModel):
     id: Optional[str] = None
     validation: Optional[ValidationResponse] = None
     error: Optional[str] = None
-    data: Optional[Any] = None
+    data: Optional[str] = None
 
 
 T = TypeVar("T", bound=DbBase)  # SQLModel with a table
@@ -108,7 +109,11 @@ class ModelService(Generic[T, MC]):
             validation_resp = ValidationResponse(
                 success=False,
                 message="Input data could not be validated for the model.",
-                data=error_detail,
+                data=(
+                    error_detail.model_dump_json()
+                    if isinstance(error_detail, BaseModel)
+                    else json.dumps(error_detail)
+                ),
             )
             return None, ModelResponse(success=False, validation=validation_resp)
 
@@ -148,7 +153,7 @@ class ModelService(Generic[T, MC]):
                 data=validation.data,
             )
             return None, ModelResponse(
-                success=False, data=parsed_obj.model_dump(), validation=validation
+                success=False, data=parsed_obj.model_dump_json(), validation=validation
             )
 
         created = self.db_service.create(parsed_obj, session)

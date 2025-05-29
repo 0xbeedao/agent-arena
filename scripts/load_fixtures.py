@@ -5,6 +5,7 @@ import secrets
 import sys
 from glob import glob
 from pathlib import Path
+from typing import Any, Dict, List
 
 import httpx
 import typer
@@ -38,7 +39,9 @@ def load_arena_fixture(fixture_file: str):
         if response.status_code == 200:
             obj = json.loads(response.content)
             obj_id = obj["id"]
-            typer.echo(f"Successfully created arena from {fixture_file}: {obj_id}")
+            typer.echo(
+                f"Successfully created arena from {fixture_file}:  {obj['name']} {obj_id}"
+            )
             return obj
         else:
             typer.echo(
@@ -57,9 +60,8 @@ def load_participant_fixture(fixture_file: Path):
         response = httpx.post(f"{ARENA_URL}/participant/", json=fixture_data)
         if response.status_code == 200:
             obj = json.loads(response.content)
-            obj_id = obj["id"]
             typer.echo(
-                f"Successfully created participant from {fixture_file}: {obj_id}"
+                f"Successfully created participant from {fixture_file}: {obj['name']} {obj['id']}"
             )
             return obj
         else:
@@ -79,8 +81,9 @@ def load_strategy_fixture(fixture_file: Path):
         response = httpx.post(f"{ACTOR_URL}/strategy/", json=fixture_data)
         if response.status_code == 200:
             obj = json.loads(response.content)
-            obj_id = obj["id"]
-            typer.echo(f"Successfully created strategy from {fixture_file}: {obj_id}")
+            typer.echo(
+                f"Successfully created strategy from {fixture_file}: {obj['name']}"
+            )
             return obj
         else:
             typer.echo(
@@ -104,9 +107,9 @@ def make_agent(participant, strategy):
     try:
         response = httpx.post(f"{ACTOR_URL}/agent/", json=agent_data)
         if response.status_code == 200:
-            obj_id = json.loads(response.content)["id"]
-            typer.echo(f"Successfully created agent from strategy: {obj_id}")
-            return response
+            obj = json.loads(response.content)
+            typer.echo(f"Successfully created agent: {obj['id']}")
+            return obj
         else:
             print("error with json:\n", json_data)
             typer.echo(
@@ -118,20 +121,20 @@ def make_agent(participant, strategy):
         return None
 
 
-def load_contest_fixture(fname: str, arena_id: str, players=2, parts={}):
+def load_contest_fixture(
+    fname: str, arena_id: str, players=2, parts: Dict[str, List[Any]] = {}
+):
     fixture_data = load_fixture_file(Path(fname))
-    players = []
+    contest_players = []
     playerCt = len(parts["player"])
     if playerCt == 0:
         typer.echo("Need at least one player")
         sys.exit(1)
-    elif playerCt == 1:
-        players.append(parts["player"][0])
     else:
-        while len(players) < 2:
+        while len(contest_players) < players:
             possible = secrets.choice(parts["player"])
-            if possible not in players:
-                players.append(possible)
+            if possible not in contest_players:
+                contest_players.append(possible)
 
     arena = secrets.choice(parts["arena"])
     judge = secrets.choice(parts["judge"])
@@ -139,27 +142,23 @@ def load_contest_fixture(fname: str, arena_id: str, players=2, parts={}):
 
     fixture = os.path.basename(fname)
     typer.echo(f"Loading fixture: {fixture}")
-    typer.echo(f"  Arena: {arena[1]}")
-    typer.echo(f"  Judge: {judge[1]}")
-    typer.echo(f"  Announcer: {announcer[1]}")
-    for i in range(len(players)):
-        typer.echo(f"  player{i}: {players[i][1]}")
+    typer.echo(f"  Arena: {arena['name']}")
+    typer.echo(f"  Judge: {judge['name']}")
+    typer.echo(f"  Announcer: {announcer['name']}")
+    for i in range(len(contest_players)):
+        typer.echo(f"  player {i}: {contest_players[i]['name']}")
 
-    fixture_data["participants"] = [
-        {"role": "judge", "agent_id": judge[0]},
-        {"role": "announcer", "agent_id": announcer[0]},
-        {"role": "arena", "agent_id": arena[0]},
+    participants = [
+        judge["id"],
+        arena["id"],
+        announcer["id"],
+        *[player["id"] for player in contest_players],
     ]
-    fixture_data["parts"].extend(
-        [{"role": "player", "agent_id": player[0]} for player in players]
-    )
 
-    # copied above
-    fixture_data = load_fixture_file(Path(fname))
     contest_req = {
         "player_positions": fixture_data["player_positions"],
-        "arena_config_id": arena_id,
-        "current_round": 1,
+        "arena_id": arena_id,
+        "participant_ids": participants,
     }
 
     fixture_json = json.dumps(contest_req)
@@ -167,9 +166,9 @@ def load_contest_fixture(fname: str, arena_id: str, players=2, parts={}):
     try:
         response = httpx.post(f"{ARENA_URL}/contest/", json=contest_req)
         if response.status_code == 200:
-            obj_id = json.loads(response.content)["id"]
-            typer.echo(f"Successfully created contest from {fname}: {obj_id}")
-            return obj_id
+            obj = json.loads(response.content)
+            typer.echo(f"Successfully created contest from {fname}: {obj['id']}")
+            return obj
         else:
             print("error with json:\n", fixture_json)
             typer.echo(
@@ -195,7 +194,7 @@ def load_fixtures(
         raise typer.Exit(code=1)
 
     files = glob(os.path.join(fixture_dir, "participant-*.json"))
-    participants = {
+    participants: Dict[str, List[Any]] = {
         "judge": [],
         "arena": [],
         "player": [],
@@ -226,7 +225,6 @@ def load_fixtures(
         "player": [],
         "announcer": [],
     }
-    strategies = {"judge": [], "arena": [], "player": [], "announcer": []}
     for fixture_file in files:
         strategy = load_strategy_fixture(Path(fixture_file))
         if strategy is None:
@@ -235,15 +233,15 @@ def load_fixtures(
         strategies[str(strategy["role"])].append(strategy)
 
     # make agents for each strategy
-    agents = {"judge": [], "arena": [], "player": [], "announcer": []}
-    for role, participants in participants.items():
+    agents: Dict[str, List] = {"judge": [], "arena": [], "player": [], "announcer": []}
+    for role in participants.keys():
         if role not in strategies or len(strategies[role]) == 0:
             typer.echo(f"No strategies for role {role}, skipping agent creation")
             continue
 
         strats = strategies[role]
 
-        for participant in participants:
+        for participant in participants[role]:
             agent = make_agent(participant, secrets.choice(strats))
             if not agent:
                 typer.echo(f"Error creating agent for {participant}")
@@ -252,33 +250,20 @@ def load_fixtures(
 
         typer.echo(f"{len(agents[role])} {role} Agents created")
 
-    #     agent_id, name = make_agent(strategy_id, fixture_file)
-    #     if agent_id is None:
-    #         typer.echo("Error")
-    #         raise typer.Exit(code=1)
-    #     agents[role].append((agent_id, name))
+    contest_files = glob(os.path.join(fixture_dir, "contest-*.json"))
+    contests = []
+    for contest_fixture in contest_files:
+        for arena in arenas:
+            contest = load_contest_fixture(
+                contest_fixture, arena["id"], parts=participants
+            )
+            if contest is None:
+                typer.echo(f"Error loading contest from {contest_fixture}", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"Created contest: {contest['id']}")
+            contests.append(contest)
 
-    # # now that we've got some agents, let's use them
-    # # first lets just print what we've got
-    # typer.echo("Agents created")
-
-    # arena_files = glob(os.path.join(fixture_dir, "arena-*.json"))
-    # arenas = []
-    # for arena_fixture in arena_files:
-    #     arena_id = load_arena_fixture(Path(arena_fixture), players=2, agents=agents)
-    #     typer.echo(f"created arena: {arena_id}")
-    #     arenas.append(arena_id)
-
-    # contest_files = glob(os.path.join(fixture_dir, "contest-*.json"))
-    # contests = []
-    # for contest_fixture in contest_files:
-    #     for arena_id in arenas:
-    #         contest_id = load_contest_fixture(Path(contest_fixture), arena_id)
-    #         typer.echo(f"Created contest: {contest_id}")
-
-    #         contest = httpx.get((f"{BASE_URL}/contest/{contest_id}"))
-    #         c = json.loads(contest.content)
-    #         print(json.dumps(c, indent=4, sort_keys=True))
+    typer.echo(f"Loaded {len(contests)} contests")
 
 
 if __name__ == "__main__":

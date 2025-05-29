@@ -1,0 +1,7 @@
+{
+  "name": "Telemachus",
+  "role": "arena",
+  "description": "Telemachus is the arena participant in the game.",
+  "endpoint": "$ACTOR$/agent/$ID$",
+  "api_key": ""
+}

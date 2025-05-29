@@ -103,7 +103,7 @@ class RequestService:
             message = response.message
         result = await self.queue_service.update_state(
             job.id,
-            JobState.COMPLETE.value,
+            JobState.COMPLETE,
             session,
             message=message,
             data=data,  # type: ignore
@@ -125,7 +125,7 @@ class RequestService:
         if response is not None and response.message is not None:
             message = response.message
         result = await self.queue_service.update_state(
-            job.id, JobState.FAIL.value, session, message=message
+            job.id, JobState.FAIL, session, message=message
         )
 
         return result is not None
