@@ -2,6 +2,7 @@
 Responder controller for Agent Response endpoints
 """
 
+from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 
@@ -18,7 +19,6 @@ from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.requests import HealthStatus
-from nats.aio.msg import Msg
 
 
 class AgentController(

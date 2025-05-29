@@ -1,4 +1,4 @@
-all: roll-logs
+all: checkvenv roll-logs
     just server & just poller & just actor & wait
 
 roll-log FILE ARCHIVE_DIR:
@@ -16,27 +16,27 @@ roll-logs:
     just roll-log actor.log logs
     just roll-log control.log logs
 
-actor: checkvenv
+actor:
     PYTHONPATH=. python scripts/agentarena.actor
 
-control: checkvenv
+control:
     PYTHONPATH=. python scripts/agentarena.controlpanel
 
-arena: checkvenv
+arena:
     just roll-log agentarena-arena.log logs
     PYTHONPATH=. python scripts/agentarena.arena
 
-scheduler: checkvenv
+scheduler:
     just roll-log agentarena-scheduler.log logs
     PYTHONPATH=. python scripts/agentarena.scheduler | tee agentarena-scheduler.log
 
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"
 
-load: checkvenv
+load:
     PYTHONPATH=. python scripts/load_fixtures.py etc/fixtures
 
-test: checkvenv
+test:
     PYTHONPATH=. pytest
 
 lint:

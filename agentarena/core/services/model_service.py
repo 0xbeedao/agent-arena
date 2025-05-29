@@ -3,9 +3,8 @@ Generic model service for the Agent Arena application.
 Provides a reusable service for CRUD operations on any model that inherits from DbBase.
 """
 
-from datetime import datetime
 import json
-from typing import Any
+from datetime import datetime
 from typing import Generic
 from typing import List
 from typing import Optional
