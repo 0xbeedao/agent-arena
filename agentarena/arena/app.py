@@ -116,4 +116,4 @@ if __name__ == "__main__":
     log.info("Starting app with uvicorn")
     # db_service call moved to startup_event to ensure resources are initialized
 
-    uvicorn.run("agentarena.server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("agentarena.arena.app:app", host="0.0.0.0", port=8000, reload=True)

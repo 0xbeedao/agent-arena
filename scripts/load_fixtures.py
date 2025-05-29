@@ -167,12 +167,12 @@ def load_contest_fixture(
         response = httpx.post(f"{ARENA_URL}/contest/", json=contest_req)
         if response.status_code == 200:
             obj = json.loads(response.content)
-            typer.echo(f"Successfully created contest from {fname}: {obj['id']}")
+            typer.echo(f"Successfully created contest from {fname}: '{obj['id']}'")
             return obj
         else:
             print("error with json:\n", fixture_json)
             typer.echo(
-                f"Error loading fixtures: {response.status_code} - {response.text}",
+                f"Error loading fixtures: {response.status_code}\n{response.text}\n{response.content}",
                 err=True,
             )
     except httpx.RequestError as e:
@@ -260,7 +260,7 @@ def load_fixtures(
             if contest is None:
                 typer.echo(f"Error loading contest from {contest_fixture}", err=True)
                 raise typer.Exit(code=1)
-            typer.echo(f"Created contest: {contest['id']}")
+            typer.echo(f"Created contest: {contest['id']} in arena {arena['name']}")
             contests.append(contest)
 
     typer.echo(f"Loaded {len(contests)} contests")

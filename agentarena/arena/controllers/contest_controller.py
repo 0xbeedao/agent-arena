@@ -84,7 +84,7 @@ class ContestController(
         for p in participants:
             contest.participants.append(p)
 
-        # session.commit() # needed?
+        session.commit()
         return contest
 
     # @router.post("/contest/{contest_id}/start", response_model=Dict[str, str])
@@ -153,7 +153,9 @@ class ContestController(
         @router.post("/", response_model=Contest)
         async def create(req: ContestCreate = Body(...)):
             with self.model_service.get_session() as session:
-                return await self.create_contest(req, session)
+                rv = await self.create_contest(req, session)
+                self.log.info("created contest", contest_id=rv.id, state=rv.state)
+                return rv
 
         @router.post("/{contest_id}/start", response_model=ContestPublic)
         async def start(contest_id: str):

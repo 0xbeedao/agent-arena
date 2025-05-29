@@ -5,12 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-        "name": "Debug AgentArena Server",
+        "name": "Debug Arena",
         "type": "debugpy",
         "request": "launch",
-        "module": "agentarena.server",
+        "module": "agentarena.arena.app",
         "python": "/home/bruce/work/agent-arena/.venv/bin/python",
-        "env": {"PYTHONPATH": "/home/bruce/work/agent-arena/src"},
+        "env": {"PYTHONPATH": "/home/bruce/work/agent-arena"},
         "justMyCode": true,
         "console": "integratedTerminal"
         },
@@ -20,7 +20,7 @@
         "request": "launch",
         "module": "agentarena.scheduler.app",
         "python": "/home/bruce/work/agent-arena/.venv/bin/python",
-        "env": {"PYTHONPATH": "/home/bruce/work/agent-arena/src"},
+        "env": {"PYTHONPATH": "/home/bruce/work/agent-arena"},
         "justMyCode": true,
         "console": "integratedTerminal"
         }
