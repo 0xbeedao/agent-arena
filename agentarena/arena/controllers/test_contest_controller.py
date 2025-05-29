@@ -1,3 +1,4 @@
+from unittest.mock import AsyncMock
 import pytest
 
 from agentarena.arena.models import Arena
@@ -29,6 +30,15 @@ def uuid_service(logging):
 
 
 @pytest.fixture
+def message_broker():
+    """Fixture to create a mock message broker"""
+    broker = AsyncMock()
+    broker.publish_model_change = AsyncMock()
+    broker.publish_response = AsyncMock()
+    return broker
+
+
+@pytest.fixture
 def db_service(uuid_service, logging):
     """Fixture to create an in-memory DB service"""
     service = DbService(
@@ -44,11 +54,12 @@ def db_service(uuid_service, logging):
 
 
 @pytest.fixture
-def model_service(db_service, uuid_service, logging):
+def model_service(db_service, uuid_service, message_broker, logging):
     """Fixture to create a ModelService for features"""
-    return ModelService[Contest](
+    return ModelService[Contest, ContestCreate](
         model_class=Contest,
         db_service=db_service,
+        message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -62,10 +73,11 @@ def ctrl(model_service, logging):
 
 
 @pytest.fixture
-def arena_service(db_service, uuid_service, logging):
+def arena_service(db_service, uuid_service, message_broker, logging):
     """Fixture to create a ModelService for Arena"""
-    return ModelService[Arena](
+    return ModelService[Arena, ArenaCreate](
         model_class=Arena,
+        message_broker=message_broker,
         db_service=db_service,
         uuid_service=uuid_service,
         logging=logging,

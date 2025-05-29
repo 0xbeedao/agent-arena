@@ -52,20 +52,22 @@ def db_service(uuid_service, logging):
 
 
 @pytest.fixture
-def job_service(db_service, uuid_service, logging):
+def job_service(db_service, uuid_service, message_broker, logging):
     return ModelService[CommandJob, CommandJobCreate](
         db_service=db_service,
         model_class=CommandJob,
+        message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,
     )
 
 
 @pytest.fixture
-def history_service(db_service, uuid_service, logging):
+def history_service(db_service, uuid_service, message_broker, logging):
     return ModelService[CommandJobHistory, CommandJobHistory](
         db_service=db_service,
         model_class=CommandJobHistory,
+        message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -169,7 +171,7 @@ async def test_update_state(q, db_service, message_broker, mock_nats_client):
         assert updated
 
         # should send final message
-        mock_nats_client.publish.assert_awaited_once()
+        mock_nats_client.publish.assert_awaited()
 
         job = session.get(CommandJob, job_id)
         assert job

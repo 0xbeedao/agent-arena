@@ -69,6 +69,7 @@ def db_service(uuid_service, logging):
 @pytest.fixture
 def svc(message_broker, queue_service, logging):
     svc = RequestService(
+        actor_url="http://localhost:8000",
         arena_url="http://localhost:8000",
         queue_service=queue_service,
         message_broker=message_broker,

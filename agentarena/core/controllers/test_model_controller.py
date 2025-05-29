@@ -1,3 +1,4 @@
+from unittest.mock import AsyncMock
 import pytest
 import ulid
 from fastapi import HTTPException
@@ -26,6 +27,15 @@ def uuid_service(logging):
 
 
 @pytest.fixture
+def message_broker():
+    """Fixture to create a mock message broker"""
+    broker = AsyncMock()
+    broker.publish_model_change = AsyncMock()
+    broker.publish_response = AsyncMock()
+    return broker
+
+
+@pytest.fixture
 def db_service(uuid_service, logging):
     """Fixture to create an in-memory DB service"""
     service = DbService(
@@ -41,10 +51,11 @@ def db_service(uuid_service, logging):
 
 
 @pytest.fixture
-def model_service(db_service, uuid_service, logging):
+def model_service(db_service, uuid_service, message_broker, logging):
     """Fixture to create a ModelService for features"""
     return ModelService[CommandJob, CommandJobCreate](
         model_class=CommandJob,
+        message_broker=message_broker,
         db_service=db_service,
         uuid_service=uuid_service,
         logging=logging,
