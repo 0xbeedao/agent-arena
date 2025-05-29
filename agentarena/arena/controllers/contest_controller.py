@@ -51,7 +51,10 @@ class ContestController(
     ):
         self.participant_service = participant_service
         self.message_broker = message_broker
-        to_subscribe = [("arena.contest.request", self.handle_request)]
+        to_subscribe = [
+            ("arena.contest.request", self.handle_request),
+            ("arena.contest.*.flow.*", self.handle_flow),
+        ]
         super().__init__(
             base_path=base_path,
             model_service=model_service,
@@ -97,6 +100,36 @@ class ContestController(
 
         session.commit()
         return contest
+
+    async def handle_flow(self, msg: Msg):
+        """
+        Handle incoming messages for contest flow updates.
+
+        Args:
+            msg: The message containing the flow data
+        """
+        self.log.info("Handling contest flow message", msg=msg)
+        if not msg.data:
+            self.log.error("No data in message, ignoring")
+            return
+
+        try:
+            parts = msg.subject.split(".")
+            contest_id = parts[2]
+            state = parts[4]
+
+            log = self.log.bind(contest=contest_id, state=state, method="handle_flow")
+            if state == ContestState.STARTING.value:
+
+                log.info("Contest starting flow message received")
+                # Handle starting state
+                await self.message_broker.publish_simple_message(
+                    f"arena.contest.{contest_id}.flow.{ContestState.STARTED.value}",
+                    contest_id,
+                )
+
+        except Exception as e:
+            self.log.error("Failed to handle contest flow message", error=str(e))
 
     async def handle_request(self, msg: Msg):
         """
