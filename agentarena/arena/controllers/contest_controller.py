@@ -88,7 +88,7 @@ class ContestController(
         return contest
 
     # @router.post("/contest/{contest_id}/start", response_model=Dict[str, str])
-    async def start_contest(self, contest_id: str, session: Session) -> Dict[str, str]:
+    async def start_contest(self, contest_id: str, session: Session) -> ContestPublic:
         """
         Start a contest, and returns the ID of the started contest, with everything set up for first round.
 
@@ -109,7 +109,7 @@ class ContestController(
             boundlog.error("failed to get contest data")
             raise HTTPException(status_code=404, detail="internal error")
 
-        if contest.state != ContestState.CREATED.value:
+        if contest.state != ContestState.CREATED:
             boundlog.error(f"contest is not in CREATED state, was: {contest.state}")
             raise HTTPException(
                 status_code=422, detail="Contest is not in CREATED state"
@@ -137,11 +137,11 @@ class ContestController(
 
         # Set contest state to STARTING
         # and update start time
-        contest.state = ContestState.STARTING.value
+        contest.state = ContestState.STARTING
         contest.start_time = int(datetime.now().timestamp())
         await self.model_service.update(contest_id, contest, session)
 
-        return {"id": contest_id}
+        return ContestPublic.model_validate(contest)
 
     def get_router(self):
         prefix = self.base_path
@@ -154,6 +154,11 @@ class ContestController(
         async def create(req: ContestCreate = Body(...)):
             with self.model_service.get_session() as session:
                 return await self.create_contest(req, session)
+
+        @router.post("/{contest_id}/start", response_model=ContestPublic)
+        async def start(contest_id: str):
+            with self.model_service.get_session() as session:
+                return await self.start_contest(contest_id, session)
 
         @router.get("/{obj_id}", response_model=Contest)
         async def get(obj_id: str):

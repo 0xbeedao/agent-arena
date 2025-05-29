@@ -26,6 +26,10 @@ class DashboardView(Static):
     contests = reactive([], recompose=True)
     participants = reactive([], recompose=True)
     strategies = reactive([], recompose=True)
+    arenas_expanded = reactive(False)
+    contests_expanded = reactive(False)
+    participants_expanded = reactive(False)
+    strategies_expanded = reactive(False)
 
     def __init__(self, clients: dict, logger: LoggingService):
         super().__init__()
@@ -35,14 +39,14 @@ class DashboardView(Static):
     def compose(self):
         """Compose dashboard view."""
         with Collapsible(
-            collapsed=True,
+            collapsed=not self.arenas_expanded,
             title="Arenas",
             id="load-arenas",
         ):
             yield DataTable(id="arena-table", classes="arena-table")
 
         with Collapsible(
-            collapsed=True,
+            collapsed=not self.contests_expanded,
             title="Contests",
             id="load-contests",
         ):
@@ -157,6 +161,16 @@ class DashboardView(Static):
         """Handle button presses in main panel."""
         event_id = event.collapsible.id
         log = self._structlog.bind(trigger=event_id)
+
+        # Update expanded state
+        if event_id == "load-arenas":
+            self.arenas_expanded = True
+        elif event_id == "load-contests":
+            self.contests_expanded = True
+        elif event_id == "load-participants":
+            self.participants_expanded = True
+        elif event_id == "load-strategies":
+            self.strategies_expanded = True
         if event_id == "load-arenas":
             await self.load_arenas(log)
         elif event_id == "load-participants":
