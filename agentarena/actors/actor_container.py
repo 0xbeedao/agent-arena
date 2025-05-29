@@ -82,6 +82,7 @@ class ActorContainer(containers.DeclarativeContainer):
         ModelService[Agent, AgentCreate],
         model_class=Agent,
         db_service=db_service,
+        message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -90,6 +91,7 @@ class ActorContainer(containers.DeclarativeContainer):
         ModelService[Strategy, StrategyCreate],
         model_class=Strategy,
         db_service=db_service,
+        message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,
     )

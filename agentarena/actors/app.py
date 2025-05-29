@@ -86,14 +86,13 @@ routers = None
 async def setup_routers():
     """Setup and include all routers."""
     global routers
-    agent_controller = await container.agent_controller()  # type: ignore
     routers = [
-        agent_controller.get_router(),
-        container.strategy_controller().get_router(),
-        # (await container.debug_controller()).get_router(),
+        await container.agent_controller(),  # type: ignore
+        await container.strategy_controller(),  # type: ignore
+        # (await container.debug_controller())
     ]
     for router in routers:
-        app.include_router(router)
+        app.include_router(router.get_router())
 
 
 # Add exception handlers

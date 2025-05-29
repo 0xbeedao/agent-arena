@@ -18,6 +18,7 @@ from sqlmodel import Session
 from sqlmodel import SQLModel
 from sqlmodel import select
 
+from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.dbbase import DbBase
@@ -56,6 +57,7 @@ class ModelService(Generic[T, MC]):
         self,
         model_class: Type[T],
         db_service: DbService,
+        message_broker: MessageBroker,
         uuid_service: UUIDService = Field(description="UUID Service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
@@ -75,6 +77,7 @@ class ModelService(Generic[T, MC]):
 
         self.model_class = model_class
         self.db_service = db_service
+        self.message_broker = message_broker
         self.model_name = model_class.__name__
         self.uuid_service = uuid_service
         self.log = logging.get_logger(
@@ -158,6 +161,9 @@ class ModelService(Generic[T, MC]):
         created = self.db_service.create(parsed_obj, session)
 
         self.log.info(f"Added {self.model_name} {created.id}")
+        await self.message_broker.publish_model_change(
+            f"arena.{self.model_name}.{created.id}.create", created.id
+        )
         self.db_service.add_audit_log(f"Added {self.model_name}: {created.id}", session)
         return created, ModelResponse(
             success=True, id=created.id, validation=validation
@@ -243,6 +249,11 @@ class ModelService(Generic[T, MC]):
         session.add(db_obj)
         session.commit()
         session.refresh(db_obj)
+        await self.message_broker.publish_model_change(
+            f"arena.{self.model_name}.{obj_id}.update",
+            obj_id,
+            detail=json.dumps(obj_data),
+        )
         return db_obj, ModelResponse(success=True)
 
     async def delete(self, obj_id: str, session: Session) -> ModelResponse:
@@ -276,6 +287,9 @@ class ModelService(Generic[T, MC]):
 
         self.log.info(f"Deleted {obj_id}")
         self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}", session)
+        await self.message_broker.publish_model_change(
+            f"arena.{self.model_name}.{obj_id}.delete", obj_id
+        )
         return ModelResponse(success=True, id=obj_id)
 
     async def get_by_ids(self, obj_ids: List[str], session: Session) -> List[T]:

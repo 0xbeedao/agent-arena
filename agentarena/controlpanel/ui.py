@@ -6,9 +6,9 @@ from textual.containers import Horizontal
 from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import Button
-from textual.widgets import DataTable
 from textual.widgets import Collapsible
 from textual.widgets import ContentSwitcher
+from textual.widgets import DataTable
 from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Label

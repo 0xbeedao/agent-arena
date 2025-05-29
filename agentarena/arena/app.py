@@ -42,18 +42,23 @@ async def startup_event():
     db.create_db()
     with db.get_session() as session:
         db.add_audit_log("startup", session)
-    # broker = await container.message_broker()  # type: ignore
-    # for svc in [
-    #     container.debug_controller(),
-    #     await container.queue_service(),  # type: ignore
-    # ]:
-    #     await svc.subscribe_yourself(broker)
+    broker = await container.message_broker()  # type: ignore
+    for svc in [
+        await container.contest_controller(),  # type: ignore
+    ]:
+        await svc.subscribe_yourself(broker)
+
+    await setup_routers()
     log.info("Application startup complete, resources initialized and container wired.")
 
 
 async def shutdown_event():
     """Shutdown resources on application stop."""
-    container.shutdown_resources()
+    for svc in [
+        await container.contest_controller(),  # type: ignore
+    ]:
+        await svc.unsubscribe_yourself()  # type: ignore
+    await container.shutdown_resources()  # type: ignore
 
 
 app.add_event_handler("startup", startup_event)
@@ -69,14 +74,15 @@ app.add_middleware(
 )
 add_logging_middleware(app)
 
-# Include routers
-routers = [
-    container.contest_controller().get_router(),
-    container.arena_controller().get_router(),
-    container.participant_controller().get_router(),
-    container.debug_controller().get_router(),
-]
-[app.include_router(router) for router in routers]
+
+async def setup_routers():
+    routers = [
+        await container.contest_controller(),  # type: ignore
+        await container.arena_controller(),  # type: ignore
+        await container.participant_controller(),  # type: ignore
+        container.debug_controller(),
+    ]
+    [app.include_router(router.get_router()) for router in routers]
 
 
 # Add exception handlers

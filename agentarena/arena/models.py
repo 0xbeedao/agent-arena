@@ -8,6 +8,7 @@ from typing import List
 from typing import Optional
 from urllib.parse import urljoin
 
+from pydantic import BaseModel
 from sqlmodel import JSON
 from sqlmodel import Column
 from sqlmodel import Field
@@ -222,7 +223,7 @@ class Contest(ContestBase, DbBase, table=True):
         for role in ParticipantRole:
             roles[role.value] = []
         for p in self.participants:
-            roles[p.role.value] = p
+            roles[p.role.value].append(p)
         return roles
 
 
@@ -466,3 +467,31 @@ class PlayerAction(PlayerActionBase, DbBase, table=True):
 
 class PlayerActionCreate(PlayerActionBase, table=False):
     pass
+
+
+# --- Requests
+
+
+class ControllerRequest(BaseModel):
+    """
+    Base model for requests to the controller.
+    """
+
+    action: str = Field(description="Action to perform")
+    data: Optional[str] = Field(
+        default="", description="Additional JSON data for the action"
+    )
+    target_id: Optional[str] = Field(default="", description="Contest ID if applicable")
+    subjects: Optional[List[str]] = Field(
+        default=[], description="Arena ID if applicable"
+    )
+
+
+class ModelChangeMessage(BaseModel):
+    """
+    Message sent to the controller when a model changes.
+    """
+
+    action: str = Field(description="Action that triggered the change")
+    model_id: str = Field(description="ID of the changed model")
+    detail: Optional[str] = Field(default="", description="Details about the change")

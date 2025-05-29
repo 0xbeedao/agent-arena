@@ -4,12 +4,13 @@ Handles HTTP requests for contest operations.
 """
 
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Tuple
 from typing import List
 
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
+from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 
@@ -18,21 +19,28 @@ from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestPublic
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import ContestUpdate
+from agentarena.arena.models import ControllerRequest
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
 from agentarena.arena.models import ParticipantRole
+from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
-from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import ILogger, LoggingService
 from agentarena.core.services.model_service import ModelService
+from agentarena.core.services.subscribing_service import SubscribingService
+from agentarena.models.job import JobResponse
+from agentarena.models.job import JobResponseState
 
 
 class ContestController(
-    ModelController[Contest, ContestCreate, ContestUpdate, ContestPublic]
+    ModelController[Contest, ContestCreate, ContestUpdate, ContestPublic],
+    SubscribingService,
 ):
 
     def __init__(
         self,
         base_path: str = "/api",
+        message_broker: MessageBroker = Field(description="Message broker service"),
         model_service: ModelService[Contest, ContestCreate] = Field(
             description="The contest service"
         ),
@@ -42,6 +50,8 @@ class ContestController(
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.participant_service = participant_service
+        self.message_broker = message_broker
+        to_subscribe = [("arena.contest.request", self.handle_request)]
         super().__init__(
             base_path=base_path,
             model_service=model_service,
@@ -49,6 +59,7 @@ class ContestController(
             model_name="contest",
             logging=logging,
         )
+        SubscribingService.__init__(self, to_subscribe, self.log)
 
     # @router.post("/contest", response_model=Dict[str, str])
     async def create_contest(self, req: ContestCreate, session: Session) -> Contest:
@@ -86,6 +97,86 @@ class ContestController(
 
         session.commit()
         return contest
+
+    async def handle_request(self, msg: Msg):
+        """
+        Handle incoming messages for contest requests.
+
+        Args:
+            msg: The message containing the request data
+        """
+        self.log.info("Handling contest request", msg=msg)
+        sane = True
+        message = ""
+        request = None
+        contest_id = ""
+        if not msg.data:
+            self.log.error("No data in message, ignoring")
+            sane = False
+        else:
+            try:
+                request: ControllerRequest | None = (
+                    ControllerRequest.model_validate_json(msg.data.decode("utf-8"))
+                )
+            except Exception as e:
+                self.log.error(
+                    "Failed to parse request data", error=str(e), data=msg.data
+                )
+                sane = False
+
+        if sane and request:
+            contest_id = request.target_id
+            if not contest_id:
+                message = "No contest_id in request"
+                sane = False
+            else:
+                log = self.log.bind(contest=contest_id, action=request.action)
+                action = request.action
+                if action == "start":
+                    sane, message = await self.handle_start_message(
+                        msg, contest_id, log
+                    )
+                else:
+                    message = "Ignoring request"
+                    sane = False
+
+        if sane and contest_id:
+            response = JobResponse(
+                job_id=contest_id,
+                message=message,
+                channel="",
+                state=JobResponseState.COMPLETE,
+                url=f"/api/contest/{contest_id}",
+            )
+        else:
+            response = JobResponse(
+                job_id=contest_id or "unknown",
+                message=message or "Unknown error",
+                channel="",
+                state=JobResponseState.FAIL,
+                url=f"/api/contest/{contest_id or 'unknown'}",
+            )
+
+        await self.message_broker.publish_response(msg, response)
+
+    async def handle_start_message(
+        self, msg: Msg, contest_id: str, log: ILogger
+    ) -> Tuple[bool, str]:
+        log.info("Contest start request received")
+        with self.model_service.get_session() as session:
+            try:
+                result = await self.start_contest(contest_id, session)
+                message = "Contest started successfully"
+                log.info(message, result=result)
+                # await msg.ack()
+                return True, (
+                    result.model_dump_json()
+                    if isinstance(result, ContestPublic)
+                    else result
+                )
+            except HTTPException as e:
+                log.error("Failed to start contest", error=str(e))
+                return False, e.detail
 
     # @router.post("/contest/{contest_id}/start", response_model=Dict[str, str])
     async def start_contest(self, contest_id: str, session: Session) -> ContestPublic:
@@ -140,6 +231,9 @@ class ContestController(
         contest.state = ContestState.STARTING
         contest.start_time = int(datetime.now().timestamp())
         await self.model_service.update(contest_id, contest, session)
+        await self.message_broker.publish_simple_message(
+            f"arena.contest.{contest_id}.flow.{ContestState.STARTING.value}", contest_id
+        )
 
         return ContestPublic.model_validate(contest)
 

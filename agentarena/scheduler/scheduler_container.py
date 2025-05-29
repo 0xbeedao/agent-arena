@@ -98,6 +98,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         ModelService[CommandJob, CommandJobCreate],
         model_class=CommandJob,
         db_service=db_service,
+        message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -106,6 +107,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         ModelService[CommandJobHistory, CommandJobHistory],
         model_class=CommandJobHistory,
         db_service=db_service,
+        message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,
     )
