@@ -1,5 +1,5 @@
 all: roll-logs
-    just server & just poller & wait
+    just server & just poller & just actor & wait
 
 roll-log FILE ARCHIVE_DIR:
     if [ -f "{{FILE}}" ]; then \
@@ -11,8 +11,10 @@ roll-log FILE ARCHIVE_DIR:
     fi
 
 roll-logs:
-    just roll-log agentarena-arena.log logs
-    just roll-log agentarena-scheduler.log logs
+    just roll-log arena.log logs
+    just roll-log scheduler.log logs
+    just roll-log actor.log logs
+    just roll-log control.log logs
 
 actor: checkvenv
     PYTHONPATH=. python scripts/agentarena.actor
@@ -23,7 +25,7 @@ control: checkvenv
 arena: checkvenv
     just roll-log agentarena-arena.log logs
     PYTHONPATH=. python scripts/agentarena.arena
-#  | tee agentarena-arena.log
+
 scheduler: checkvenv
     just roll-log agentarena-scheduler.log logs
     PYTHONPATH=. python scripts/agentarena.scheduler | tee agentarena-scheduler.log
