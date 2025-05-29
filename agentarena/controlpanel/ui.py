@@ -22,6 +22,7 @@ class DashboardView(Static):
     """Main content panel."""
 
     current_view = reactive("dashboard")
+    arenas = reactive([], recompose=True)
     contests = reactive([], recompose=True)
     participants = reactive([], recompose=True)
     strategies = reactive([], recompose=True)
@@ -34,7 +35,14 @@ class DashboardView(Static):
     def compose(self):
         """Compose dashboard view."""
         with Collapsible(
-            collapsed=False,
+            collapsed=True,
+            title="Arenas",
+            id="load-arenas",
+        ):
+            yield DataTable(id="arena-table", classes="arena-table")
+
+        with Collapsible(
+            collapsed=True,
             title="Contests",
             id="load-contests",
         ):
@@ -58,6 +66,41 @@ class DashboardView(Static):
                 for strategy in self.strategies:
                     yield Label(strategy["name"])
 
+    async def load_arenas(self, log: ILogger) -> None:
+        client = self.clients["arena"]
+        assert client, "Missing Arena client"
+        log = log.bind(action="loading arenas")
+        log.info("starting")
+        try:
+            arenas = await client.get("/api/arena/")
+            self.arenas = arenas  # Assign new list to trigger reactive update
+            log.info(f"Loaded {len(arenas)}")
+            log.info(arenas=arenas)
+            rows = [
+                [
+                    a["name"],
+                    a["id"],
+                    a["description"],
+                    a["height"],
+                    a["width"],
+                    a["max_random_features"],
+                ]
+                for a in self.arenas
+            ]
+            table = self.query_one("#arena-table", DataTable)
+            table.clear()
+            table.add_column("Name", width=20)
+            table.add_column("ID", width=30)
+            table.add_column("Description", width=40)
+            table.add_column("Height", width=6)
+            table.add_column("Width", width=6)
+            table.add_column("Feats", width=6)
+            table.add_rows(rows)
+            table.refresh()
+        except Exception as e:
+            log.error(f"Error loading arenas: {str(e)}")
+            self.notify(f"Error loading arenas: {str(e)}", severity="error")
+
     async def load_contests(self, log: ILogger) -> None:
         client = self.clients["arena"]
         assert client, "Missing Arena client"
@@ -76,7 +119,6 @@ class DashboardView(Static):
             table.add_column("State", width=10)
             table.add_rows(rows)
             table.refresh()
-            self.refresh()
         except Exception as e:
             log.error(f"Error loading contests: {str(e)}")
             self.notify(f"Error loading contests: {str(e)}", severity="error")
@@ -115,7 +157,9 @@ class DashboardView(Static):
         """Handle button presses in main panel."""
         event_id = event.collapsible.id
         log = self._structlog.bind(trigger=event_id)
-        if event_id == "load-participants":
+        if event_id == "load-arenas":
+            await self.load_arenas(log)
+        elif event_id == "load-participants":
             await self.load_participants(log)
         elif event_id == "load-contests":
             log.info("loading contests")
