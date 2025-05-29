@@ -6,6 +6,7 @@ from textual.containers import Horizontal
 from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import Button
+from textual.widgets import DataTable
 from textual.widgets import Collapsible
 from textual.widgets import ContentSwitcher
 from textual.widgets import Footer
@@ -21,6 +22,7 @@ class DashboardView(Static):
     """Main content panel."""
 
     current_view = reactive("dashboard")
+    contests = reactive([], recompose=True)
     participants = reactive([], recompose=True)
     strategies = reactive([], recompose=True)
 
@@ -31,7 +33,13 @@ class DashboardView(Static):
 
     def compose(self):
         """Compose dashboard view."""
-        self._structlog.info("participants", p=self.participants)
+        with Collapsible(
+            collapsed=False,
+            title="Contests",
+            id="load-contests",
+        ):
+            yield DataTable(id="contest-table", classes="contest-table")
+
         with Collapsible(
             collapsed=len(self.participants) == 0,
             title="Participants",
@@ -42,12 +50,36 @@ class DashboardView(Static):
             else:
                 for participant in self.participants:
                     yield Label(participant["name"])
+
         with Collapsible(collapsed=True, title="Strategies", id="load-strategies"):
             if not self.strategies:
                 yield Label("Loading ...")
             else:
                 for strategy in self.strategies:
                     yield Label(strategy["name"])
+
+    async def load_contests(self, log: ILogger) -> None:
+        client = self.clients["arena"]
+        assert client, "Missing Arena client"
+        log = log.bind(action="loading contests")
+        log.info("starting")
+        try:
+            contests = await client.get("/api/contest")
+            self.contests = contests  # Assign new list to trigger reactive update
+            log.info(f"Loaded {len(contests)}")
+            log.info(contests=contests)
+            rows = [[c["id"], c["current_round"], c["state"]] for c in self.contests]
+            table = self.query_one("#contest-table", DataTable)
+            table.clear()
+            table.add_column("ID", width=30)
+            table.add_column("Round", width=5)
+            table.add_column("State", width=10)
+            table.add_rows(rows)
+            table.refresh()
+            self.refresh()
+        except Exception as e:
+            log.error(f"Error loading contests: {str(e)}")
+            self.notify(f"Error loading contests: {str(e)}", severity="error")
 
     async def load_participants(self, log: ILogger) -> None:
         client = self.clients["arena"]
@@ -85,6 +117,9 @@ class DashboardView(Static):
         log = self._structlog.bind(trigger=event_id)
         if event_id == "load-participants":
             await self.load_participants(log)
+        elif event_id == "load-contests":
+            log.info("loading contests")
+            await self.load_contests(log)
         elif event_id == "load-strategies":
             log.info("loading strategies")
             await self.load_strategies(log)
