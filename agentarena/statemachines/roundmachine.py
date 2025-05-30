@@ -3,7 +3,7 @@ from statemachine import State
 from statemachine import StateMachine
 
 from agentarena.arena.models import Contest
-from agentarena.core.factories.logger_factory import ILogger, LoggingService
+from agentarena.core.factories.logger_factory import ILogger
 
 
 class RoundMachine(StateMachine):

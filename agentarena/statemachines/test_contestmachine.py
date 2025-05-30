@@ -1,14 +1,15 @@
 from unittest.mock import AsyncMock
-from agentarena.arena.models import Arena, ArenaCreate, ContestCreate
+
+import pytest
+
+from agentarena.arena.models import Arena
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantRole
-from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.statemachines.contestmachine import ContestMachine
-import pytest
 
 
 @pytest.fixture

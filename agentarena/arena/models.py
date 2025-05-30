@@ -6,7 +6,6 @@ from enum import Enum
 from typing import Dict
 from typing import List
 from typing import Optional
-from urllib.parse import urljoin
 
 from pydantic import BaseModel
 from sqlmodel import JSON

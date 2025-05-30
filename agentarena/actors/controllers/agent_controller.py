@@ -3,8 +3,9 @@ Responder controller for Agent Response endpoints
 """
 
 from nats.aio.msg import Msg
-from sqlmodel import Field, select
+from sqlmodel import Field
 from sqlmodel import Session
+from sqlmodel import select
 
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate

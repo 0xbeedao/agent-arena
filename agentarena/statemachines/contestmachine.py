@@ -3,15 +3,17 @@ The Contest State Machine
 """
 
 import json
-from typing import Any, List
+from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
 
 from nats.aio.msg import Msg
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import Contest, ContestState
+from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestState
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.uuid_service import UUIDService
@@ -29,19 +31,20 @@ class ContestMachine(StateMachine):
     Top-level Contest machine that manages the overall contest flow.
 
     States:
-    - Idle: Initial state
-    - InSetup: State for setup
-    - Ready: State for ready
-    - InRound: State for round
-    - CheckingEnd: State for checking end
-    - Completed: Final state
+    - Starting: Initial state
+    - Role_Call: State for checking participant roles
+    - Setup_Arena: State for setting up the arena
+    - In_Round: State for round
+    - Check_End: State for checking end conditions
+    - Fail: State for handling errors
+    - Complete: Final state
     """
 
     starting = State("starting", initial=True)
     role_call = State("role_call")
     setup_arena = State("setup_arena")
     in_round = State("in_round")
-    check_win = State("check_win")
+    check_end = State("check_end")
     fail = State("fail", final=True)
     complete = State("complete", final=True)
 
@@ -51,10 +54,10 @@ class ContestMachine(StateMachine):
     roles_error = role_call.to(fail)
     setup_done = setup_arena.to(in_round)
     setup_error = setup_arena.to(fail)
-    round_complete = in_round.to(check_win)
+    round_complete = in_round.to(check_end)
     round_error = in_round.to(fail)
-    winner_found = check_win.to(complete)
-    no_winner = check_win.to(in_round)
+    contest_complete = check_end.to(complete)
+    more_rounds = check_end.to(in_round)
 
     def __init__(
         self,

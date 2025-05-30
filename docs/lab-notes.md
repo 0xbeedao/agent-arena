@@ -243,3 +243,19 @@ hydrating all the history won't be so manual.
 Almost done with the SQLAlchemy conversion
 
 Need to move the `get_session` calls to the router methods - so that i can use the controller methods without starting a new session.
+
+## 2025-05-30 08:58:16
+
+Oops, didn't take notes for a bit.
+
+- I have completed and merged the SQLAlchemy conversion.
+- Updated model docs, DeepSeek did a great job there.
+- Refactored app packages, making clear the split in the different apps.
+- Made a base ControlPanel app
+- Gotten the Contest State Machine working through the first step - role_call
+
+Next up:
+
+- [ ] Add messaging to contest machine state changes
+- [ ] Move forward to the setup machine step
+- [ ] Make the CP have a contest status page that listens to events and updates the contest page

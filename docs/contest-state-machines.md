@@ -1,18 +1,21 @@
 ```mermaid
 stateDiagram-v2
   %% Top‐level Contest machine
-  [*] --> Idle
-
-  Idle --> InSetup                 : Start Contest
-  InSetup --> Ready                : SetupMachine.done
-  Ready --> InRound                : Start Round
-  InRound --> CheckingEnd          : RoundMachine.done
-  CheckingEnd --> Completed        : End Condition Met
-  CheckingEnd --> Ready            : More Rounds Remain
-  Completed --> [*]
-
+  [*] --> Starting
+  Starting --> Role_Call           : Start Contest
+  Role_Call --> Setup_Arena        : Batch complete
+  Role_Call --> Fail               : Error checking in
+  Setup_Arena --> Check_Setup      : Review results
+  Check_Setup --> In_Round         : Start Round
+  Check_Setup --> Fail             : Error or Failure
+  In_Round --> Check_End           : RoundMachine.done
+  Check_End --> Fail               : Error or Failure
+  Check_End --> Complete           : End Condition Met
+  Check_End --> In_Round           : More Rounds Remain
+  Complete --> [*]
+  
   %% Nested Setup machine inside InSetup
-  state InSetup {
+  state Setup_Arena {
     [*] --> GeneratingFeatures
     GeneratingFeatures --> GeneratingPositions : Features Generated
     GeneratingPositions --> DescribingSetup    : Positions Generated
@@ -20,7 +23,7 @@ stateDiagram-v2
   }
 
   %% Nested Round machine inside InRound
-  state InRound {
+  state In_Round {
     [*] --> RoundPrompting
     RoundPrompting --> AwaitingActions    : Prompt Sent
     AwaitingActions --> JudgingActions    : Actions Received
@@ -29,4 +32,7 @@ stateDiagram-v2
     DescribingResults --> PresentingResults: Results Ready
     PresentingResults --> [*]             : Round Complete
   }
+
+  Fail --> [*]
+
 ```
