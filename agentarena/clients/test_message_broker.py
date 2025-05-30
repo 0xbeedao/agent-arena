@@ -117,7 +117,7 @@ def test_make_child():
     parent_job = CommandJob(
         id="parent-id",
         channel="parent.command",
-        data={"parent": "data"},
+        data='{"parent": "data"}',
         method="POST",
         priority=2,
         send_at=int(datetime.now().timestamp()),

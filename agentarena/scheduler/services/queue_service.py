@@ -218,7 +218,7 @@ class QueueService(SubscribingService):
             rows = session.exec(stmt).all()
             last = rows.pop() if rows else None
             data = last.data if last else {}
-            child_data.append(make_response(child, data, message))
+            child_data.append(make_response(child, json.dumps(data), message))
 
         res.child_data = child_data
 
@@ -291,7 +291,9 @@ class QueueService(SubscribingService):
 
         if response.success and state in FINAL_STATES and sent is not None:
             log.debug("Sending message for final state")
-            await self.send_final_message(sent, session, message=message, data=data)
+            await self.send_final_message(
+                sent, session, message=message, data={"final": data}
+            )
 
         if sent and sent.parent_id:
             log.info("Starting update_parent_states for child request")

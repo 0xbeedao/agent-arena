@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from typing import List
 
 from fastapi import APIRouter
@@ -76,9 +77,11 @@ class DebugController(SubscribingService):
         delay = req.delay or 0
         send_at = int(datetime.now().timestamp()) + delay
 
+        data = req.data or {}
+
         batchreq = CommandJobCreate(
             channel="scheduler.debug.batch",
-            data=req.data or {},
+            data=json.dumps(data),
             method="MESSAGE",
             priority=5,
             send_at=send_at,

@@ -3,7 +3,7 @@ from statemachine import State
 from statemachine import StateMachine
 
 from agentarena.arena.models import Contest
-from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import ILogger, LoggingService
 
 
 class RoundMachine(StateMachine):
@@ -44,13 +44,11 @@ class RoundMachine(StateMachine):
     def __init__(
         self,
         contest: Contest,
-        logging: LoggingService = Field(description="Logger factory"),
+        log: ILogger = Field(description="Logger"),
     ):
         """Initialize the round machine."""
         self.contest = contest
-        self.log = logging.get_logger(
-            "machine", contest=contest.id if contest else "none"
-        )
+        self.log = log
         super().__init__()
 
     def on_enter_round_prompting(self):

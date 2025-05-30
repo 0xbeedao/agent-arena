@@ -11,7 +11,7 @@ from nats.aio.msg import Msg
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import Contest
+from agentarena.arena.models import Contest, ContestState
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.uuid_service import UUIDService
@@ -71,7 +71,10 @@ class ContestMachine(StateMachine):
         self.uuid_service = uuid_service
         self.log = log
         self.subscriptions = {}
-        super().__init__()
+        state = contest.state.value if contest.state else ContestState.STARTING.value
+        if state == ContestState.CREATED.value:
+            state = ContestState.STARTING.value
+        super().__init__(start_value=state)
 
     async def handle_role_call(self, msg: Msg):
         """
@@ -140,7 +143,7 @@ class ContestMachine(StateMachine):
     def on_enter_in_round(self):
         """Called when entering the InRound state."""
         # Create a new round machine when entering the InRound state
-        self._round_machine = RoundMachine(self.contest, logging=self.logging)
+        self._round_machine = RoundMachine(self.contest, log=self.log)
 
     def on_enter_checking_end(self):
         """Called when entering the CheckingEnd state."""
@@ -168,7 +171,7 @@ class ContestMachine(StateMachine):
         Returns:
             Optional[RoundMachine]: The round machine or None if not in InRound state.
         """
-        if not self.in_round.is_active:
+        if not self.current_state == self.in_round:
             return None
         return self._round_machine
 
@@ -192,7 +195,7 @@ class ContestMachine(StateMachine):
         """
         if self._round_machine is None:
             return False
-        return self._round_machine.presenting_results.is_active
+        return True
 
     def get_state_dict(self) -> Dict[str, Any]:
         """
@@ -208,8 +211,8 @@ class ContestMachine(StateMachine):
         if self.in_setup.is_active and self._setup_machine is not None:
             result["setup_state"] = self._setup_machine.current_state.id
 
-        if self.in_round.is_active and self._round_machine is not None:
-            result["round_state"] = self._round_machine.current_state.id
+        # if self.in_round.is_active and self._round_machine is not None:
+        #     result["round_state"] = self._round_machine.current_state.id
 
         return result
 

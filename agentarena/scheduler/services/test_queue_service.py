@@ -106,7 +106,7 @@ async def test_get(q, db_service):
         id="testget",
         channel="job.request.url",
         method="GET",
-        data={"test": "toast"},
+        data='{"test": "toast"}',
         url="/test",
     )
     with db_service.get_session() as session:
