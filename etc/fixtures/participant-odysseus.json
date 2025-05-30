@@ -2,6 +2,6 @@
   "name": "Odysseus",
   "role": "announcer",
   "description": "Odysseus is the announcer for the game, providing updates and commentary.",
-  "endpoint": "$ACTOR$/agent/$ID$",
+  "endpoint": "$ACTOR$/api/agent/$ID$",
   "api_key": ""
 }

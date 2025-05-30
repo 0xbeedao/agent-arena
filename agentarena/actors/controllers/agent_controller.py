@@ -3,7 +3,7 @@ Responder controller for Agent Response endpoints
 """
 
 from nats.aio.msg import Msg
-from sqlmodel import Field
+from sqlmodel import Field, select
 from sqlmodel import Session
 
 from agentarena.actors.models import Agent
@@ -59,44 +59,49 @@ class AgentController(
         Handle healthcheck requests for agents.
         """
         self.log.info("healthcheck message received", msg=msg)
-        agent_id = msg.data.decode("utf-8")
+        participant_id = msg.data.decode("utf-8")
         with self.model_service.db_service.get_session() as session:
-            response = await self.healthcheck(agent_id, session)
+            response = await self.healthcheck(participant_id, session)
             await self.message_broker.publish_response(msg, response)
 
-    async def healthcheck(self, agent_id: str, session: Session) -> JobResponse:
-        agent, response = await self.model_service.get(agent_id, session)
+    async def healthcheck(self, participant_id: str, session: Session) -> JobResponse:
+        stmt = select(Agent).where(Agent.participant_id == participant_id)
+
+        agent = session.exec(stmt).one_or_none()
+
         uuid = self.uuid_service.make_id()
         self.log.info(
             "healthcheck",
-            agent_id=agent_id,
+            participant_id=participant_id,
             participant=agent,
             uuid=uuid,
         )
 
-        if not response.success or not agent:
+        if not agent:
             return JobResponse(
                 channel="",
                 state=JobResponseState.FAIL,
-                message=f"no such responder: {agent_id}",
+                message=f"no such responder: {participant_id}",
                 job_id=uuid,
                 data=HealthStatus(
-                    name=agent_id,
+                    name=participant_id,
                     state="FAIL",
                     version="1",
-                ).model_dump(),
+                ).model_dump_json(),
             )
 
         self.log.info("healthcheck complete", uuid=uuid)
 
-        channel = f"actor.agent.health.response.{agent_id}"
+        channel = f"actor.agent.health.response.{participant_id}"
         response = JobResponse(
             channel=channel,
             state=JobResponseState.COMPLETE,
             message="OK",
             job_id=uuid,
-            data=HealthStatus(name=agent.name, state="OK", version="1").model_dump(),
-            url=f"{self.base_path}/{agent_id}/health",
+            data=HealthStatus(
+                name=agent.name, state="OK", version="1"
+            ).model_dump_json(),
+            url=f"{self.base_path}/{participant_id}/health",
         )
         return response
 

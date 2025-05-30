@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from typing import Any
 from typing import Dict
 from typing import Mapping
@@ -33,7 +34,7 @@ JOBSTATE_TO_RESPONSESTATE = {
 }
 
 
-def make_response(job: CommandJob, data: Dict, message: str):
+def make_response(job: CommandJob, data: str, message: str):
     state = JOBSTATE_TO_RESPONSESTATE.get(job.state, None)
     if not state:
         # should never happen, unless we add more states to JobState
@@ -133,7 +134,7 @@ class QueueService(SubscribingService):
         job_id,
         session,
         message="requeue",
-        data: Optional[Mapping[str, Any]] = {},
+        data: Optional[str] = None,
         delay: int = 0,
     ) -> CommandJob | None:
         return await self.update_state(
@@ -174,14 +175,21 @@ class QueueService(SubscribingService):
         if failed:
             state = JobState.FAIL
         elif complete:
-            if batch.url:
-                # this will kick off the final request
+            is_batch = batch.channel and batch.method.lower() == "message"
+            is_batch = batch or batch.url
+            if is_batch:
+                log.info("Batch is complete, updating to IDLE to send final message")
                 state = JobState.IDLE
 
         log.debug("info from validation", info=info, state=state)
         if state and state != batch.state:
             # this will kick off revalidation of parents as well, if needed
-            await self.update_state(batch.id, state, session, message=",".join(info))
+            await self.update_state(
+                batch.id,
+                state,
+                session,
+                message=",".join(info),
+            )
             return True
         return True
 
@@ -214,6 +222,7 @@ class QueueService(SubscribingService):
 
         res.child_data = child_data
 
+        log.debug("Final response", channel=job.channel, response=res.model_dump_json())
         await self.message_broker.send_response(job.channel, res)
 
     async def update_parent_states(self, job: CommandJob, session: Session):
@@ -236,7 +245,7 @@ class QueueService(SubscribingService):
         state: JobState,
         session: Session,
         message: str = "",
-        data: Optional[Mapping[str, Any]] = {},
+        data: Optional[str] = None,
         delay=0,
     ) -> CommandJob | None:
 
@@ -271,7 +280,7 @@ class QueueService(SubscribingService):
                 from_state=old_state,
                 to_state=state,
                 message=message,
-                data=data,  # type: ignore
+                data=data,
             ),
             session,
         )

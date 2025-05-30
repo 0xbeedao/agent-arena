@@ -96,7 +96,7 @@ class DebugController(SubscribingService):
                 UrlJobRequest(
                     url=url,
                     method="GET",
-                    data={},
+                    data=None,
                     delay=0,
                 )
                 for url in req.urls
@@ -119,7 +119,7 @@ class DebugController(SubscribingService):
             message="test",
             data=HealthStatus(
                 name="debug_controller", state="OK", version="1"
-            ).model_dump(),
+            ).model_dump_json(),
             url="",
         )
 

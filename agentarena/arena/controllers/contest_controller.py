@@ -4,8 +4,9 @@ Handles HTTP requests for contest operations.
 """
 
 from datetime import datetime
-from typing import Dict, Tuple
+from typing import Dict
 from typing import List
+from typing import Tuple
 
 from fastapi import APIRouter
 from fastapi import Body
@@ -25,11 +26,13 @@ from agentarena.arena.models import ParticipantCreate
 from agentarena.arena.models import ParticipantRole
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
-from agentarena.core.factories.logger_factory import ILogger, LoggingService
+from agentarena.core.factories.logger_factory import ILogger
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
+from agentarena.statemachines.contestmachine import ContestMachine
 
 
 class ContestController(
@@ -122,11 +125,32 @@ class ContestController(
             if state == ContestState.STARTING.value:
 
                 log.info("Contest starting flow message received")
-                # Handle starting state
-                await self.message_broker.publish_simple_message(
-                    f"arena.contest.{contest_id}.flow.{ContestState.STARTED.value}",
-                    contest_id,
-                )
+                with self.model_service.get_session() as session:
+                    contest, response = await self.model_service.get(
+                        contest_id, session
+                    )
+                    if not response.success:
+                        log.error("Failed to get contest", error=response.validation)
+                        return
+
+                    if not contest:
+                        log.error("Contest not found")
+                        return
+
+                    # Create the contest machine
+                    machine = ContestMachine(
+                        contest=contest,
+                        message_broker=self.message_broker,
+                        uuid_service=self.model_service.uuid_service,
+                        log=log,
+                    )
+                    await machine.activate_initial_state()  # type: ignore
+                    await machine.start_contest("start_contest")
+                    log.info(
+                        "started contest machine",
+                        contest_id=contest_id,
+                        state=machine.current_state.id,
+                    )
 
         except Exception as e:
             self.log.error("Failed to handle contest flow message", error=str(e))
@@ -264,7 +288,7 @@ class ContestController(
         contest.state = ContestState.STARTING
         contest.start_time = int(datetime.now().timestamp())
         await self.model_service.update(contest_id, contest, session)
-        await self.message_broker.publish_simple_message(
+        await self.message_broker.send_message(
             f"arena.contest.{contest_id}.flow.{ContestState.STARTING.value}", contest_id
         )
 

@@ -2,6 +2,6 @@
   "name": "Penelope",
   "role": "judge",
   "description": "Penelope is a judge in the game, overseeing the proceedings and ensuring fairness.",
-  "endpoint": "$ACTOR$/agent/$ID$",
+  "endpoint": "$ACTOR$/api/agent/$ID$",
   "api_key": ""
 }

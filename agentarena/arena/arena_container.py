@@ -18,10 +18,8 @@ from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
 from agentarena.arena.models import ParticipantPublic
 from agentarena.arena.models import ParticipantUpdate
-from agentarena.clients.message_broker import (
-    MessageBroker,
-    get_message_broker_connection,
-)
+from agentarena.clients.message_broker import MessageBroker
+from agentarena.clients.message_broker import get_message_broker_connection
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root

@@ -25,6 +25,9 @@ class AgentBase(SQLModel, table=False):
         default="",
         description="Name of the agent participant - should match the participant name",
     )
+    participant_id: str = Field(
+        description="ID of the participant, NOT a foreign key, because this is a separate database",
+    )
     strategy_id: str = Field(foreign_key="strategy.id")
 
 

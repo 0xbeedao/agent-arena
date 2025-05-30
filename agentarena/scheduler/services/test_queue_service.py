@@ -252,7 +252,7 @@ async def test_batch_state_updates(q, db_service, job_service):
     batch_req = CommandJobCreate(
         channel="test.batch.request",
         method="MESSAGE",
-        data={"batch": "data"},
+        data='{"batch": "data"}',
         state=JobState.REQUEST,
         url="/batch",
     )
@@ -262,12 +262,12 @@ async def test_batch_state_updates(q, db_service, job_service):
         UrlJobRequest(
             method="GET",
             url="/request1",
-            data={"req": "1"},
+            data='{"req": "1"}',
         ),
         UrlJobRequest(
             method="GET",
             url="/request2",
-            data={"req": "2"},
+            data='{"req": "2"}',
         ),
     ]
 
@@ -335,8 +335,8 @@ async def test_batch_with_failed_child(
 
     # Create request summaries for child jobs
     requests = [
-        UrlJobRequest(method="GET", url="/request1", data={}),
-        UrlJobRequest(method="GET", url="/request2", data={}),
+        UrlJobRequest(method="GET", url="/request1", data=None),
+        UrlJobRequest(method="GET", url="/request2", data=None),
     ]
 
     batch_id = ""

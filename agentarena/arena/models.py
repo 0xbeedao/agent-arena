@@ -34,13 +34,19 @@ class ContestState(str, Enum):
     Status of a contest.
     """
 
+    # Initial states
     CREATED = "created"
+
+    # In progress states
     STARTING = "starting"
-    STARTED = "started"
-    PAUSED = "paused"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    ROLE_CALL = "role_call"
+    SETUP_ARENA = "setup_arena"
+    IN_ROUND = "in_round"
+    CHECK_WIN = "check_win"
+
+    # Final states
+    FAIL = "fail"
+    COMPLETE = "complete"
 
 
 class FeatureOriginType(str, Enum):
@@ -373,8 +379,10 @@ class Participant(ParticipantBase, DbBase, table=True):
     """
 
     def url(self, path: str = ""):
-        cleaned = urljoin(self.endpoint, path)
-        return cleaned.replace("$ID$", self.id)
+        cleaned = self.endpoint.replace("$ID$", self.id or "unknown")
+        if not cleaned.endswith("/"):
+            cleaned += "/"
+        return f"{cleaned}{path}"
 
     contests: List[Contest] = Relationship(
         back_populates="participants", link_model=ContestParticipant

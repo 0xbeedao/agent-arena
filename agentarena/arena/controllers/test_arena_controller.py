@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock
+
 import pytest
 
 from agentarena.arena.controllers.arena_controller import ArenaController

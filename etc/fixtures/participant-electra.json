@@ -2,6 +2,6 @@
   "name": "Electra",
   "role": "player",
   "description": "Test Player",
-  "endpoint": "$ACTOR$/agent/$ID$",
+  "endpoint": "$ACTOR$/api/agent/$ID$",
   "api_key": ""
 }

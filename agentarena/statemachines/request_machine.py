@@ -81,6 +81,8 @@ class RequestMachine(StateMachine):
         method = self.job.method.lower()
         if method == "message":
             return await self.send_message()
+        elif method == "final":
+            return await self.sent_message("final")
         return await self.send_request()
 
     async def send_message(self):
@@ -88,11 +90,11 @@ class RequestMachine(StateMachine):
         log = self.log.bind(job=job, method="send_message")
         try:
             # url on the outbound, channel on final response
-            channel = job.url or None
+            channel = job.url or job.channel
             if not channel:
                 log.warn("No channel available for message, cannot send")
                 return None
-            data = job.data or {}
+            data = job.data or ""
             log = log.bind(channel=channel, data=data)
             log.info("sending message")
             await self.message_broker.send_message(channel, data)
@@ -112,7 +114,12 @@ class RequestMachine(StateMachine):
             url = self._resolve_url()
             data = self.job.data
             self.log.info("requesting", url=url, data=data)
-            response = httpx.Client().request(method, url, data=data)
+            if data is None or data == "":
+                obj = {}
+            else:
+                obj = json.loads(data) if isinstance(data, str) else data
+
+            response = httpx.Client().request(method, url, data=obj)
             await self.receive_response(response)
         except Exception as e:
             self.log.error(

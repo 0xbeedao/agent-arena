@@ -23,7 +23,7 @@ class JobController(
     def __init__(
         self,
         base_path: str = "/api",
-        model_service: ModelService[CommandJob] = Field(
+        model_service: ModelService[CommandJob, CommandJobCreate] = Field(
             description="The CommandJob model service"
         ),
         logging: LoggingService = Field(description="Logger factory"),
@@ -54,10 +54,12 @@ class JobController(
 
         @router.post("/", response_model=CommandJobPublic)
         async def create(req: CommandJobCreate = Body(...)):
-            return await self.create_model(req)
+            with self.model_service.get_session() as session:
+                return await self.create_model(req, session)
 
         @router.get("/{obj_id}", response_model=CommandJobPublic)
         async def get(obj_id: str):
-            return await self.get_model(obj_id)
+            with self.model_service.get_session() as session:
+                return await self.get_model(obj_id, session)
 
         return router

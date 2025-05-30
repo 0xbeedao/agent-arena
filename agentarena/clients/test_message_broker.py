@@ -44,11 +44,11 @@ async def test_send_job(message_broker, mock_nats_client):
     test_job = CommandJobCreate(
         id="test",
         channel="test.command",
-        data={"key": "value"},
+        data='{"key": "value"}',
         method="POST",
         priority=1,
         send_at=int(datetime.now().timestamp()),
-        state=JobState.IDLE.value,
+        state=JobState.IDLE,
         url="",
     )
 
@@ -73,7 +73,7 @@ async def test_send_job_with_prefix(message_broker, mock_nats_client):
         method="POST",
         priority=1,
         send_at=send_at,
-        state=JobState.IDLE.value,
+        state=JobState.IDLE,
         url="",
     )
 
@@ -86,18 +86,18 @@ async def test_send_job_with_prefix(message_broker, mock_nats_client):
 async def test_send_batch(message_broker, mock_nats_client):
     parent_job = CommandJob(
         channel="parent.command",
-        data={"parent": "data"},
+        data='{"parent": "data"}',
         method="POST",
         priority=2,
         send_at=int(datetime.now().timestamp()),
-        state=JobState.IDLE.value,
+        state=JobState.IDLE,
         id="",
         url="",
     )
 
     child_request = UrlJobRequest(
         channel="child.command",
-        data={"child": "data"},
+        data="",
         method="GET",
         delay=0,
         url="http://example.com",
@@ -121,13 +121,13 @@ def test_make_child():
         method="POST",
         priority=2,
         send_at=int(datetime.now().timestamp()),
-        state=JobState.IDLE.value,
+        state=JobState.IDLE,
         url="",
     )
 
     child_request = UrlJobRequest(
         channel="child.command",
-        data={"child": "data"},
+        data='{"child": "data"}',
         method="GET",
         delay=10,
         url="http://example.com",
@@ -137,7 +137,7 @@ def test_make_child():
 
     assert child_job.parent_id == "parent-id"
     assert child_job.channel == "child.command"
-    assert child_job.data == {"child": "data"}
+    assert child_job.data == '{"child": "data"}'
     assert child_job.method == "GET"
     assert child_job.priority == 1  # parent.priority - 1
     assert child_job.send_at == parent_job.send_at + 10

@@ -17,18 +17,20 @@ roll-logs:
     just roll-log control.log logs
 
 actor:
+    just roll-log actor.log logs
     PYTHONPATH=. python scripts/agentarena.actor
 
 control:
+    just roll-log control.log logs
     PYTHONPATH=. python scripts/agentarena.controlpanel
 
 arena:
-    just roll-log agentarena-arena.log logs
+    just roll-log arena.log logs
     PYTHONPATH=. python scripts/agentarena.arena
 
 scheduler:
-    just roll-log agentarena-scheduler.log logs
-    PYTHONPATH=. python scripts/agentarena.scheduler | tee agentarena-scheduler.log
+    just roll-log scheduler.log logs
+    PYTHONPATH=. python scripts/agentarena.scheduler
 
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"

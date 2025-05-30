@@ -2,16 +2,23 @@
 The Contest State Machine
 """
 
-from typing import Any
+import json
+from typing import Any, List
 from typing import Dict
 from typing import Optional
 
-from sqlmodel import Field
+from nats.aio.msg import Msg
 from statemachine import State
 from statemachine import StateMachine
 
 from agentarena.arena.models import Contest
-from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.clients.message_broker import MessageBroker
+from agentarena.core.factories.logger_factory import ILogger
+from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.job import CommandJob
+from agentarena.models.job import CommandJobBatchRequest
+from agentarena.models.job import JobState
+from agentarena.models.job import UrlJobRequest
 
 from .roundmachine import RoundMachine
 from .setupmachine import SetupMachine
@@ -30,42 +37,105 @@ class ContestMachine(StateMachine):
     - Completed: Final state
     """
 
-    idle = State("Idle", initial=True)
-    in_setup = State("InSetup")
-    ready = State("Ready")
-    in_round = State("InRound")
-    checking_end = State("CheckingEnd")
-    completed = State("Completed", final=True)
+    starting = State("starting", initial=True)
+    role_call = State("role_call")
+    setup_arena = State("setup_arena")
+    in_round = State("in_round")
+    check_win = State("check_win")
+    fail = State("fail", final=True)
+    complete = State("complete", final=True)
 
     # Transitions
-    start_contest = idle.to(in_setup)
-    setup_done = in_setup.to(ready)
-    start_round = ready.to(in_round)
-    round_done = in_round.to(checking_end)
-    end_condition_met = checking_end.to(completed)
-    more_rounds_remain = checking_end.to(ready)
+    start_contest = starting.to(role_call)
+    roles_present = role_call.to(setup_arena)
+    roles_error = role_call.to(fail)
+    setup_done = setup_arena.to(in_round)
+    setup_error = setup_arena.to(fail)
+    round_complete = in_round.to(check_win)
+    round_error = in_round.to(fail)
+    winner_found = check_win.to(complete)
+    no_winner = check_win.to(in_round)
 
     def __init__(
         self,
         contest: Contest,
-        logging: LoggingService = Field(description="Logger factory"),
+        message_broker: MessageBroker,
+        uuid_service: UUIDService,
+        log: ILogger,
     ):
         """Initialize the contest machine."""
         self._setup_machine = None
         self._round_machine = None
         self.contest = contest
-        self.logging = logging
-        self.log = logging.get_logger(
-            "machine", contest=contest.id if contest is not None else "none"
-        )
+        self.message_broker = message_broker
+        self.uuid_service = uuid_service
+        self.log = log
+        self.subscriptions = {}
         super().__init__()
 
-    def on_enter_in_setup(self):
+    async def handle_role_call(self, msg: Msg):
+        """
+        Handle the role call message.
+
+        This method is called when a role call message is received.
+        It processes the message and transitions to the next state if needed.
+        """
+        self.log.info("Handling role call message", msg=msg)
+        self.log.warn("PROCESSING STOPPED - role call not implemented yet")
+        # if not self.role_call.is_active:
+        #     self.log.warn("Role call not active, ignoring message")
+        #     return
+
+        # # Process the role call message
+        # # Here you would typically check the content of the message
+        # # and decide whether to transition to the next state or not.
+        # # For now, we will just transition to setup_arena.
+        # await self.roles_present()
+
+    async def on_enter_role_call(self):
         """Called when entering the InSetup state."""
-        # Create a new setup machine when entering the InSetup state
-        print("Creating setup machine")
-        self._setup_machine = SetupMachine(self.contest, logging=self.logging)
-        print(f"Current setup machine state {self._setup_machine.current_state.id}")
+        job_id = self.uuid_service.make_id()
+        channel = f"arena.contest.{self.contest.id}.role_call"
+        if self.subscriptions.get(channel):
+            self.log.debug(f"Already subscribed to {channel}, skipping subscription")
+        else:
+            sub = await self.message_broker.client.subscribe(
+                channel, cb=self.handle_role_call
+            )
+            self.log.debug(f"Subscribed to {channel}")
+            self.subscriptions[channel] = sub
+
+        batchJob = CommandJob(
+            id=job_id,
+            channel=channel,
+            method="FINAL",
+            send_at=0,
+            priority=5,
+            state=JobState.IDLE,
+            url="",
+        )
+        children: List[UrlJobRequest] = []
+        for p in self.contest.participants:
+            url = p.url("health")
+            self.log.debug(f"Creating child job for participant {p.id} with URL {url}")
+            data = {"contest_id": self.contest.id}
+            ur = UrlJobRequest(
+                url=url,
+                method="GET",
+                channel=f"{channel}.{p.id}",
+                data=json.dumps(data),
+            )
+            children.append(ur)
+
+        batch = CommandJobBatchRequest(batch=batchJob, children=children)
+
+        await self.message_broker.send_batch(batch)
+
+    def on_enter_setup_arena(self):
+        """Called when entering the SetupArena state."""
+        # Initialize the setup machine if it exists
+        if self._setup_machine is not None:
+            self._setup_machine.initialize_setup()
 
     def on_enter_in_round(self):
         """Called when entering the InRound state."""

@@ -30,7 +30,7 @@ messagebroker:
 
 scheduler:
   db:
-    filename: <projectroot>/arena.db
+    filename: <projectroot>/scheduler.db
   delay: 1
   logging:
     level: DEBUG

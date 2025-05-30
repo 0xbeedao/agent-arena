@@ -78,16 +78,6 @@ class MessageBroker:
         log.debug("Publishing response to channel", channel=channel, response=json)
         await self.client.publish(channel, json.encode("utf-8"))
 
-    async def publish_simple_message(self, channel: str, payload: str):
-        """
-        Publish a simple message to the message broker.
-        """
-        log = self.log.bind(channel=channel, payload=payload)
-        log.debug("Publishing simple message")
-        if self.prefix and not channel.startswith(f"{self.prefix}."):
-            channel = f"{self.prefix}.{channel}"
-        await self.client.publish(channel, payload.encode("utf-8"))
-
     async def send_job(self, req: CommandJob):
         """
         sends a job to the scheduler
@@ -103,8 +93,7 @@ class MessageBroker:
             obj.channel = f"{self.prefix}.{obj.channel}"
         json = obj.model_dump_json()
 
-        self.log.debug("Publishing", job=json)
-        await self.client.publish(obj.channel, json.encode("utf-8"))
+        await self.send_message("arena.request.job", json)
 
     async def send_batch(self, req: CommandJobBatchRequest):
         """
@@ -121,10 +110,9 @@ class MessageBroker:
         for job in jobs:
             await self.send_job(job)
 
-    async def send_message(self, channel: str, payload: Mapping[str, Any]):
+    async def send_message(self, channel: str, payload: str):
         self.log.debug("Sending message", channel=channel, payload=payload)
-        json = orjson.dumps(payload)
-        await self.client.publish(channel, json)
+        await self.client.publish(channel, payload.encode("utf-8"))
 
     async def send_response(self, channel: str, res: JobResponse):
         """
@@ -136,4 +124,4 @@ class MessageBroker:
         if self.prefix and not channel.startswith(f"{self.prefix}."):
             dest = f"{self.prefix}.{dest}"
 
-        await self.client.publish(dest, json.encode("utf-8"))
+        await self.send_message(dest, json)

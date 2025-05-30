@@ -95,7 +95,7 @@ class RequestService:
         Handle a completed job.
         """
         self.log.info("Job complete", job=getattr(job, "id", None))
-        data = {}
+        data = None
         if response is not None:
             data = response.model_dump_json()
         message: str = ""
@@ -106,7 +106,7 @@ class RequestService:
             JobState.COMPLETE,
             session,
             message=message,
-            data=data,  # type: ignore
+            data=data,
         )
         return result is not None
 

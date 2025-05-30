@@ -100,6 +100,7 @@ def make_agent(participant, strategy):
     agent_data = {
         "strategy_id": strategy["id"],
         "name": participant["name"],
+        "participant_id": participant["id"],
     }
 
     json_data = json.dumps(agent_data)

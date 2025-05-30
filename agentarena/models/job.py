@@ -37,9 +37,8 @@ class UrlJobRequest(SQLModel, table=False):
         default="job.url.request",
         description="job command - this will be published as the subject on NATS",
     )
-    data: Optional[Dict] = Field(
-        default_factory=dict,
-        sa_column=Column(JSON),
+    data: Optional[str] = Field(
+        default=None,
         description="optional payload to send to Url",
     )
     delay: Optional[int] = Field(
@@ -69,10 +68,9 @@ class CommandJobBase(SQLModel):
 
     parent_id: Optional[str] = Field(default=None, foreign_key="commandjob.id")
     channel: str = Field(description="channel for publishing")
-    data: Optional[Dict] = Field(
-        default_factory=dict,
-        sa_column=Column(JSON),
-        description="optional payload to send to Url",
+    data: Optional[str] = Field(
+        default=None,
+        description="optional payload to send to Url (JSON string or empty string)",
     )
     method: str = Field(description="HTTP method, or MESSAGE")
     priority: int = Field(
@@ -175,9 +173,7 @@ class CommandJobHistoryBase(SQLModel):
     message: Optional[str] = Field(
         default="", description="Message associated with state change"
     )
-    data: Optional[Dict] = Field(
-        default_factory=dict,
-        sa_column=Column(JSON),
+    data: Optional[str] = Field(
         description="Optional JSON object returned from request",
     )
 
