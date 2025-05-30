@@ -39,6 +39,9 @@ def make_response(job: CommandJob, data: str, message: str):
         # should never happen, unless we add more states to JobState
         raise RuntimeError("Invalid state map")
 
+    if not isinstance(data, str):
+        # ensure data is a string
+        data = json.dumps(data)
     return JobResponse(
         channel=job.channel,
         data=data,
@@ -197,7 +200,7 @@ class QueueService(SubscribingService):
         job: CommandJob,
         session,
         message: str = "",
-        data: Optional[Mapping[str, Any]] = {},
+        data: Optional[str] = None,
     ):
         log = self.log.bind(job=job.id)
         # if this is a batch, when we send the final message, we want all the child messages as well.
@@ -216,7 +219,7 @@ class QueueService(SubscribingService):
             )
             rows = session.exec(stmt).all()
             last = rows.pop() if rows else None
-            data = last.data if last else {}
+            data = last.data if last else ""
             child_data.append(make_response(child, json.dumps(data), message))
 
         res.child_data = child_data
@@ -290,9 +293,7 @@ class QueueService(SubscribingService):
 
         if response.success and state in FINAL_STATES and sent is not None:
             log.debug("Sending message for final state")
-            await self.send_final_message(
-                sent, session, message=message, data={"final": data}
-            )
+            await self.send_final_message(sent, session, message=message, data=data)
 
         if sent and sent.parent_id:
             log.info("Starting update_parent_states for child request")

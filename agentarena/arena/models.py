@@ -104,6 +104,7 @@ class Arena(ArenaBase, DbBase, table=True):
 
     # Relationships
     features: List["Feature"] = Relationship(back_populates="arena")
+    contests: List["Contest"] = Relationship(back_populates="arena")
 
 
 class ArenaCreate(ArenaBase):
@@ -131,6 +132,19 @@ class ArenaUpdate(SQLModel):
 # -------- Round Models
 
 
+class ContestRoundState(str, Enum):
+    """
+    Represents the state of a contest round.
+    """
+
+    GENERATING_FEATURES = "generating_features"
+    GENERATING_POSITIONS = "generating_positions"
+    DESCRIBING_SETUP = "describing_setup"
+    IN_PROGRESS = "in_progress"
+    COMPLETE = "complete"
+    FAIL = "fail"
+
+
 class ContestRoundBase(SQLModel, table=False):
     """
     Represents the state of the arena at a specific point in time.
@@ -143,20 +157,28 @@ class ContestRoundBase(SQLModel, table=False):
     )
     round_no: int = Field(description="Round number", ge=0)
     narrative: str = Field(default=None, description="Round narrative")
-    state: ContestState = Field(description="Arena state")
+    state: ContestRoundState = Field(description="Round state")
 
 
 class ContestRound(ContestRoundBase, DbBase, table=True):
     # relationships
 
+    contest: "Contest" = Relationship(
+        back_populates="rounds",
+        sa_relationship_kwargs={"uselist": False},
+    )
     features: List["Feature"] = Relationship(back_populates="contestround")
+    judge_results: List["JudgeResult"] = Relationship(back_populates="contestround")
     player_states: List["PlayerState"] = Relationship(back_populates="contestround")
     player_actions: List["PlayerAction"] = Relationship(back_populates="contestround")
-    judge_results: List["JudgeResult"] = Relationship(back_populates="contestround")
-
     round_stats: "ContestRoundStats" = Relationship(
-        back_populates="contestround", sa_relationship_kwargs={"uselist": False}
+        back_populates="contestround",
+        sa_relationship_kwargs={"uselist": False},
     )
+
+
+class ContestRoundCreate(ContestRoundBase):
+    pass
 
 
 class ContestRoundStatsBase(SQLModel, table=False):
@@ -219,9 +241,18 @@ class Contest(ContestBase, DbBase, table=True):
 
     # relationships
 
+    arena: "Arena" = Relationship(
+        back_populates="contests",
+        sa_relationship_kwargs={"uselist": False},
+    )
     participants: List["Participant"] = Relationship(
         back_populates="contests", link_model=ContestParticipant
     )
+    rounds: List["ContestRound"] = Relationship(
+        back_populates="contest",
+        sa_relationship_kwargs={"order_by": "ContestRound.round_no"},
+    )
+    winner: Optional["Participant"] = Relationship()
 
     def participants_by_role(self):
         roles = {}

@@ -87,16 +87,41 @@ class ContestMachine(StateMachine):
         It processes the message and transitions to the next state if needed.
         """
         self.log.info("Handling role call message", msg=msg)
-        self.log.warn("PROCESSING STOPPED - role call not implemented yet")
-        # if not self.role_call.is_active:
-        #     self.log.warn("Role call not active, ignoring message")
-        #     return
+        sub = self.subscriptions.get(msg.subject)
+        if sub:
+            self.log.debug(f"Unsubscribing from {msg.subject}")
+            await sub.unsubscribe()
+            del self.subscriptions[msg.subject]
+        obj = None
+        if not msg.data:
+            self.log.error("Received empty role call message", msg=msg)
+            return
+        try:
+            obj = json.loads(msg.data.decode("utf-8"))
+        except json.JSONDecodeError as e:
+            self.log.error("Failed to decode role call message", error=str(e), msg=msg)
+            return
 
-        # # Process the role call message
-        # # Here you would typically check the content of the message
-        # # and decide whether to transition to the next state or not.
-        # # For now, we will just transition to setup_arena.
-        # await self.roles_present()
+        job_state = obj.get("state", None)
+        if job_state is None:
+            self.log.error("Role call message does not contain a state", msg=msg)
+            return
+        job_id = obj.get("job_id", "unknown job Id")
+        if job_state == JobState.COMPLETE.value:
+            self.log.info("Role call complete, transitioning to setup arena")
+            try:
+                await self.roles_present(job_id)
+            except Exception as e:
+                self.log.error("error", error=e)
+        elif job_state == JobState.FAIL.value:
+            self.log.error("Role call failed, transitioning to fail state")
+            await self.roles_error(job_id)
+        else:
+            self.log.warn(
+                f"Role call message in unexpected state: {job_state}, ignoring message"
+            )
+            # Optionally, you could handle other states or log them
+            return
 
     async def on_enter_role_call(self):
         """Called when entering the InSetup state."""
@@ -137,13 +162,15 @@ class ContestMachine(StateMachine):
 
         await self.message_broker.send_batch(batch)
 
-    def on_enter_setup_arena(self):
+    async def on_enter_setup_arena(self):
         """Called when entering the SetupArena state."""
         # Initialize the setup machine if it exists
-        if self._setup_machine is not None:
-            self._setup_machine.initialize_setup()
+        self.log.debug("Entering SetupArena state")
+        setup_machine = self.setup_machine
+        assert setup_machine is not None, "Setup machine should not be None"
+        await setup_machine.activate_initial_state()  # type: ignore
 
-    def on_enter_in_round(self):
+    async def on_enter_in_round(self):
         """Called when entering the InRound state."""
         # Create a new round machine when entering the InRound state
         self._round_machine = RoundMachine(self.contest, log=self.log)
@@ -162,8 +189,16 @@ class ContestMachine(StateMachine):
         Returns:
             Optional[SetupMachine]: The setup machine or None if not in InSetup state.
         """
-        if not self.in_setup.is_active:
+        self.log.debug(f"getting setup_machine", state=self.current_state.id)
+        if self.current_state.id != ContestState.SETUP_ARENA.value:
             return None
+        if self._setup_machine is None:
+            self.log.debug("Creating new SetupMachine instance")
+            self._setup_machine = SetupMachine(
+                self.contest,
+                message_broker=self.message_broker,
+                log=self.log,
+            )
         return self._setup_machine
 
     @property
@@ -211,7 +246,7 @@ class ContestMachine(StateMachine):
             "contest_state": self.current_state.id,
         }
 
-        if self.in_setup.is_active and self._setup_machine is not None:
+        if self._setup_machine is not None:
             result["setup_state"] = self._setup_machine.current_state.id
 
         # if self.in_round.is_active and self._round_machine is not None:
@@ -220,8 +255,12 @@ class ContestMachine(StateMachine):
         return result
 
     # logging changes
-    def after_transition(self, event, source, target):
+    async def after_transition(self, event, source, target):
         self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
+        await self.message_broker.send_message(
+            f"arena.contest.{self.contest.id}.state.{source.id}.{target.id}",
+            json.dumps(self.get_state_dict()),
+        )
 
     def on_enter_state(self, target, event):
         if target.final:
