@@ -12,12 +12,10 @@ from nats.aio.msg import Msg
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import (
-    Contest,
-    ContestRound,
-    ContestRoundCreate,
-    ContestRoundState,
-)
+from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestRound
+from agentarena.arena.models import ContestRoundCreate
+from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import ContestState
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger

@@ -194,7 +194,7 @@ def load_fixtures(
         typer.echo(f"Cannot find fixture dir: {norm_dir}")
         raise typer.Exit(code=1)
 
-    files = glob(os.path.join(fixture_dir, "participant-*.json"))
+    files = glob(os.path.join(fixture_dir, "**/participant-*.json"))
     participants: Dict[str, List[Any]] = {
         "judge": [],
         "arena": [],
@@ -209,7 +209,7 @@ def load_fixtures(
         participants[str(participant["role"])].append(participant)
     typer.echo(f"Loaded {len(participants)} participants")
 
-    files = glob(os.path.join(fixture_dir, "arena-*.json"))
+    files = glob(os.path.join(fixture_dir, "**/arena-*.json"))
     arenas = []
     for fixture_file in files:
         arena = load_arena_fixture(fixture_file)
@@ -219,7 +219,7 @@ def load_fixtures(
         arenas.append(arena)
     typer.echo(f"Loaded {len(arenas)} arenas")
 
-    files = glob(os.path.join(fixture_dir, "*strategy-*.json"))
+    files = glob(os.path.join(fixture_dir, "**/strategy-*.json"))
     strategies = {
         "judge": [],
         "arena": [],
@@ -251,7 +251,7 @@ def load_fixtures(
 
         typer.echo(f"{len(agents[role])} {role} Agents created")
 
-    contest_files = glob(os.path.join(fixture_dir, "contest-*.json"))
+    contest_files = glob(os.path.join(fixture_dir, "**/contest-*.json"))
     contests = []
     for contest_fixture in contest_files:
         for arena in arenas:

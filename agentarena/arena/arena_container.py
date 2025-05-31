@@ -6,11 +6,12 @@ from dependency_injector import providers
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models import Arena, ContestRoundCreate
+from agentarena.arena.models import Arena
 from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestRound
+from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundStats
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate

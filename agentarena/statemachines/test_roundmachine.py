@@ -1,14 +1,15 @@
 import pytest
+
 from agentarena.arena.models import Arena
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Participant
-from agentarena.arena.models import ParticipantRole
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.models.constants import RoleType
 from agentarena.statemachines.roundmachine import RoundMachine
 
 
-def make_agent(agent_id="agent1", role=ParticipantRole.PLAYER):
+def make_agent(agent_id="agent1", role=RoleType.PLAYER):
     return Participant(
         id=f"p.{agent_id}",
         role=role,

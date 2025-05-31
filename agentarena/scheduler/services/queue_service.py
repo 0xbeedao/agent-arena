@@ -1,7 +1,5 @@
 import json
 from datetime import datetime
-from typing import Any
-from typing import Mapping
 from typing import Optional
 
 from nats.aio.msg import Msg

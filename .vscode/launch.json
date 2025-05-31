@@ -5,6 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+        "name": "Debug Actor",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "agentarena.actors.app",
+        "python": "/home/bruce/work/agent-arena/.venv/bin/python",
+        "env": {"PYTHONPATH": "/home/bruce/work/agent-arena"},
+        "justMyCode": true,
+        "console": "integratedTerminal"
+        },
+        {
         "name": "Debug Arena",
         "type": "debugpy",
         "request": "launch",
@@ -15,7 +25,7 @@
         "console": "integratedTerminal"
         },
         {
-        "name": "Debug AgentArena Scheduler",
+        "name": "Debug Scheduler",
         "type": "debugpy",
         "request": "launch",
         "module": "agentarena.scheduler.app",

@@ -1,18 +1,21 @@
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 import pytest
 
-from agentarena.arena.models import Arena, ContestRound, ContestRoundCreate
+from agentarena.arena.models import Arena
 from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestRound
+from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Participant
-from agentarena.arena.models import ParticipantRole
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.constants import RoleType
 from agentarena.statemachines.contestmachine import ContestMachine
 from agentarena.statemachines.setupmachine import SetupMachine
 
@@ -58,7 +61,7 @@ def round_service(db_service, uuid_service, message_broker, logging):
     )
 
 
-def make_agent(agent_id="agent1", role=ParticipantRole.PLAYER):
+def make_agent(agent_id="agent1", role=RoleType.PLAYER):
     return Participant(
         id=agent_id,
         role=role,
@@ -86,11 +89,11 @@ def make_contest():
         player_positions="0,0;1,1;2,2",
     )
     c.participants = [
-        make_agent("agent1", ParticipantRole.PLAYER),
-        make_agent("agent2", ParticipantRole.PLAYER),
-        make_agent("agent3", ParticipantRole.ARENA),
-        make_agent("agent4", ParticipantRole.ANNOUNCER),
-        make_agent("agent5", ParticipantRole.JUDGE),
+        make_agent("agent1", RoleType.PLAYER),
+        make_agent("agent2", RoleType.PLAYER),
+        make_agent("agent3", RoleType.ARENA),
+        make_agent("agent4", RoleType.ANNOUNCER),
+        make_agent("agent5", RoleType.JUDGE),
     ]
     return c
 

@@ -14,18 +14,8 @@ from sqlmodel import Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
 
+from agentarena.models.constants import RoleType
 from agentarena.models.dbbase import DbBase
-
-
-class ContestRole(str, Enum):
-    """
-    Roles for agents in contests
-    """
-
-    PLAYER = "player"
-    ARENA = "arena"
-    JUDGE = "judge"
-    ANNOUNCER = "announcer"
 
 
 class ContestState(str, Enum):
@@ -55,17 +45,6 @@ class FeatureOriginType(str, Enum):
 
     REQUIRED = "required"
     RANDOM = "random"
-
-
-class ParticipantRole(str, Enum):
-    """
-    Enum for different roles
-    """
-
-    JUDGE = "judge"
-    ARENA = "arena"
-    PLAYER = "player"
-    ANNOUNCER = "announcer"
 
 
 # -------- Link models
@@ -259,13 +238,13 @@ class Contest(ContestBase, DbBase, table=True):
 
     def participants_by_role(self):
         roles = {}
-        for role in ParticipantRole:
+        for role in RoleType:
             roles[role.value] = []
         for p in self.participants:
             roles[p.role.value].append(p)
         return roles
 
-    def get_role(self, role: ParticipantRole):
+    def get_role(self, role: RoleType):
         """
         Returns a list of participants filtered by their role.
         """
@@ -407,7 +386,7 @@ class ParticipantBase(SQLModel, table=False):
         max_length=100,
         min_length=1,
     )
-    role: ParticipantRole = Field(
+    role: RoleType = Field(
         description="Role in arena",
     )
 
@@ -451,7 +430,7 @@ class ParticipantUpdate(SQLModel):
         default=None, description="Reference to ArenaDTO", foreign_key="arena.id"
     )
     name: Optional[str] = Field(default=None, description="Participant name")
-    role: Optional[ParticipantRole] = Field(default=None, description="Role in arena")
+    role: Optional[RoleType] = Field(default=None, description="Role in arena")
 
 
 # --- Player models
@@ -482,6 +461,7 @@ class PlayerStateBase(SQLModel, table=False):
 
 class PlayerState(PlayerStateBase, DbBase, table=True):
     contestround: ContestRound = Relationship(back_populates="player_states")
+    participant: Participant = Relationship()
 
 
 class PlayerStateCreate(PlayerStateBase, table=False):
@@ -542,3 +522,16 @@ class ModelChangeMessage(BaseModel):
     action: str = Field(description="Action that triggered the change")
     model_id: str = Field(description="ID of the changed model")
     detail: Optional[str] = Field(default="", description="Details about the change")
+
+
+class PlayerActionRequest(BaseModel):
+    """
+    Model sent to Players for action requests.
+    """
+
+    player: Participant = Field()
+    arena: ArenaPublic = Field()
+    contest: ContestPublic = Field()
+    features: List[FeaturePublic] = Field()
+    players: List[ParticipantPublic] = Field()
+    round_no: int = Field()

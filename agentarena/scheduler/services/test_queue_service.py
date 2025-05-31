@@ -128,7 +128,7 @@ async def test_get_unique(q, db_service):
         id="test",
         channel="job.request.url",
         method="GET",
-        data={"testy": "toast"},
+        data='{"testy": "toast"}',
         url="/test",
     )
 
@@ -153,7 +153,7 @@ async def test_update_state(q, db_service, message_broker, mock_nats_client):
         id="test",
         channel="job.request.url",
         method="GET",
-        data={"test": "toast"},
+        data='{"test": "toast"}',
         url="/test",
     )
     with db_service.get_session() as session:
@@ -195,7 +195,7 @@ async def test_requeue_job(q, db_service):
         id="testrequeue",
         channel="job.request.url",
         method="POST",
-        data={"foo": "bar"},
+        data='{"foo": "bar"}',
         url="/requeue",
     )
     with db_service.get_session() as session:
@@ -230,7 +230,7 @@ async def test_get_idle_batch(q, db_service):
         id="idlebatch",
         channel="test.request.batch",
         method="MESSAGE",
-        data={"test": "toast"},
+        data='{"test": "toast"}',
         url="/test",
     )
     with db_service.get_session() as session:
@@ -329,7 +329,7 @@ async def test_batch_with_failed_child(
         channel="test.batch.fail",
         method="POST",
         url="/batch",
-        data={},
+        data="",
         state=JobState.REQUEST,
     )
 
@@ -383,11 +383,11 @@ async def test_batch_send_1(q, db_service):
     batch_req = CommandJobCreate(
         channel="test.batch",
         method="GET",
-        data={"test": "toast"},
+        data='{"test": "toast"}',
         url="/test",
         state=JobState.REQUEST,
     )
-    requests = [UrlJobRequest(url="/test/1", method="GET", data={}, delay=0)]
+    requests = [UrlJobRequest(url="/test/1", method="GET", data="", delay=0)]
 
     batch_id = ""
     child_ids = []

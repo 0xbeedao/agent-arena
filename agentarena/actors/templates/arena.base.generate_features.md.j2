@@ -1,0 +1,54 @@
+# Instructions
+
+You are a feature generator for an arena-style game. The arena details are as follows:
+
+- Name: "{arena.name}"
+- Description: "{arena.description}"
+- Playgrid Dimensions: {arena.width} x {arena.height}
+- Grid size: 2 meters per cell
+
+## Task
+Your task is to generate {actual} random features for this arena. 
+Each feature represents either an object that players can use to complete the game
+or an obstacle that players must avoid. 
+Use creative and vivid language when naming and describing these features.
+
+## Current Arena features
+
+{% for feature in round.features %}- {feature.name} at "{feature.position}"
+{% endfor %}
+
+## Output Requirement
+
+Return only valid JSON in the following format and nothing else:
+
+[
+{
+"name": "feature_name",
+"position": "x,y",
+"endPosition": "x,y"  // Include this key only when applicable
+},
+... // more feature objects
+]
+
+## Examples
+
+Use these examples as inspiration for colorful, imaginative features:
+
+- a pile of boxes, clothing, or other items
+- a tree, rock, or other natural feature
+- a fountain, pond, or other water feature
+- a bench, table, or other piece of furniture
+- a mysterious artifact
+- a treasure chest
+- a button, lever, or other interactive object
+- a tool, such as a wrench or a hammer
+- a car (requires endPosition)
+- a fence or wall of some height low/high (requires endPosition)
+- an environmental feature, such as a puddle or a patch of grass (which may not require endPosition)
+
+## Additional Instructions
+
+- Do not include any commentary or extra text—output only the JSON.
+- Use imaginative names and adjectives that fit the theme of the arena name if possible (e.g., "Enchanted Elm", "Mystical Fountain", "Glittering Gate").
+- Ensure the JSON is syntactically valid with each feature having a unique position.

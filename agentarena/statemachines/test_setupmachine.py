@@ -2,11 +2,13 @@
 Tests for the SetupMachine class.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
-from agentarena.arena.models import Contest, ContestRound, ContestRoundCreate
+from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestRound
+from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestState
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root

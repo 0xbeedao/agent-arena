@@ -1,0 +1,12 @@
+{
+  "name": "Straightforward Arena",
+  "personality": "A clear and simple arena, intending to make things easy to see, experiment and test",
+  "prompts": [
+    {
+      "key": "arena.generate_features",
+      "prompt": "#jinja:arena.base.generate_features"
+    }
+  ],
+  "description": "The simplest arena, keeping things as clean and straighforward as possible.",
+  "role": "arena"
+}

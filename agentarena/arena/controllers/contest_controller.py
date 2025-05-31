@@ -15,21 +15,23 @@ from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 
-from agentarena.arena.models import Contest, ContestRound, ContestRoundCreate
+from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestPublic
+from agentarena.arena.models import ContestRound
+from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import ContestUpdate
 from agentarena.arena.models import ControllerRequest
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
-from agentarena.arena.models import ParticipantRole
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
+from agentarena.models.constants import RoleType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.statemachines.contestmachine import ContestMachine
@@ -280,7 +282,7 @@ class ContestController(
 
         roles = contest.participants_by_role()
 
-        for role in ParticipantRole:
+        for role in RoleType:
             key = role.value
             if roles[key] is None or len(roles[key]) == 0:
                 boundlog.error(f"No agents in arena for role {key}, raising error")

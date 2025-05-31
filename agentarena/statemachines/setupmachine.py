@@ -1,21 +1,20 @@
 import json
 import secrets
-from typing import List
 
+from nats.aio.msg import Msg
 from sqlmodel import Field
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import Contest, ParticipantRole
+from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundState
-from agentarena.arena.models import Feature
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.model_service import ModelService
+from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
-from nats.aio.msg import Msg
 
 
 class SetupMachine(StateMachine):
@@ -88,7 +87,7 @@ class SetupMachine(StateMachine):
         actual = secrets.randbelow(count) + 1
         log = self.log.bind(state="generating_random_features", count=actual)
         log.debug("generating")
-        agents = self.contest.get_role(ParticipantRole.ARENA)
+        agents = self.contest.get_role(RoleType.ARENA)
         if not agents:
             log.error("No arena agents found for generating features")
             return

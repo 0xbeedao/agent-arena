@@ -32,6 +32,7 @@ dependencies = [
     "sqlmodel>=0.0.24",
     "textual>=0.56.0",
     "pyyaml",
+    "jinja2>=3.1.6",
 ]
 
 [project.optional-dependencies]

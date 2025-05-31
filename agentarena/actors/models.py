@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import List
 from typing import Optional
 
@@ -6,10 +5,9 @@ from sqlmodel import Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
 
+from agentarena.models.constants import PromptType
+from agentarena.models.constants import RoleType
 from agentarena.models.dbbase import DbBase
-
-# ---- Link Models
-
 
 # ---- Agent Model
 
@@ -63,17 +61,6 @@ class AgentPublic(AgentBase, table=False):
 # ---- Strategy models
 
 
-class StrategyType(Enum):
-    """
-    Enum for different strategy types.
-    """
-
-    JUDGE = "judge"
-    ARENA = "arena"
-    PLAYER = "player"
-    ANNOUNCER = "announcer"
-
-
 class StrategyBase(SQLModel, table=False):
     """
     Represents a strategy that can be used by an agent.
@@ -83,21 +70,19 @@ class StrategyBase(SQLModel, table=False):
 
     name: str = Field(default="", description="Strategy name")
     personality: str = Field(default="", description="Personality description")
-    instructions: str = Field(default="", description="Strategy instructions")
     description: str = Field(
         default="", description="Detailed description of the strategy"
     )
-    role: StrategyType = Field(
-        default=StrategyType.PLAYER, description="Type of strategy"
-    )
+    role: RoleType = Field(default=RoleType.PLAYER, description="Type of strategy")
 
 
 class Strategy(StrategyBase, DbBase, table=True):
-    participants: List["Agent"] = Relationship(back_populates="strategy")
     agents: List[Agent] = Relationship(
         back_populates="strategy",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+    agents: List["Agent"] = Relationship(back_populates="strategy")
+    prompts: List["StrategyPrompt"] = Relationship(back_populates="strategy")
 
 
 class StrategyUpdate(SQLModel, table=False):
@@ -121,11 +106,27 @@ class StrategyUpdate(SQLModel, table=False):
 
 
 class StrategyCreate(StrategyBase):
-    pass
+    prompts: List["StrategyPromptCreate"] = Field(description="List of prompts by key")
 
 
 class StrategyPublic(StrategyBase):
     id: str
 
 
-#
+class StrategyPromptBase(SQLModel, table=False):
+    strategy_id: str = Field(foreign_key="strategy.id")
+    prompt: str = Field(description="Prompt text")
+    key: PromptType = Field()
+
+
+class StrategyPrompt(StrategyPromptBase, DbBase, table=True):
+    strategy: Strategy = Relationship(back_populates="prompts")
+
+
+class StrategyPromptCreate(SQLModel, table=False):
+    prompt: str = Field()
+    key: PromptType = Field()
+
+
+class StrategyPromptPublic(StrategyPromptBase, table=False):
+    id: str = Field()
