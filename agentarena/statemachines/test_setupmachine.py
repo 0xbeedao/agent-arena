@@ -2,23 +2,31 @@
 Tests for the SetupMachine class.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from agentarena.arena.models import Contest
+from agentarena.arena.models import Contest, ContestRound, ContestRoundCreate
 from agentarena.arena.models import ContestState
+from agentarena.core.factories.db_factory import get_engine
+from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.db_service import DbService
+from agentarena.core.services.model_service import ModelService
+from agentarena.core.services.uuid_service import UUIDService
 from agentarena.statemachines.setupmachine import SetupMachine
 
 
 @pytest.fixture()
 def contest():
     """Create a mock Contest object for testing."""
-    mock = MagicMock(spec=Contest)
-    mock.id = "test-contest-id"
-    mock.state = ContestState.CREATED
-    return mock
+    return Contest(
+        id="contest1",
+        arena_id="arena1",
+        current_round=1,
+        player_positions="1,2;3,4",
+        state=ContestState.CREATED,
+    )
 
 
 @pytest.fixture()
@@ -26,80 +34,155 @@ def logging():
     return LoggingService(True)
 
 
-class TestSetupMachine:
-    """Test suite for the SetupMachine class."""
+@pytest.fixture
+def log(logging):
+    return logging.get_logger("test")
 
-    def test_initialization(self, contest, logging):
-        """Test that the SetupMachine initializes correctly."""
-        # Create a setup machine
-        setup_machine = SetupMachine(contest, logging=logging)
 
-        # Check initial state
-        assert setup_machine.current_state.id == "generating_features"
-        assert setup_machine.current_state.initial
-        assert not setup_machine.current_state.final
+@pytest.fixture
+def uuid_service():
+    return UUIDService(word_list=[])
 
-        # Check that the contest was set correctly
-        assert setup_machine.contest == contest
 
-    def test_transition_to_generating_positions(self, contest, logging):
-        """Test transition from generating_features to generating_positions."""
-        setup_machine = SetupMachine(contest, logging=logging)
+@pytest.fixture
+def message_broker():
+    """Fixture to create a mock message broker"""
+    broker = AsyncMock()
+    broker.publish_model_change = AsyncMock()
+    broker.publish_response = AsyncMock()
+    return broker
 
-        # Transition to generating_positions
-        setup_machine.features_generated()
 
-        # Check current state
-        assert setup_machine.current_state.id == "generating_positions"
-        assert not setup_machine.current_state.initial
-        assert not setup_machine.current_state.final
+@pytest.fixture
+def db_service(uuid_service, logging):
+    """Fixture to create an in-memory DB service"""
+    service = DbService(
+        str(get_project_root()),
+        dbfile="test.db",
+        get_engine=get_engine,
+        memory=True,
+        prod=False,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+    return service.create_db()
 
-    def test_transition_to_describing_setup(self, contest, logging):
-        """Test transition from generating_positions to describing_setup."""
-        setup_machine = SetupMachine(contest, logging=logging)
 
-        # Transition to generating_positions first
-        setup_machine.features_generated()
+@pytest.fixture
+def round_service(db_service, uuid_service, message_broker, logging):
+    """Fixture to create a ModelService for CommandJob"""
+    return ModelService[ContestRound, ContestRoundCreate](
+        model_class=ContestRound,
+        message_broker=message_broker,
+        db_service=db_service,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
 
-        # Then transition to describing_setup
-        setup_machine.positions_generated()
 
-        # Check current state
-        assert setup_machine.current_state.id == "describing_setup"
-        assert not setup_machine.current_state.initial
-        assert setup_machine.current_state.final
+@pytest.mark.asyncio
+async def test_initialization(contest, round_service, message_broker, log):
+    """Test that the SetupMachine initializes correctly."""
+    # Create a setup machine
+    setup_machine = SetupMachine(
+        contest,
+        round_service=round_service,
+        message_broker=message_broker,
+        log=log,
+    )
+    await setup_machine.activate_initial_state()  # type: ignore
 
-    def test_cycle_transition(self, contest, logging):
-        """Test the cycle transition method."""
-        setup_machine = SetupMachine(contest, logging=logging)
+    # Check initial state
+    assert setup_machine.current_state.id == "generating_features"
+    assert setup_machine.current_state.initial
+    assert not setup_machine.current_state.final
 
-        # Initial state should be generating_features
-        assert setup_machine.current_state.id == "generating_features"
+    # Check that the contest was set correctly
+    assert setup_machine.contest == contest
 
-        # First cycle should transition to generating_positions
-        setup_machine.cycle()
-        assert setup_machine.current_state.id == "generating_positions"
 
-        # Second cycle should transition to describing_setup
-        setup_machine.cycle()
-        assert setup_machine.current_state.id == "describing_setup"
+@pytest.mark.asyncio
+async def test_transition_to_generating_positions(
+    contest, round_service, message_broker, log
+):
+    """Test transition from generating_features to generating_positions."""
+    setup_machine = SetupMachine(
+        contest,
+        round_service=round_service,
+        message_broker=message_broker,
+        log=log,
+    )
+    await setup_machine.activate_initial_state()  # type: ignore
 
-        # Check that we're in the final state
-        assert setup_machine.current_state.final
+    # Transition to generating_positions
+    await setup_machine.features_generated("")
 
-    def test_complete_workflow(self, contest, logging):
-        """Test the complete workflow of the SetupMachine."""
-        setup_machine = SetupMachine(contest, logging=logging)
+    # Check current state
+    assert setup_machine.current_state.id == "generating_positions"
+    assert not setup_machine.current_state.initial
+    assert not setup_machine.current_state.final
 
-        # Check initial state
-        assert setup_machine.current_state.id == "generating_features"
 
-        # Transition through all states
-        setup_machine.features_generated()
-        assert setup_machine.current_state.id == "generating_positions"
+@pytest.mark.asyncio
+async def test_transition_to_describing_setup(
+    contest, round_service, message_broker, log
+):
+    """Test transition from generating_positions to describing_setup."""
+    setup_machine = SetupMachine(
+        contest, round_service=round_service, message_broker=message_broker, log=log
+    )
+    await setup_machine.activate_initial_state()  # type: ignore
+    # Transition to generating_positions first
+    await setup_machine.features_generated("")
 
-        setup_machine.positions_generated()
-        assert setup_machine.current_state.id == "describing_setup"
+    # Then transition to describing_setup
+    await setup_machine.positions_generated("")
 
-        # Check that we're in the final state
-        assert setup_machine.current_state.final
+    # Check current state
+    assert setup_machine.current_state.id == "describing_setup"
+    assert not setup_machine.current_state.initial
+    assert setup_machine.current_state.final
+
+
+@pytest.mark.asyncio
+async def test_cycle_transition(contest, round_service, message_broker, log):
+    """Test the cycle transition method."""
+    setup_machine = SetupMachine(
+        contest, round_service=round_service, message_broker=message_broker, log=log
+    )
+    await setup_machine.activate_initial_state()  # type: ignore
+    # Initial state should be generating_features
+    assert setup_machine.current_state.id == "generating_features"
+
+    # First cycle should transition to generating_positions
+    await setup_machine.cycle("")
+    assert setup_machine.current_state.id == "generating_positions"
+
+    # Second cycle should transition to describing_setup
+    await setup_machine.cycle("")
+    assert setup_machine.current_state.id == "describing_setup"
+
+    # Check that we're in the final state
+    assert setup_machine.current_state.final
+
+
+@pytest.mark.asyncio
+async def test_complete_workflow(contest, round_service, message_broker, log):
+    """Test the complete workflow of the SetupMachine."""
+    setup_machine = SetupMachine(
+        contest, round_service=round_service, message_broker=message_broker, log=log
+    )
+    await setup_machine.activate_initial_state()  # type: ignore
+
+    # Check initial state
+    assert setup_machine.current_state.id == "generating_features"
+
+    # Transition through all states
+    await setup_machine.features_generated("")
+    assert setup_machine.current_state.id == "generating_positions"
+
+    await setup_machine.positions_generated("")
+    assert setup_machine.current_state.id == "describing_setup"
+
+    # Check that we're in the final state
+    assert setup_machine.current_state.final

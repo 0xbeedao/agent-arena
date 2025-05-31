@@ -137,6 +137,9 @@ class ContestRoundState(str, Enum):
     Represents the state of a contest round.
     """
 
+    IDLE = "idle"
+    CREATING_ROUND = "creating_round"
+    ADDING_FIXED_FEATURES = "adding_fixed_features"
     GENERATING_FEATURES = "generating_features"
     GENERATING_POSITIONS = "generating_positions"
     DESCRIBING_SETUP = "describing_setup"
@@ -261,6 +264,12 @@ class Contest(ContestBase, DbBase, table=True):
         for p in self.participants:
             roles[p.role.value].append(p)
         return roles
+
+    def get_role(self, role: ParticipantRole):
+        """
+        Returns a list of participants filtered by their role.
+        """
+        return [p for p in self.participants if p.role == role]
 
 
 class ContestCreate(SQLModel, table=False):

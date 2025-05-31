@@ -259,3 +259,11 @@ Next up:
 - [ ] Add messaging to contest machine state changes
 - [ ] Move forward to the setup machine step
 - [ ] Make the CP have a contest status page that listens to events and updates the contest page
+
+## 2025-05-30 19:30:10
+
+Continued work on the contest flow - now working on the setup machine.  I think that I should move the big prompt to the actual arena agent side of the house. This will allow me to more easily play with different styles of feature generation, by using different strategies for it.
+
+Also, I think that the state machines should save state to DB on change, which will allow for easier "hydration" of the machines on re-entry.
+
+Could also use a "pause" option on all the machines for testing - so that they don't auto-step to end.

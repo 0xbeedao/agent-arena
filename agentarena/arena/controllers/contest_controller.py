@@ -15,7 +15,7 @@ from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 
-from agentarena.arena.models import Contest
+from agentarena.arena.models import Contest, ContestRound, ContestRoundCreate
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestPublic
 from agentarena.arena.models import ContestState
@@ -43,16 +43,22 @@ class ContestController(
     def __init__(
         self,
         base_path: str = "/api",
-        message_broker: MessageBroker = Field(description="Message broker service"),
+        message_broker: MessageBroker = Field(
+            description="Message broker service",
+        ),
         model_service: ModelService[Contest, ContestCreate] = Field(
             description="The contest service"
         ),
         participant_service: ModelService[Participant, ParticipantCreate] = Field(
             description="The feature service"
         ),
+        round_service: ModelService[ContestRound, ContestRoundCreate] = Field(
+            description="The round service"
+        ),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.participant_service = participant_service
+        self.round_service = round_service
         self.message_broker = message_broker
         to_subscribe = [
             ("arena.contest.request", self.handle_request),
@@ -141,6 +147,7 @@ class ContestController(
                     machine = ContestMachine(
                         contest=contest,
                         message_broker=self.message_broker,
+                        round_service=self.round_service,
                         uuid_service=self.model_service.uuid_service,
                         log=log,
                     )

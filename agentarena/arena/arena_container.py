@@ -6,7 +6,7 @@ from dependency_injector import providers
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models import Arena
+from agentarena.arena.models import Arena, ContestRoundCreate
 from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
@@ -138,6 +138,15 @@ class ArenaContainer(containers.DeclarativeContainer):
     contest_service = providers.Singleton(
         ModelService[Contest, ContestCreate],
         model_class=Contest,
+        db_service=db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+    round_service = providers.Singleton(
+        ModelService[ContestRound, ContestRoundCreate],
+        model_class=ContestRound,
         db_service=db_service,
         message_broker=message_broker,
         uuid_service=uuid_service,

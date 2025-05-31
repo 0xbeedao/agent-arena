@@ -12,10 +12,16 @@ from nats.aio.msg import Msg
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import Contest
+from agentarena.arena.models import (
+    Contest,
+    ContestRound,
+    ContestRoundCreate,
+    ContestRoundState,
+)
 from agentarena.arena.models import ContestState
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
+from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
@@ -63,6 +69,7 @@ class ContestMachine(StateMachine):
         self,
         contest: Contest,
         message_broker: MessageBroker,
+        round_service: ModelService[ContestRound, ContestRoundCreate],
         uuid_service: UUIDService,
         log: ILogger,
     ):
@@ -71,6 +78,7 @@ class ContestMachine(StateMachine):
         self._round_machine = None
         self.contest = contest
         self.message_broker = message_broker
+        self.round_service = round_service
         self.uuid_service = uuid_service
         self.log = log
         self.subscriptions = {}
@@ -112,7 +120,15 @@ class ContestMachine(StateMachine):
             try:
                 await self.roles_present(job_id)
             except Exception as e:
-                self.log.error("error", error=e)
+                self.log.error(
+                    "Failed to transition from role_call to setup_arena",
+                    error=str(e),
+                    exc_info=True,
+                    job_id=job_id,
+                    contest_id=self.contest.id,
+                    current_state=self.current_state.id,
+                )
+                await self.roles_error(job_id)
         elif job_state == JobState.FAIL.value:
             self.log.error("Role call failed, transitioning to fail state")
             await self.roles_error(job_id)
@@ -197,6 +213,7 @@ class ContestMachine(StateMachine):
             self._setup_machine = SetupMachine(
                 self.contest,
                 message_broker=self.message_broker,
+                round_service=self.round_service,
                 log=self.log,
             )
         return self._setup_machine
@@ -222,7 +239,10 @@ class ContestMachine(StateMachine):
         """
         if self._setup_machine is None:
             return False
-        return self._setup_machine.describing_setup.is_active
+        return (
+            self._setup_machine.current_state.id
+            == ContestRoundState.DESCRIBING_SETUP.value
+        )
 
     def check_round_done(self) -> bool:
         """
@@ -254,11 +274,10 @@ class ContestMachine(StateMachine):
 
         return result
 
-    # logging changes
     async def after_transition(self, event, source, target):
         self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
         await self.message_broker.send_message(
-            f"arena.contest.{self.contest.id}.state.{source.id}.{target.id}",
+            f"arena.contest.{self.contest.id}.contestflow.{source.id}.{target.id}",
             json.dumps(self.get_state_dict()),
         )
 

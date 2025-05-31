@@ -1,15 +1,20 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from agentarena.arena.models import Arena
+from agentarena.arena.models import Arena, ContestRound, ContestRoundCreate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantRole
+from agentarena.core.factories.db_factory import get_engine
+from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.db_service import DbService
+from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.statemachines.contestmachine import ContestMachine
+from agentarena.statemachines.setupmachine import SetupMachine
 
 
 @pytest.fixture
@@ -19,8 +24,38 @@ def uuid_service():
 
 @pytest.fixture
 def message_broker():
-    client = AsyncMock()
-    return client
+    """Fixture to create a mock message broker"""
+    broker = AsyncMock()
+    broker.publish_model_change = AsyncMock()
+    broker.publish_response = AsyncMock()
+    return broker
+
+
+@pytest.fixture
+def db_service(uuid_service, logging):
+    """Fixture to create an in-memory DB service"""
+    service = DbService(
+        str(get_project_root()),
+        dbfile="test.db",
+        get_engine=get_engine,
+        memory=True,
+        prod=False,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+    return service.create_db()
+
+
+@pytest.fixture
+def round_service(db_service, uuid_service, message_broker, logging):
+    """Fixture to create a ModelService for CommandJob"""
+    return ModelService[ContestRound, ContestRoundCreate](
+        model_class=ContestRound,
+        message_broker=message_broker,
+        db_service=db_service,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
 
 
 def make_agent(agent_id="agent1", role=ParticipantRole.PLAYER):
@@ -71,21 +106,32 @@ def log(logging):
 
 
 @pytest.mark.asyncio
-async def test_initial_state(log, message_broker, uuid_service):
+async def test_initial_state(log, message_broker, uuid_service, round_service):
     contest = make_contest()
 
     machine = ContestMachine(
-        contest, log=log, message_broker=message_broker, uuid_service=uuid_service
+        contest,
+        log=log,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        round_service=round_service,
     )
+
     await machine.activate_initial_state()  # type: ignore
     assert machine.current_state.id == ContestState.STARTING.value
 
 
 @pytest.mark.asyncio
-async def test_start_contest_transition_sends_batch(log, message_broker, uuid_service):
+async def test_start_contest_transition_sends_batch(
+    log, message_broker, uuid_service, round_service
+):
     contest = make_contest()
     machine = ContestMachine(
-        contest, log=log, message_broker=message_broker, uuid_service=uuid_service
+        contest,
+        log=log,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        round_service=round_service,
     )
     await machine.activate_initial_state()  # type: ignore
     assert machine.current_state.id == ContestState.STARTING.value
@@ -95,16 +141,43 @@ async def test_start_contest_transition_sends_batch(log, message_broker, uuid_se
 
 
 @pytest.mark.asyncio
-async def test_start_state(log, message_broker, uuid_service):
+async def test_start_state(log, message_broker, uuid_service, round_service):
     contest = make_contest()
     contest.state = ContestState.IN_ROUND
     machine = ContestMachine(
-        contest, log=log, message_broker=message_broker, uuid_service=uuid_service
+        contest,
+        log=log,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        round_service=round_service,
     )
     await machine.activate_initial_state()  # type: ignore
     assert machine.current_state.id == ContestState.IN_ROUND.value
     # should not have send requests to participants, since it skipped the role call
     message_broker.send_batch.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_roles_present_transition(
+    log, message_broker, uuid_service, round_service
+):
+    contest = make_contest()
+    contest.state = ContestState.ROLE_CALL
+    machine = ContestMachine(
+        contest,
+        log=log,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        round_service=round_service,
+    )
+    await machine.activate_initial_state()  # type: ignore
+    assert machine.current_state.id == ContestState.ROLE_CALL.value
+    await machine.roles_present("test")
+    assert machine.current_state.id == ContestState.SETUP_ARENA.value
+    states = machine.get_state_dict()
+    assert "setup_state" in states
+    assert "contest_state" in states
+    assert states["contest_state"] == ContestState.SETUP_ARENA.value
 
 
 # def test_setup_done_transition(log, message_broker, uuid_service):

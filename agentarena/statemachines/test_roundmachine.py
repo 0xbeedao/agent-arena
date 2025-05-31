@@ -1,5 +1,4 @@
-from agentarena.actors.models import Strategy
-from agentarena.actors.models import StrategyType
+import pytest
 from agentarena.arena.models import Arena
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestState
@@ -9,25 +8,12 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.statemachines.roundmachine import RoundMachine
 
 
-def make_strategy():
-    return Strategy(
-        id="strategy1",
-        name="Test Strategy",
-        personality="Neutral",
-        instructions="Do nothing",
-        description="A test strategy",
-        role=StrategyType.PLAYER,
-    )
-
-
 def make_agent(agent_id="agent1", role=ParticipantRole.PLAYER):
     return Participant(
         id=f"p.{agent_id}",
-        agent_id=agent_id,
         role=role,
         name="Test Agent",
         description="A test agent",
-        strategy=make_strategy(),
     )
 
 
@@ -41,16 +27,16 @@ def make_arena():
         rules="No rules",
         max_random_features=0,
         features=[],
-        participants=[make_agent()],
+        winning_condition="",
     )
 
 
 def make_contest():
     return Contest(
         id="contest1",
-        arena=make_arena(),
+        arena_id="arena1",
         current_round=1,
-        player_positions=["A"],
+        player_positions="1,2;3,4",
         state=ContestState.CREATED,
         start_time=None,
         end_time=None,
@@ -58,83 +44,89 @@ def make_contest():
     )
 
 
+@pytest.fixture
 def logging():
     return LoggingService(True)
 
 
-def test_initial_state():
+@pytest.fixture
+def log(logging):
+    return logging.get_logger("test")
+
+
+def test_initial_state(log):
     contest = make_contest()
-    machine = RoundMachine(contest, logging=logging())
+    machine = RoundMachine(contest, log=log)
     assert machine.current_state.id == "round_prompting"
 
 
-def test_prompt_sent_transition():
+def test_prompt_sent_transition(log):
     contest = make_contest()
-    machine = RoundMachine(contest, logging=logging())
-    machine.prompt_sent()
+    machine = RoundMachine(contest, log=log)
+    machine.prompt_sent("")
     assert machine.current_state.id == "awaiting_actions"
 
 
-def test_actions_received_transition():
+def test_actions_received_transition(log):
     contest = make_contest()
-    machine = RoundMachine(contest, logging=logging())
-    machine.prompt_sent()
-    machine.actions_received()
+    machine = RoundMachine(contest, log=log)
+    machine.prompt_sent("")
+    machine.actions_received("")
     assert machine.current_state.id == "judging_actions"
 
 
-def test_raw_results_transition():
+def test_raw_results_transition(log):
     contest = make_contest()
-    machine = RoundMachine(contest, logging=logging())
-    machine.prompt_sent()
-    machine.actions_received()
-    machine.raw_results()
+    machine = RoundMachine(contest, log=log)
+    machine.prompt_sent("")
+    machine.actions_received("")
+    machine.raw_results("")
     assert machine.current_state.id == "applying_effects"
 
 
-def test_effects_determined_transition():
+def test_effects_determined_transition(log):
     contest = make_contest()
-    machine = RoundMachine(contest, logging=logging())
-    machine.prompt_sent()
-    machine.actions_received()
-    machine.raw_results()
-    machine.effects_determined()
+    machine = RoundMachine(contest, log=log)
+    machine.prompt_sent("")
+    machine.actions_received("")
+    machine.raw_results("")
+    machine.effects_determined("")
     assert machine.current_state.id == "describing_results"
 
 
-def test_results_ready_transition():
+def test_results_ready_transition(log):
     contest = make_contest()
-    machine = RoundMachine(contest, logging=logging())
-    machine.prompt_sent()
-    machine.actions_received()
-    machine.raw_results()
-    machine.effects_determined()
-    machine.results_ready()
+    machine = RoundMachine(contest, log=log)
+    machine.prompt_sent("")
+    machine.actions_received("")
+    machine.raw_results("")
+    machine.effects_determined("")
+    machine.results_ready("")
     assert machine.current_state.id == "presenting_results"
     assert machine.current_state.final
 
 
-def test_full_round_sequence():
+def test_full_round_sequence(log):
     contest = make_contest()
-    machine = RoundMachine(contest, logging=logging())
+    machine = RoundMachine(contest, log=log)
     assert machine.current_state.id == "round_prompting"
-    machine.prompt_sent()
+    machine.prompt_sent("")
     assert machine.current_state.id == "awaiting_actions"
-    machine.actions_received()
+    machine.actions_received("")
     assert machine.current_state.id == "judging_actions"
-    machine.raw_results()
+    machine.raw_results("")
     assert machine.current_state.id == "applying_effects"
-    machine.effects_determined()
+    machine.effects_determined("")
     assert machine.current_state.id == "describing_results"
-    machine.results_ready()
+    machine.results_ready("")
     assert machine.current_state.id == "presenting_results"
     assert machine.current_state.final
 
 
-def test_on_enter_methods_are_callable():
+def test_on_enter_methods_are_callable(log):
     # These are empty, but we check they exist and are callable
     contest = make_contest()
-    machine = RoundMachine(contest, logging=logging())
+    machine = RoundMachine(contest, log=log)
     for method in [
         machine.on_enter_round_prompting,
         machine.on_enter_awaiting_actions,
