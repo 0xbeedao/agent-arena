@@ -3,7 +3,6 @@ Provides models to manage aynchronous Jobs
 """
 
 from datetime import datetime
-from enum import Enum
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -15,22 +14,9 @@ from sqlmodel import Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
 
+from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import JobState
 from agentarena.models.dbbase import DbBase
-
-
-class JobState(str, Enum):
-    IDLE = "idle"
-    REQUEST = "request"
-    RESPONSE = "response"
-    WAITING = "waiting"
-    FAIL = "fail"
-    COMPLETE = "complete"
-
-
-class JobResponseState(str, Enum):
-    COMPLETE = "complete"
-    PENDING = "pending"
-    FAIL = "fail"
 
 
 class UrlJobRequest(SQLModel, table=False):
@@ -197,33 +183,6 @@ class CommandJobBatchRequest(SQLModel, table=False):
     )
     children: List[UrlJobRequest] = Field(
         description="Child requests to be processed first"
-    )
-
-
-class ParticipantRequest(DbBase, table=True):
-    """
-    A request from the arena to a Participant
-    """
-
-    job_id: str = Field(description="job that caused this event")
-    command: str = Field(description="job command")
-    data: str = Field(description="job payload")
-    message: Optional[str] = Field(description="message regarding data")
-    state: JobResponseState = Field(description="state of event, a JobState")
-
-
-class ControllerRequest(BaseModel):
-    """
-    Base model for requests to the controller.
-    """
-
-    action: str = Field(description="Action to perform")
-    data: Optional[str] = Field(
-        default="", description="Additional JSON data for the action"
-    )
-    target_id: Optional[str] = Field(default="", description="Contest ID if applicable")
-    subjects: Optional[List[str]] = Field(
-        default=[], description="Arena ID if applicable"
     )
 
 

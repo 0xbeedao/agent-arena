@@ -11,10 +11,10 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobCreate
 from agentarena.models.job import CommandJobHistory
-from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
 from agentarena.scheduler.services.queue_service import QueueService
 

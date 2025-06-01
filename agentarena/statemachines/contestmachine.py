@@ -21,9 +21,9 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
-from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
 
 from .roundmachine import RoundMachine

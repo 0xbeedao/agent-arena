@@ -11,12 +11,12 @@ from sqlmodel import Field
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
+from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobCreate
 from agentarena.models.job import CommandJobPublic
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
-from agentarena.models.job import JobState
 from agentarena.models.job import UrlJobRequest
 from agentarena.models.requests import HealthStatus
 

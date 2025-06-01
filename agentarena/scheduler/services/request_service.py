@@ -6,9 +6,9 @@ from statemachine import State
 
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
-from agentarena.models.job import JobState
 from agentarena.scheduler.services.queue_service import QueueService
 from agentarena.statemachines.request_machine import RequestMachine
 from agentarena.statemachines.request_machine import RequestState

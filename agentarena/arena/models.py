@@ -7,35 +7,16 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-from pydantic import BaseModel
 from sqlmodel import JSON
 from sqlmodel import Column
 from sqlmodel import Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
 
+from agentarena.models.constants import ContestRoundState
+from agentarena.models.constants import ContestState
 from agentarena.models.constants import RoleType
 from agentarena.models.dbbase import DbBase
-
-
-class ContestState(str, Enum):
-    """
-    Status of a contest.
-    """
-
-    # Initial states
-    CREATED = "created"
-
-    # In progress states
-    STARTING = "starting"
-    ROLE_CALL = "role_call"
-    SETUP_ARENA = "setup_arena"
-    IN_ROUND = "in_round"
-    CHECK_WIN = "check_win"
-
-    # Final states
-    FAIL = "fail"
-    COMPLETE = "complete"
 
 
 class FeatureOriginType(str, Enum):
@@ -90,10 +71,6 @@ class ArenaCreate(ArenaBase):
     features: List["Feature"] = Field(description="Required Features to Create")
 
 
-class ArenaPublic(ArenaBase):
-    id: str
-
-
 class ArenaUpdate(SQLModel):
     name: Optional[str] = Field(default=None, description="Arena name")
     description: Optional[str] = Field(description="Arena description")
@@ -109,22 +86,6 @@ class ArenaUpdate(SQLModel):
 
 
 # -------- Round Models
-
-
-class ContestRoundState(str, Enum):
-    """
-    Represents the state of a contest round.
-    """
-
-    IDLE = "idle"
-    CREATING_ROUND = "creating_round"
-    ADDING_FIXED_FEATURES = "adding_fixed_features"
-    GENERATING_FEATURES = "generating_features"
-    GENERATING_POSITIONS = "generating_positions"
-    DESCRIBING_SETUP = "describing_setup"
-    IN_PROGRESS = "in_progress"
-    COMPLETE = "complete"
-    FAIL = "fail"
 
 
 class ContestRoundBase(SQLModel, table=False):
@@ -205,7 +166,8 @@ class ContestBase(SQLModel, table=False):
     arena_id: str = Field(description="Reference to ArenaDTO", foreign_key="arena.id")
     current_round: int = Field(default=1, description="Current round")
     player_positions: str = Field(
-        default="", description="A semicolon delimited list of player positions"
+        default="",
+        description="A semicolon delimited list of starting player positions",
     )
     state: ContestState = Field(
         default=ContestState.CREATED, description="Contest state"
@@ -263,10 +225,6 @@ class ContestCreate(SQLModel, table=False):
     participant_ids: List[str] = Field(
         description="IDs of Participants to load", foreign_key="participant.id"
     )
-
-
-class ContestPublic(ContestBase, table=False):
-    id: str
 
 
 class ContestUpdate(ContestBase):
@@ -333,10 +291,6 @@ class FeatureUpdate(SQLModel):
     )
 
 
-class FeaturePublic(FeatureBase):
-    id: str
-
-
 # -------- Judge Results
 class JudgeResultBase(SQLModel, table=False):
     """
@@ -371,11 +325,6 @@ class ParticipantBase(SQLModel, table=False):
     description: str = Field(
         default="",
         description="Agent description",
-    )
-    extra: Optional[Dict] = Field(
-        default_factory=dict,
-        sa_column=Column(JSON),
-        description="Additional data",
     )
     endpoint: str = Field(
         default="",
@@ -413,14 +362,6 @@ class ParticipantCreate(ParticipantBase):
     """
 
 
-class ParticipantPublic(ParticipantBase):
-    """
-    Public model for Participant
-    """
-
-    id: str
-
-
 class ParticipantUpdate(SQLModel):
     """
     Request model for creating a participant
@@ -453,10 +394,8 @@ class PlayerStateBase(SQLModel, table=False):
     inventory: Optional[List[str]] = Field(
         default_factory=List, sa_column=Column(JSON), description="Player inventory"
     )
-    health_state: str = Field(description="Health state")
-    extra: Optional[Dict] = Field(
-        default_factory=Dict, sa_column=Column(JSON), description="Additional data"
-    )
+    health: str = Field(default="Fresh", description="Health state")
+    score: int = Field(default=0, description="game score")
 
 
 class PlayerState(PlayerStateBase, DbBase, table=True):
@@ -497,16 +436,3 @@ class PlayerActionCreate(PlayerActionBase, table=False):
 
 
 # --- Requests
-
-
-class PlayerActionRequest(BaseModel):
-    """
-    Model sent to Players for action requests, as JSON in the data field
-    """
-
-    player: ParticipantPublic = Field()
-    arena: ArenaPublic = Field()
-    contest: ContestPublic = Field()
-    features: List[FeaturePublic] = Field()
-    players: List[ParticipantPublic] = Field()
-    round_no: int = Field()

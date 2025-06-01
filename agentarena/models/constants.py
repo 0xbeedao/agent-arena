@@ -1,6 +1,57 @@
 from enum import Enum
 
 
+class ContestRoundState(str, Enum):
+    """
+    Represents the state of a contest round.
+    """
+
+    IDLE = "idle"
+    CREATING_ROUND = "creating_round"
+    ADDING_FIXED_FEATURES = "adding_fixed_features"
+    GENERATING_FEATURES = "generating_features"
+    GENERATING_POSITIONS = "generating_positions"
+    DESCRIBING_SETUP = "describing_setup"
+    IN_PROGRESS = "in_progress"
+    COMPLETE = "complete"
+    FAIL = "fail"
+
+
+class ContestState(str, Enum):
+    """
+    Status of a contest.
+    """
+
+    # Initial states
+    CREATED = "created"
+
+    # In progress states
+    STARTING = "starting"
+    ROLE_CALL = "role_call"
+    SETUP_ARENA = "setup_arena"
+    IN_ROUND = "in_round"
+    CHECK_WIN = "check_win"
+
+    # Final states
+    FAIL = "fail"
+    COMPLETE = "complete"
+
+
+class JobState(str, Enum):
+    IDLE = "idle"
+    REQUEST = "request"
+    RESPONSE = "response"
+    WAITING = "waiting"
+    FAIL = "fail"
+    COMPLETE = "complete"
+
+
+class JobResponseState(str, Enum):
+    COMPLETE = "complete"
+    PENDING = "pending"
+    FAIL = "fail"
+
+
 class PromptType(str, Enum):
     """
     Enum for prompt keys

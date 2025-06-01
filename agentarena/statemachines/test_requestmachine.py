@@ -1,10 +1,10 @@
 import pytest
 
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
-from agentarena.models.job import JobState
 from agentarena.statemachines.request_machine import RequestMachine
 from agentarena.statemachines.request_machine import RequestState
 

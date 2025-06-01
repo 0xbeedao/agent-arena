@@ -19,10 +19,10 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.constants import JobResponseState
 from agentarena.models.job import JobResponse
-from agentarena.models.job import JobResponseState
-from agentarena.models.job import ParticipantRequest
 from agentarena.models.requests import HealthStatus
+from agentarena.models.requests import ParticipantRequest
 
 
 class AgentController(

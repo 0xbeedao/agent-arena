@@ -1,4 +1,5 @@
 from sqlmodel import Field
+
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import ControllerRequest
