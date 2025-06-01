@@ -3,13 +3,13 @@ from nats.aio.client import Client as NatsClient
 from nats.aio.msg import Msg
 from sqlmodel import Field
 
-from agentarena.arena.models import ModelChangeMessage
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobState
+from agentarena.models.job import ModelChangeMessage
 
 
 async def get_message_broker_connection(

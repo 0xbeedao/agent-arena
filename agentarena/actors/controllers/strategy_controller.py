@@ -34,7 +34,7 @@ class StrategyController(
             description="prompt svc",
         ),
         strategy_service: ModelService[Strategy, StrategyCreate] = Field(
-            description="the participant service"
+            description="the `par`ticipant service"
         ),
         uuid_service: UUIDService = Field(description="UUID Service"),
         logging: LoggingService = Field(description="Logger factory"),
@@ -55,15 +55,16 @@ class StrategyController(
     async def create_strategy(
         self, req: StrategyCreate, session: Session
     ) -> StrategyPublic:
-        log = self.log.bind(method="create_arena", arena=req.name)
+        log = self.log.bind(method="create_strategy", strategy=req.name)
         prompts = req.prompts
-        req.prompts = []
+        del req.prompts
         strategy, result = await self.model_service.create(req, session)
         if not result.success:
             raise HTTPException(status_code=422, detail=result)
         if not strategy:
             raise HTTPException(status_code=422, detail="internal error")
 
+        session.commit()
         log = log.bind(strategy_id=strategy.id)
 
         for p in prompts:
@@ -74,12 +75,10 @@ class StrategyController(
                 strategy_id=strategy.id,
             )
 
-            prompt, result = await self.prompt_service.create(to_create, session)
-            if not result.success:
-                raise HTTPException(status_code=422, detail=result)
-            if not prompt:
-                raise HTTPException(status_code=422, detail="internal error")
-            strategy.prompts.append(prompt)
+            # because these aren't many-to-many, we just directly add the object to the list
+            # and commit to save
+
+            strategy.prompts.append(to_create)
 
         log.info("Added prompts", ct=len(prompts))
         session.commit()
@@ -90,7 +89,8 @@ class StrategyController(
     def get_router(self):
         prefix = self.base_path
         if not prefix.endswith(self.model_name):
-            prefix = f"{prefix}/arena"
+            prefix = f"{prefix}/strategy"
+        prefix = prefix.lower()
         self.log.info("setting up routes", path=prefix)
         router = APIRouter(prefix=prefix, tags=["arena"])
 

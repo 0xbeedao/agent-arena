@@ -8,6 +8,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
+from pydantic import BaseModel
 from sqlmodel import JSON
 from sqlmodel import Column
 from sqlmodel import Field
@@ -197,3 +198,40 @@ class CommandJobBatchRequest(SQLModel, table=False):
     children: List[UrlJobRequest] = Field(
         description="Child requests to be processed first"
     )
+
+
+class ParticipantRequest(DbBase, table=True):
+    """
+    A request from the arena to a Participant
+    """
+
+    job_id: str = Field(description="job that caused this event")
+    command: str = Field(description="job command")
+    data: str = Field(description="job payload")
+    message: Optional[str] = Field(description="message regarding data")
+    state: JobResponseState = Field(description="state of event, a JobState")
+
+
+class ControllerRequest(BaseModel):
+    """
+    Base model for requests to the controller.
+    """
+
+    action: str = Field(description="Action to perform")
+    data: Optional[str] = Field(
+        default="", description="Additional JSON data for the action"
+    )
+    target_id: Optional[str] = Field(default="", description="Contest ID if applicable")
+    subjects: Optional[List[str]] = Field(
+        default=[], description="Arena ID if applicable"
+    )
+
+
+class ModelChangeMessage(BaseModel):
+    """
+    Message sent to the controller when a model changes.
+    """
+
+    action: str = Field(description="Action that triggered the change")
+    model_id: str = Field(description="ID of the changed model")
+    detail: Optional[str] = Field(default="", description="Details about the change")

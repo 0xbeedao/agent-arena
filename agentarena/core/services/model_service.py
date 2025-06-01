@@ -70,15 +70,16 @@ class ModelService(Generic[T, MC]):
             uuid_service: The UUID service
             logging: logging service
         """
-        if not issubclass(model_class, DbBase):
+        # Allow both DbBase and regular SQLModel classes
+        if not (issubclass(model_class, DbBase) or issubclass(model_class, SQLModel)):
             raise TypeError(
-                f"model_class must be a subclass of DbBase, got {model_class}"
+                f"model_class must be a subclass of DbBase or SQLModel, got {model_class}"
             )
 
         self.model_class = model_class
         self.db_service = db_service
         self.message_broker = message_broker
-        self.model_name = model_class.__name__
+        self.model_name = model_class.__name__.lower()
         self.uuid_service = uuid_service
         self.log = logging.get_logger(
             "service",

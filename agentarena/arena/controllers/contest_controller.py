@@ -22,7 +22,6 @@ from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import ContestUpdate
-from agentarena.arena.models import ControllerRequest
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
 from agentarena.clients.message_broker import MessageBroker
@@ -32,6 +31,7 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.constants import RoleType
+from agentarena.models.job import ControllerRequest
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.statemachines.contestmachine import ContestMachine

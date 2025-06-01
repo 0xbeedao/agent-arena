@@ -2,6 +2,7 @@
 Responder controller for Agent Response endpoints
 """
 
+from fastapi import Body
 from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
@@ -11,6 +12,7 @@ from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
 from agentarena.actors.models import AgentPublic
 from agentarena.actors.models import AgentUpdate
+from agentarena.actors.services.template_service import TemplateService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
@@ -19,6 +21,7 @@ from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
+from agentarena.models.job import ParticipantRequest
 from agentarena.models.requests import HealthStatus
 
 
@@ -35,6 +38,7 @@ class AgentController(
         message_broker: MessageBroker = Field(
             description="Message broker client for publishing messages"
         ),
+        template_service: TemplateService = Field(),
         uuid_service: UUIDService = Field(description="UUID Service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
@@ -53,6 +57,7 @@ class AgentController(
         # Initialize the SubscribingService with the subscriptions
         SubscribingService.__init__(self, to_subscribe, self.log)
         self.message_broker = message_broker
+        self.template_service = template_service
         self.uuid_service = uuid_service
 
     async def healthcheck_message(self, msg: Msg) -> None:
@@ -89,6 +94,7 @@ class AgentController(
                     state="FAIL",
                     version="1",
                 ).model_dump_json(),
+                url="",
             )
 
         self.log.info("healthcheck complete", uuid=uuid)
@@ -106,6 +112,33 @@ class AgentController(
         )
         return response
 
+    async def agent_request(
+        self, participant_id: str, req: ParticipantRequest, session: Session
+    ):
+        stmt = select(Agent).where(Agent.participant_id == participant_id)
+        agent = session.exec(stmt).one_or_none()
+        log = self.log.bind(
+            "agent_request", job=req.job_id, cmd=req.command, participant=participant_id
+        )
+        if not agent:
+            log.info("No such agent")
+            return JobResponse(
+                channel="",
+                state=JobResponseState.FAIL,
+                message=f"no such responder: {participant_id}",
+                job_id=req.job_id,
+                data=HealthStatus(
+                    name=participant_id,
+                    state="FAIL",
+                    version="1",
+                ).model_dump_json(),
+                url=f"{self.base_path}/agent/{participant_id}/request",
+            )
+        # More sanity checking needed
+        #   check to see if command key is found in template
+        #   then call the LLM
+        # self.llm_service.generate()
+
     def get_router(self):
         router = super().get_router()
 
@@ -113,5 +146,10 @@ class AgentController(
         async def health(agent_id: str):
             with self.model_service.db_service.get_session() as session:
                 return await self.healthcheck(agent_id, session)
+
+        @router.post("/{agent_id}/request", response_model=JobResponse)
+        async def agent_request(agent_id: str, req: ParticipantRequest = Body(...)):
+            with self.model_service.db_service.get_session() as session:
+                return await self.agent_request(agent_id, req, session)
 
         return router

@@ -5,6 +5,7 @@ from sqlmodel import Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
 
+from agentarena.models import constants
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.dbbase import DbBase
@@ -19,6 +20,10 @@ class AgentBase(SQLModel, table=False):
     Maps to the AGENT_CONFIG entity in the ER diagram.
     """
 
+    model: str = Field(
+        default=constants.DEFAULT_AGENT_MODEL,
+        description="LLM model name or alias",
+    )
     name: str = Field(
         default="",
         description="Name of the agent participant - should match the participant name",

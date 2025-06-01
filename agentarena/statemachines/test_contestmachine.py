@@ -1,5 +1,4 @@
 from unittest.mock import AsyncMock
-from unittest.mock import Mock
 
 import pytest
 
@@ -17,7 +16,6 @@ from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import RoleType
 from agentarena.statemachines.contestmachine import ContestMachine
-from agentarena.statemachines.setupmachine import SetupMachine
 
 
 @pytest.fixture

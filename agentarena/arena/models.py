@@ -499,37 +499,12 @@ class PlayerActionCreate(PlayerActionBase, table=False):
 # --- Requests
 
 
-class ControllerRequest(BaseModel):
-    """
-    Base model for requests to the controller.
-    """
-
-    action: str = Field(description="Action to perform")
-    data: Optional[str] = Field(
-        default="", description="Additional JSON data for the action"
-    )
-    target_id: Optional[str] = Field(default="", description="Contest ID if applicable")
-    subjects: Optional[List[str]] = Field(
-        default=[], description="Arena ID if applicable"
-    )
-
-
-class ModelChangeMessage(BaseModel):
-    """
-    Message sent to the controller when a model changes.
-    """
-
-    action: str = Field(description="Action that triggered the change")
-    model_id: str = Field(description="ID of the changed model")
-    detail: Optional[str] = Field(default="", description="Details about the change")
-
-
 class PlayerActionRequest(BaseModel):
     """
-    Model sent to Players for action requests.
+    Model sent to Players for action requests, as JSON in the data field
     """
 
-    player: Participant = Field()
+    player: ParticipantPublic = Field()
     arena: ArenaPublic = Field()
     contest: ContestPublic = Field()
     features: List[FeaturePublic] = Field()

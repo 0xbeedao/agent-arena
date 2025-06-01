@@ -4,20 +4,22 @@ from dependency_injector import containers
 from dependency_injector import providers
 
 from agentarena.actors.controllers.agent_controller import AgentController
+from agentarena.actors.controllers.strategy_controller import StrategyController
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
 from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
-from agentarena.actors.models import StrategyPublic
-from agentarena.actors.models import StrategyUpdate
+from agentarena.actors.models import StrategyPrompt
+from agentarena.actors.models import StrategyPromptCreate
+from agentarena.actors.services.template_service import TemplateService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.clients.message_broker import get_message_broker_connection
-from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
+from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 
@@ -96,22 +98,44 @@ class ActorContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
+    strategyprompt_service = providers.Singleton(
+        ModelService[StrategyPrompt, StrategyPromptCreate],
+        model_class=StrategyPrompt,
+        db_service=db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+    # other services
+
+    llm_service = providers.Singleton(
+        LLMService,
+        message_broker=message_broker,
+        logging=logging,
+    )
+
+    template_service = providers.Singleton(
+        TemplateService,
+        logging=logging,
+    )
+
     # Controllers
 
     agent_controller = providers.Singleton(
         AgentController,
         agent_service=agent_service,
         message_broker=message_broker,
+        template_service=template_service,
         uuid_service=uuid_service,
         logging=logging,
     )
 
     strategy_controller = providers.Singleton(
-        ModelController[Strategy, StrategyCreate, StrategyUpdate, StrategyPublic],
-        model_name="strategy",
-        model_create=StrategyCreate,
-        model_public=StrategyPublic,
-        model_update=StrategyUpdate,
-        model_service=strategy_service,
+        StrategyController,
+        message_broker=message_broker,
+        prompt_service=strategyprompt_service,
+        strategy_service=strategy_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
