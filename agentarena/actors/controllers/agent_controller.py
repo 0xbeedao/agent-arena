@@ -15,13 +15,13 @@ from agentarena.actors.models import AgentUpdate
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
-from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.factories.logger_factory import ILogger, LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import JobResponseState, PromptType
 from agentarena.models.job import JobResponse
-from agentarena.models.requests import HealthStatus
+from agentarena.models.requests import ArenaFeaturesRequest, HealthStatus
 from agentarena.models.requests import ParticipantRequest
 
 
@@ -127,17 +127,18 @@ class AgentController(
                 state=JobResponseState.FAIL,
                 message=f"no such responder: {participant_id}",
                 job_id=req.job_id,
-                data=HealthStatus(
-                    name=participant_id,
-                    state="FAIL",
-                    version="1",
-                ).model_dump_json(),
                 url=f"{self.base_path}/agent/{participant_id}/request",
             )
-        # More sanity checking needed
-        #   check to see if command key is found in template
-        #   then call the LLM
-        # self.llm_service.generate()
+
+        if req.command == PromptType.ARENA_GENERATE_FEATURES:
+            return await self.arena_generate_features(agent, req, session, log)
+        else:
+            log.warn("no handler for command")
+
+    async def arena_generate_features(
+        self, agent: Agent, req: ParticipantRequest, session: Session, log: ILogger
+    ):
+        pdata = ArenaFeaturesRequest()
 
     def get_router(self):
         router = super().get_router()

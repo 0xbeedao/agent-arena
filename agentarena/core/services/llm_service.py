@@ -23,18 +23,18 @@ class LLMService:
         self.message_broker = message_broker
         self.uuid_service = uuid_service
 
-    def generate(self, agent: Agent, prompt: str) -> str:
+    def generate(self, model_alias: str, prompt: str) -> str:
         """
         Query the LLM and return the text
         """
         try:
-            model = llm.get_model(agent.model)
+            model = llm.get_model(model_alias)
             return model.prompt(prompt).text()
         except llm.UnknownModelError as ue:
-            self.log.warn("Could not get model from LLM", model=agent.model)
+            self.log.warn("Could not get model from LLM", model=model_alias)
             raise ue
 
-    def add_generate_job(
+    def make_generate_job(
         self, agent: Agent, prompt: str, session: Session
     ) -> GenerateJob:
         """
@@ -44,15 +44,22 @@ class LLMService:
             id=self.uuid_service.make_id(),
             model=agent.model,
             prompt=prompt,
-            state=JobState.REQUEST,
-            started_at=int(datetime.now().timestamp()),
+            state=JobState.IDLE,
+            started_at=0,
         )
         session.add(job)
         session.commit()
+        return job
+
+    def execute_job(self, job: GenerateJob, session: Session):
+        session.add(job)
+        job.started_at = int(datetime.now().timestamp())
+        job.state = JobState.REQUEST
+        session.commit
         try:
-            job.generated = self.generate(agent, prompt)
+            job.generated = self.generate(job.model, job.prompt)
             job.state = JobState.COMPLETE
-        except llm.UnknownModelError as ue:
+        except llm.UnknownModelError:
             job.state = JobState.FAIL
         finally:
             job.finished_at = int(datetime.now().timestamp())

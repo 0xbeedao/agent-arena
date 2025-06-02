@@ -8,7 +8,7 @@ from typing import Optional
 from pydantic import BaseModel
 from sqlmodel import Field
 
-from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import JobResponseState, PromptType
 from agentarena.models.public import ArenaPublic
 from agentarena.models.public import ContestPublic
 from agentarena.models.public import FeaturePublic
@@ -40,13 +40,13 @@ class HealthStatus(BaseModel):
     version: Optional[str] = Field(default="", description="service version")
 
 
-class ParticipantRequest(BaseModel, table=True):
+class ParticipantRequest(BaseModel):
     """
     A request from the arena to a Participant
     """
 
     job_id: str = Field(description="job that caused this event")
-    command: str = Field(description="job command")
+    command: PromptType = Field(description="job command")
     data: str = Field(description="job payload")
     message: Optional[str] = Field(description="message regarding data")
     state: JobResponseState = Field(description="state of event, a JobState")

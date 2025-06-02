@@ -25,28 +25,27 @@ class ArenaPublic(BaseModel):
 
 class ContestPublic(BaseModel):
     id: str = Field(default="", description="ID")
-    current_round: int = Field(default=1, description="Current round")
+    arena: ArenaPublic = Field()
+    round: "ContestRoundPublic" = Field()
+    end_time: int = Field(description="Timestamp")
+    start_time: int = Field(description="Timestamp")
     state: ContestState = Field(
         default=ContestState.CREATED, description="Contest state"
     )
-    participants: List["ParticipantPublic"] = Field(default=[])
-    rounds: List["ContestRoundPublic"] = Field(default=[])
-    end_time: int = Field(description="Timestamp")
-    start_time: int = Field(description="Timestamp")
     winner: Optional["ParticipantPublic"] = Field(default=None)
 
 
 class ContestRoundPublic(BaseModel):
     features: List["FeaturePublic"] = Field(default=[], description="Feature list")
-    round_no: int = Field(description="Round number", ge=0)
     narrative: str = Field(default="", description="Round narrative")
-    player_states: List["PlayerStatePublic"] = Field(default=[])
+    players: List["PlayerPublic"] = Field(default=[])
+    round_no: int = Field(description="Round number", ge=0)
     state: ContestRoundState = Field(description="Round state")
 
 
 class FeaturePublic(BaseModel):
-    name: str = Field(description="Feature name")
     description: str = Field(description="Feature description")
+    name: str = Field(description="Feature name")
     position: str = Field(
         description="Grid coordinate as 'x,y'",
     )
@@ -72,7 +71,9 @@ class ParticipantPublic(BaseModel):
     )
 
 
-class PlayerStatePublic(BaseModel):
+class PlayerPublic(BaseModel):
+    id: str = Field()
+    name: str = Field()
     position: str = Field(description="x,y position")
     inventory: List[str] = Field(default=[], description="Player inventory")
     health: str = Field(default="Fresh", description="description of player health")
