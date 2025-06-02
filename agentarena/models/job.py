@@ -186,6 +186,30 @@ class CommandJobBatchRequest(SQLModel, table=False):
     )
 
 
+class GenerateJobBase(SQLModel):
+    generated: Optional[str] = Field(
+        default=None,
+        description="The response data",
+    )
+    model: str = Field(description="model name")
+    prompt: str = Field(description="Prompt to send")
+    state: JobState = Field(
+        default=JobState.IDLE, description="Job state, see JobState states"
+    )
+    started_at: int = Field(
+        default=0, description="When this job was picked up from queue"
+    )
+
+    finished_at: int = Field(
+        default=0,
+        description="When this job reached a final state ['complete', 'fail', 'waiting']",
+    )
+
+
+class GenerateJob(GenerateJobBase, DbBase, table=True):
+    pass
+
+
 class ModelChangeMessage(BaseModel):
     """
     Message sent to the controller when a model changes.
