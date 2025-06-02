@@ -8,20 +8,22 @@ from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import select
 
-from agentarena.actors.models import Agent
+from agentarena.actors.models import Agent, AgentPublic
 from agentarena.actors.models import AgentCreate
-from agentarena.actors.models import AgentPublic
 from agentarena.actors.models import AgentUpdate
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
-from agentarena.core.factories.logger_factory import ILogger, LoggingService
+from agentarena.core.factories.logger_factory import ILogger
+from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import JobResponseState, PromptType
+from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import PromptType
 from agentarena.models.job import JobResponse
-from agentarena.models.requests import ArenaFeaturesRequest, HealthStatus
+from agentarena.models.public import ContestPublic
+from agentarena.models.requests import HealthStatus
 from agentarena.models.requests import ParticipantRequest
 
 
@@ -138,7 +140,10 @@ class AgentController(
     async def arena_generate_features(
         self, agent: Agent, req: ParticipantRequest, session: Session, log: ILogger
     ):
-        pdata = ArenaFeaturesRequest()
+        pass
+        # work = ContestPublic(
+
+        # )
 
     def get_router(self):
         router = super().get_router()

@@ -4,11 +4,11 @@ import pytest
 
 from agentarena.arena.models import Arena
 from agentarena.arena.models import ArenaCreate
-from agentarena.arena.models import ArenaPublic
+from agentarena.models.public import ArenaPublic
 from agentarena.arena.models import ArenaUpdate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
-from agentarena.arena.models import ContestPublic
+from agentarena.models.public import ContestPublic
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import ContestUpdate
 from agentarena.core.controllers.model_controller import ModelController

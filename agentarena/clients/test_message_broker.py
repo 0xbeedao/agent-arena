@@ -63,26 +63,6 @@ async def test_send_job(message_broker, mock_nats_client):
 
 
 @pytest.mark.asyncio
-async def test_send_job_with_prefix(message_broker, mock_nats_client):
-    message_broker.prefix = "custom"
-    send_at = int(datetime.now().timestamp())
-    test_job = CommandJobCreate(
-        id="test",
-        channel="test.command",
-        data={"key": "value"},
-        method="POST",
-        priority=1,
-        send_at=send_at,
-        state=JobState.IDLE,
-        url="",
-    )
-
-    await message_broker.send_job(test_job)
-
-    mock_nats_client.publish.assert_awaited_once()
-
-
-@pytest.mark.asyncio
 async def test_send_batch(message_broker, mock_nats_client):
     parent_job = CommandJob(
         channel="parent.command",

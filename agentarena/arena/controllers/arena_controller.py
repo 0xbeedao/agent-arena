@@ -14,7 +14,6 @@ from sqlmodel import Session
 
 from agentarena.arena.models import Arena
 from agentarena.arena.models import ArenaCreate
-from agentarena.arena.models import ArenaPublic
 from agentarena.arena.models import ArenaUpdate
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
@@ -22,6 +21,7 @@ from agentarena.arena.models import FeatureOriginType
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
+from agentarena.models.public import ArenaPublic
 
 
 class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPublic]):
@@ -46,7 +46,7 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
             logging=logging,
         )
 
-    async def create_arena(self, req: ArenaCreate, session: Session) -> Arena:
+    async def create_arena(self, req: ArenaCreate, session: Session) -> ArenaPublic:
         """
         Create a new arena.
 
@@ -87,7 +87,16 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
         session.commit()
 
         log.info(f"Created arena: {arena.id}")
-        return arena
+        ap = ArenaPublic(
+            id=arena.id,
+            name=arena.name,
+            description=arena.description,
+            height=arena.height,
+            width=arena.width,
+            rules=arena.rules,
+            winning_condition=arena.winning_condition,
+        )
+        return ap
 
     def get_router(self):
         prefix = self.base_path

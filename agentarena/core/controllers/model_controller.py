@@ -7,6 +7,7 @@ from typing import TypeVar
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
+from pydantic import BaseModel
 from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import SQLModel
@@ -18,7 +19,7 @@ from agentarena.models.dbbase import DbBase
 T = TypeVar("T", bound=DbBase)
 MC = TypeVar("MC", bound=SQLModel)  # model creation type, e.g. CommandJobCreate
 MU = TypeVar("MU", bound=SQLModel)  # model update type, e.g. CommandJobUpdate
-MP = TypeVar("MP", bound=SQLModel)  # model public type, e.g. CommandJobPublic
+MP = TypeVar("MP", bound=BaseModel)  # model public type, e.g. CommandJobPublic
 
 
 class ModelController(Generic[T, MC, MU, MP]):
@@ -52,7 +53,7 @@ class ModelController(Generic[T, MC, MU, MP]):
             "controller", model=model_name, path=self.base_path
         )
 
-    async def create_model(self, req: MC, session: Session) -> MP:
+    async def create_model(self, req: MC, session: Session) -> T:
         """
         Create a new instance of the model.
 
@@ -71,7 +72,7 @@ class ModelController(Generic[T, MC, MU, MP]):
             raise HTTPException(status_code=422, detail=response.validation)
         if not obj:
             raise HTTPException(status_code=500, detail="internal error")
-        return self.model_public.model_validate(obj)
+        return obj
 
     async def get_model(self, obj_id: str, session: Session) -> MP:
         """

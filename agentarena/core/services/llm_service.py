@@ -1,11 +1,12 @@
 from datetime import datetime
-from sqlmodel import Field, Session
+
+import llm
+from sqlmodel import Field
+from sqlmodel import Session
 
 from agentarena.actors.models import Agent
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
-import llm
-
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobState
 from agentarena.models.job import GenerateJob

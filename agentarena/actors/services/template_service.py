@@ -1,13 +1,19 @@
 import json
+
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import TemplateNotFound
 from jinja2 import select_autoescape
-from sqlmodel import Session, select
+from sqlmodel import Session
+from sqlmodel import select
 
-from agentarena.actors.models import Agent, Strategy, StrategyCreate, StrategyPrompt
+from agentarena.actors.models import Agent
+from agentarena.actors.models import Strategy
+from agentarena.actors.models import StrategyCreate
+from agentarena.actors.models import StrategyPrompt
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
+from agentarena.models.constants import PromptType
 from agentarena.models.requests import ParticipantRequest
 
 
@@ -54,17 +60,17 @@ class TemplateService:
             return prompt
 
     async def get_prompt(
-        self, strategy_id: str, command: str, session: Session
+        self, strategy_id: str, prompt_type: PromptType, session: Session
     ) -> StrategyPrompt:
         stmt = (
             select(StrategyPrompt)
             .where(StrategyPrompt.strategy_id == strategy_id)
-            .where(StrategyPrompt.key == command)
+            .where(StrategyPrompt.key == prompt_type)
         )
         prompt = session.exec(stmt).first()
         if not prompt:
             raise InvalidTemplateException(
-                f"No such template {command} for strategy {strategy_id}"
+                f"No such template {prompt_type.value} for strategy {strategy_id}"
             )
         return prompt
 

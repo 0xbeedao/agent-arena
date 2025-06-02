@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlmodel import Field
 from sqlmodel import Session
 
-from agentarena.actors.models import Agent, Strategy
+from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
 from agentarena.actors.models import StrategyPromptCreate

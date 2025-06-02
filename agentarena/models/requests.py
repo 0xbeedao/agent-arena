@@ -8,7 +8,8 @@ from typing import Optional
 from pydantic import BaseModel
 from sqlmodel import Field
 
-from agentarena.models.constants import JobResponseState, PromptType
+from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import PromptType
 from agentarena.models.public import ArenaPublic
 from agentarena.models.public import ContestPublic
 from agentarena.models.public import FeaturePublic
@@ -48,8 +49,10 @@ class ParticipantRequest(BaseModel):
     job_id: str = Field(description="job that caused this event")
     command: PromptType = Field(description="job command")
     data: str = Field(description="job payload")
-    message: Optional[str] = Field(description="message regarding data")
-    state: JobResponseState = Field(description="state of event, a JobState")
+    message: Optional[str] = Field(default="", description="message regarding data")
+    state: Optional[JobResponseState] = Field(
+        default=None, description="state of event, a JobState"
+    )
 
 
 class PlayerActionRequest(BaseModel):

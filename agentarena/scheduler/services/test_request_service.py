@@ -20,7 +20,7 @@ def make_job(name: str):
         id=name,
         channel="test.command",
         method="GET",
-        data={"test": 1},
+        data='{"test": 1}',
         finished_at=0,
         send_at=0,
         state=JobState.IDLE,
@@ -82,7 +82,7 @@ def make_success_response() -> JobResponse:
     return JobResponse(
         job_id="test-response",
         state=JobResponseState.COMPLETE,
-        data={"check": "yep"},
+        data='{"check": "yep"}',
         url="/test",
     )
 

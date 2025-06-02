@@ -123,6 +123,7 @@ async def test_get_success(ctrl, db_service):
         job.id = jid
         result = await ctrl.create_model(job, session)
         retrieved = await ctrl.get_model(jid, session)
-        assert result == retrieved
+        assert result.id == retrieved.id
+        assert retrieved.url == result.url
         assert retrieved.id == job.id
         assert retrieved.url == "/test"

@@ -33,7 +33,6 @@ class MessageBroker:
         logging: LoggingService = Field(),
     ):
         self.client = client
-        self.prefix = ""
         self.uuid_service = uuid_service
         self.log = logging.get_logger("factory")
 
@@ -49,8 +48,6 @@ class MessageBroker:
             action=channel.split(".")[-1],
         )
         json = payload.model_dump_json().encode("utf-8")
-        if self.prefix and not channel.startswith(f"{self.prefix}."):
-            channel = f"{self.prefix}.{channel}"
         await self.client.publish(channel, json)
 
     async def publish_response(self, msg: Msg, response: JobResponse):
@@ -65,12 +62,6 @@ class MessageBroker:
         log.debug("Publishing response", job_id=response.job_id)
         json = response.model_dump_json()
 
-        if (
-            self.prefix
-            and channel == response.channel
-            and not channel.startswith(f"{self.prefix}.")
-        ):
-            channel = f"{self.prefix}.{channel}"
         log.debug("Publishing response to channel", channel=channel, response=json)
         await self.client.publish(channel, json.encode("utf-8"))
 
@@ -81,12 +72,6 @@ class MessageBroker:
         obj_id = self.uuid_service.ensure_id(req)
         obj = req.model_copy()
         obj.id = obj_id
-        if (
-            obj.channel
-            and self.prefix
-            and not obj.channel.startswith(f"{self.prefix}.")
-        ):
-            obj.channel = f"{self.prefix}.{obj.channel}"
         json = obj.model_dump_json()
 
         await self.send_message("arena.request.job", json)
@@ -116,8 +101,4 @@ class MessageBroker:
         """
         self.log.debug(f"publishing response: {res.job_id}")
         json = res.model_dump_json()
-        dest = channel
-        if self.prefix and not channel.startswith(f"{self.prefix}."):
-            dest = f"{self.prefix}.{dest}"
-
-        await self.send_message(dest, json)
+        await self.send_message(channel, json)
