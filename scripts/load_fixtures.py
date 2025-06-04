@@ -45,7 +45,7 @@ def load_arena_fixture(fixture_file: str):
             return obj
         else:
             typer.echo(
-                f"Error loading fixtures: {response.status_code} - {response}",
+                f"Error loading fixtures: {response.status_code} - {response}\n{fixture_data}",
                 err=True,
             )
             return None

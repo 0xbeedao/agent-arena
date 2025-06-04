@@ -7,8 +7,6 @@ from agentarena.actors.controllers.agent_controller import AgentController
 from agentarena.actors.controllers.strategy_controller import StrategyController
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
-from agentarena.actors.models import GenerateJob
-from agentarena.actors.models import GenerateJobCreate
 from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
@@ -24,6 +22,7 @@ from agentarena.core.services.db_service import DbService
 from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.job import GenerateJob, GenerateJobCreate
 
 
 def get_wordlist(
@@ -128,6 +127,7 @@ class ActorContainer(containers.DeclarativeContainer):
 
     template_service = providers.Singleton(
         TemplateService,
+        strategy_service=strategy_service,
         logging=logging,
     )
 

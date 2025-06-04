@@ -126,7 +126,7 @@ class SetupMachine(StateMachine):
             # TODO - finish
             log.info("Parsed feature generation message", data=features_data)
             await self.subscriptions[msg.subject].unsubscribe()
-            await self.cycle("from feature generation message")
+            # await self.cycle("from feature generation message")
         except Exception as e:
             log.error("Failed to parse feature generation message", error=e)
             await self.failed("bad feature generation message")

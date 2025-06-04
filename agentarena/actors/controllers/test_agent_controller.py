@@ -121,7 +121,6 @@ def agent_ctrl(agent_service, message_broker, template_service, uuid_service, lo
 
 @pytest.fixture
 def strategy_ctrl(
-    message_broker,
     strategy_service,
     prompt_service,
     uuid_service,
@@ -138,7 +137,7 @@ def strategy_ctrl(
 
 @pytest.mark.asyncio
 async def test_generate_feature(agent_ctrl, strategy_ctrl, db_service):
-    arena = arena = ArenaPublic(
+    arena = ArenaPublic(
         id="arena-test-1",
         name="Super Fun Test Arena",
         description="An entertaining proving ground",

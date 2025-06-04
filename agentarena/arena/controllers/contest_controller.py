@@ -31,7 +31,7 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.constants import RoleType
-from agentarena.models.job import ControllerRequest
+from agentarena.models.requests import ControllerRequest
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.statemachines.contestmachine import ContestMachine
@@ -301,7 +301,7 @@ class ContestController(
             f"arena.contest.{contest_id}.flow.{ContestState.STARTING.value}", contest_id
         )
 
-        return ContestPublic.model_validate(contest)
+        return contest.get_public()
 
     def get_router(self):
         prefix = self.base_path

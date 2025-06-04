@@ -87,16 +87,7 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
         session.commit()
 
         log.info(f"Created arena: {arena.id}")
-        ap = ArenaPublic(
-            id=arena.id,
-            name=arena.name,
-            description=arena.description,
-            height=arena.height,
-            width=arena.width,
-            rules=arena.rules,
-            winning_condition=arena.winning_condition,
-        )
-        return ap
+        return arena.get_public()
 
     def get_router(self):
         prefix = self.base_path

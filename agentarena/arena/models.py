@@ -82,6 +82,7 @@ class Arena(ArenaBase, DbBase, table=True):
             height=self.height,
             width=self.width,
             rules=self.rules,
+            max_random_features=self.max_random_features,
             winning_condition=self.winning_condition,
         )
 
@@ -246,10 +247,13 @@ class Contest(ContestBase, DbBase, table=True):
         return roles
 
     def get_public(self):
+        round = None
+        if self.rounds:
+            round = self.rounds[-1].get_public()
         return ContestPublic(
             id=self.id,
             arena=self.arena.get_public(),
-            round=self.rounds[-1].get_public(),
+            round=round,
             start_time=self.start_time or 0,
             end_time=self.end_time or 0,
             state=self.state,

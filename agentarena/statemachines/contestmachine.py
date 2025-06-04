@@ -12,8 +12,7 @@ from nats.aio.msg import Msg
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import Contest
-from agentarena.arena.models import ContestRound
+from agentarena.arena.models import Contest, ContestRound
 from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import ContestState
@@ -179,7 +178,7 @@ class ContestMachine(StateMachine):
     async def on_enter_setup_arena(self):
         """Called when entering the SetupArena state."""
         # Initialize the setup machine if it exists
-        self.log.debug("Entering SetupArena state")
+        self.log.info("Entering SetupArena state")
         setup_machine = self.setup_machine
         assert setup_machine is not None, "Setup machine should not be None"
         await setup_machine.activate_initial_state()  # type: ignore

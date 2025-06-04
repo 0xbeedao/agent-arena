@@ -18,6 +18,7 @@ class ArenaPublic(BaseModel):
     name: str = Field(description="Arena name")
     description: str = Field(description="Arena description")
     height: int = Field(description="Arena height", gt=0)
+    max_random_features: int = Field(description="maximum random features", default=0)
     width: int = Field(description="Arena width", gt=0)
     rules: str = Field(description="Game rules")
     winning_condition: str = Field(description="winning condition description")
@@ -26,8 +27,8 @@ class ArenaPublic(BaseModel):
 class ContestPublic(BaseModel):
     id: str = Field(default="", description="ID")
     arena: ArenaPublic = Field()
-    round: "ContestRoundPublic" = Field()
     end_time: int = Field(description="Timestamp")
+    round: Optional["ContestRoundPublic"] = Field()
     start_time: int = Field(description="Timestamp")
     state: ContestState = Field(
         default=ContestState.CREATED, description="Contest state"
