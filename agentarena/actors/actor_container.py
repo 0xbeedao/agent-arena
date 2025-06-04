@@ -7,6 +7,8 @@ from agentarena.actors.controllers.agent_controller import AgentController
 from agentarena.actors.controllers.strategy_controller import StrategyController
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
+from agentarena.actors.models import GenerateJob
+from agentarena.actors.models import GenerateJobCreate
 from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
@@ -107,6 +109,15 @@ class ActorContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
+    generatejob_service = providers.Singleton(
+        ModelService[GenerateJob, GenerateJobCreate],
+        model_class=GenerateJob,
+        db_service=db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
     # other services
 
     llm_service = providers.Singleton(
@@ -125,6 +136,7 @@ class ActorContainer(containers.DeclarativeContainer):
     agent_controller = providers.Singleton(
         AgentController,
         agent_service=agent_service,
+        job_service=generatejob_service,
         message_broker=message_broker,
         template_service=template_service,
         uuid_service=uuid_service,

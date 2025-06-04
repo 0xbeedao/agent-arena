@@ -4,7 +4,6 @@ import llm
 from sqlmodel import Field
 from sqlmodel import Session
 
-from agentarena.actors.models import Agent
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
@@ -35,21 +34,18 @@ class LLMService:
             self.log.warn("Could not get model from LLM", model=model_alias)
             raise ue
 
-    def make_generate_job(
-        self, agent: Agent, prompt: str, session: Session
-    ) -> GenerateJob:
+    def make_generate_job(self, job_id: str, model: str, prompt: str) -> GenerateJob:
         """
         Make a job for the generation, and save its output to db.
         """
         job = GenerateJob(
-            id=self.uuid_service.make_id(),
-            model=agent.model,
+            id=job_id,
+            model=model,
             prompt=prompt,
             state=JobState.IDLE,
             started_at=0,
+            text=None,
         )
-        session.add(job)
-        session.commit()
         return job
 
     def execute_job(self, job: GenerateJob, session: Session):

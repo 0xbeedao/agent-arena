@@ -34,7 +34,7 @@ class StrategyController(
             description="prompt svc",
         ),
         strategy_service: ModelService[Strategy, StrategyCreate] = Field(
-            description="the `par`ticipant service"
+            description="the `participant service"
         ),
         uuid_service: UUIDService = Field(description="UUID Service"),
         logging: LoggingService = Field(description="Logger factory"),

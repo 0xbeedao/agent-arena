@@ -150,7 +150,7 @@ async def test_message_job_just_completes(queue_service, svc, db_service):
             id="test-message",
             channel="test.message.response",
             method="MESSAGE",
-            data={"test": 1},
+            data='{"test": 1}',
             finished_at=0,
             send_at=0,
             state=JobState.IDLE,

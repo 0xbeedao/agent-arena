@@ -17,6 +17,14 @@ from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import ContestState
 from agentarena.models.constants import RoleType
 from agentarena.models.dbbase import DbBase
+from agentarena.models.public import (
+    ArenaPublic,
+    ContestPublic,
+    ContestRoundPublic,
+    FeaturePublic,
+    ParticipantPublic,
+    PlayerPublic,
+)
 
 
 class FeatureOriginType(str, Enum):
@@ -65,6 +73,17 @@ class Arena(ArenaBase, DbBase, table=True):
     # Relationships
     features: List["Feature"] = Relationship(back_populates="arena")
     contests: List["Contest"] = Relationship(back_populates="arena")
+
+    def get_public(self) -> ArenaPublic:
+        return ArenaPublic(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            height=self.height,
+            width=self.width,
+            rules=self.rules,
+            winning_condition=self.winning_condition,
+        )
 
 
 class ArenaCreate(ArenaBase):
@@ -118,6 +137,26 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
         back_populates="contestround",
         sa_relationship_kwargs={"uselist": False},
     )
+
+    def get_public(self) -> ContestRoundPublic:
+        players = []
+        for p in self.player_states:
+            players.append(
+                PlayerPublic(
+                    id=p.participant_id,
+                    name=p.participant.name,
+                    position=p.position,
+                    inventory=p.inventory or [],
+                    health=p.health,
+                    score=0,
+                )
+            )
+        return ContestRoundPublic(
+            features=[f.get_public() for f in self.features],
+            round_no=self.round_no,
+            players=players,
+            state=self.state,
+        )
 
 
 class ContestRoundCreate(ContestRoundBase):
@@ -206,6 +245,17 @@ class Contest(ContestBase, DbBase, table=True):
             roles[p.role.value].append(p)
         return roles
 
+    def get_public(self):
+        return ContestPublic(
+            id=self.id,
+            arena=self.arena.get_public(),
+            round=self.rounds[-1].get_public(),
+            start_time=self.start_time or 0,
+            end_time=self.end_time or 0,
+            state=self.state,
+            winner=self.winner.get_public() if self.winner else None,
+        )
+
     def get_role(self, role: RoleType):
         """
         Returns a list of participants filtered by their role.
@@ -259,6 +309,11 @@ class Feature(FeatureBase, DbBase, table=True):
 
     arena: Arena = Relationship(back_populates="features")
     contestround: ContestRound = Relationship(back_populates="features")
+
+    def get_public(self) -> FeaturePublic:
+        return FeaturePublic(
+            description=self.description, name=self.name, position=self.position
+        )
 
 
 class FeatureCreate(FeatureBase):
@@ -354,6 +409,11 @@ class Participant(ParticipantBase, DbBase, table=True):
     contests: List[Contest] = Relationship(
         back_populates="participants", link_model=ContestParticipant
     )
+
+    def get_public(self) -> ParticipantPublic:
+        return ParticipantPublic(
+            id=self.id, description=self.description, name=self.name, role=self.role
+        )
 
 
 class ParticipantCreate(ParticipantBase):

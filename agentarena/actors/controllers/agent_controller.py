@@ -2,29 +2,48 @@
 Responder controller for Agent Response endpoints
 """
 
+from typing import Optional
+from typing import Tuple
+
+from fastapi import BackgroundTasks
 from fastapi import Body
+from fastapi import HTTPException
 from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import select
 
-from agentarena.actors.models import Agent, AgentPublic
+from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
+from agentarena.actors.models import AgentPublic
 from agentarena.actors.models import AgentUpdate
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.db_service import DbService
+from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import JobState
 from agentarena.models.constants import PromptType
+from agentarena.models.job import GenerateJob
+from agentarena.models.job import GenerateJobCreate
 from agentarena.models.job import JobResponse
-from agentarena.models.public import ContestPublic
 from agentarena.models.requests import HealthStatus
 from agentarena.models.requests import ParticipantRequest
+
+
+async def start_generate(
+    job: GenerateJob, db_service: DbService, llm_service: LLMService, log: ILogger
+):
+    log.info("starting generate")
+    with db_service.get_session() as session:
+        llm_service.execute_job(job, session)
+        log.info("generate complete")
 
 
 class AgentController(
@@ -37,6 +56,8 @@ class AgentController(
         agent_service: ModelService[Agent, AgentCreate] = Field(
             description="the participant service"
         ),
+        job_service: ModelService[GenerateJob, GenerateJobCreate] = Field(),
+        llm_service: LLMService = Field(),
         message_broker: MessageBroker = Field(
             description="Message broker client for publishing messages"
         ),
@@ -58,6 +79,8 @@ class AgentController(
         ]
         # Initialize the SubscribingService with the subscriptions
         SubscribingService.__init__(self, to_subscribe, self.log)
+        self.job_service = job_service
+        self.llm_service = llm_service
         self.message_broker = message_broker
         self.template_service = template_service
         self.uuid_service = uuid_service
@@ -115,35 +138,101 @@ class AgentController(
         return response
 
     async def agent_request(
-        self, participant_id: str, req: ParticipantRequest, session: Session
+        self,
+        participant_id: str,
+        req: ParticipantRequest,
+        session: Session,
+        background_tasks: BackgroundTasks,
     ):
         stmt = select(Agent).where(Agent.participant_id == participant_id)
         agent = session.exec(stmt).one_or_none()
-        log = self.log.bind(
-            "agent_request", job=req.job_id, cmd=req.command, participant=participant_id
-        )
+        job_id = req.job_id
+        log = self.log.bind(job=job_id, cmd=req.command, participant=participant_id)
+        url = f"{self.base_path}/agent/{participant_id}/request"
         if not agent:
             log.info("No such agent")
             return JobResponse(
                 channel="",
                 state=JobResponseState.FAIL,
                 message=f"no such responder: {participant_id}",
-                job_id=req.job_id,
-                url=f"{self.base_path}/agent/{participant_id}/request",
+                job_id=job_id,
+                url=url,
             )
 
-        if req.command == PromptType.ARENA_GENERATE_FEATURES:
-            return await self.arena_generate_features(agent, req, session, log)
-        else:
-            log.warn("no handler for command")
+        # do we already have this job?
+        job, response = await self.job_service.get(job_id, session)
+        if job and response.success:
+            response_state = JobResponseState.PENDING
+            if job.state == JobState.COMPLETE:
+                response_state = JobResponseState.COMPLETE
+            elif job.state == JobState.FAIL:
+                response_state = JobResponseState.FAIL
 
-    async def arena_generate_features(
+            log.info("responding", state=response_state.value)
+            return JobResponse(
+                job_id=job_id,
+                channel="",
+                state=response_state,
+                data=job.text,
+            )
+
+        log.info("new job")
+
+        job = None
+        if req.command == PromptType.ARENA_GENERATE_FEATURES.value:
+            job, response = await self.make_generate_features_job(
+                agent, req, session, log
+            )
+
+        if job:
+            session.commit()
+            log.info("adding generate job to background tasks")
+            background_tasks.add_task(
+                start_generate,
+                job,
+                self.model_service.db_service,
+                self.llm_service,
+                log,
+            )
+            return response
+
+        session.rollback()
+        log.warn("no handler for command")
+        raise HTTPException(
+            status_code=404, detail=f"Command not recognized: {req.command}"
+        )
+
+    async def make_generate_features_job(
         self, agent: Agent, req: ParticipantRequest, session: Session, log: ILogger
-    ):
-        pass
-        # work = ContestPublic(
+    ) -> Tuple[Optional[GenerateJob], JobResponse]:
+        prompt = await self.template_service.expand_prompt(agent, req, session)
+        self.log.debug(f"prompt:\n{prompt}")
+        gc = GenerateJobCreate(
+            id=req.job_id, model=agent.model, prompt=prompt, text=None
+        )
+        job, response = await self.job_service.create(gc, session)
+        if not response.success or not job:
+            self.log.error("error", response=response)
+            return None, JobResponse(
+                channel="",
+                state=JobResponseState.FAIL,
+                message="Error creating job",
+                job_id=req.job_id,
+                url=f"{self.base_path}/agent/{agent.participant_id}/request",
+            )
 
-        # )
+        job = self.llm_service.make_generate_job(req.job_id, agent.model, prompt)
+        session.add(job)
+        session.flush()
+        log.info("Created generate job")
+        return job, JobResponse(
+            channel="",
+            state=JobResponseState.PENDING,
+            delay=2,
+            message=prompt,
+            job_id=req.job_id,
+            url=f"{self.base_path}/agent/{agent.participant_id}/request",
+        )
 
     def get_router(self):
         router = super().get_router()
@@ -154,8 +243,14 @@ class AgentController(
                 return await self.healthcheck(agent_id, session)
 
         @router.post("/{agent_id}/request", response_model=JobResponse)
-        async def agent_request(agent_id: str, req: ParticipantRequest = Body(...)):
+        async def agent_request(
+            agent_id: str,
+            background_tasks: BackgroundTasks,
+            req: ParticipantRequest = Body(...),
+        ):
             with self.model_service.db_service.get_session() as session:
-                return await self.agent_request(agent_id, req, session)
+                return await self.agent_request(
+                    agent_id, req, session, background_tasks
+                )
 
         return router

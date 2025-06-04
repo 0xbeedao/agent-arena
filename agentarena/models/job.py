@@ -193,6 +193,7 @@ class GenerateJobBase(SQLModel):
     )
     model: str = Field(description="model name")
     prompt: str = Field(description="Prompt to send")
+    text: Optional[str] = Field(description="Generated text")
     state: JobState = Field(
         default=JobState.IDLE, description="Job state, see JobState states"
     )
@@ -208,6 +209,10 @@ class GenerateJobBase(SQLModel):
 
 class GenerateJob(GenerateJobBase, DbBase, table=True):
     pass
+
+
+class GenerateJobCreate(GenerateJobBase, table=False):
+    id: str = Field()
 
 
 class ModelChangeMessage(BaseModel):

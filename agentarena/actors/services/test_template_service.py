@@ -1,16 +1,18 @@
-import pytest
-from unittest.mock import MagicMock, AsyncMock
-from jinja2 import Template, TemplateNotFound
 import json
+from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 
-from agentarena.actors.services.template_service import (
-    TemplateService,
-    InvalidTemplateException,
-)
-from agentarena.actors.models import StrategyPrompt, Agent
-from agentarena.models.requests import ParticipantRequest
-from agentarena.models.constants import JobResponseState, PromptType
+import pytest
+from jinja2 import Template
+from jinja2 import TemplateNotFound
 from sqlmodel import Session
+
+from agentarena.actors.models import Agent
+from agentarena.actors.models import StrategyPrompt
+from agentarena.actors.services.template_service import InvalidTemplateException
+from agentarena.actors.services.template_service import TemplateService
+from agentarena.models.constants import PromptType
+from agentarena.models.requests import ParticipantRequest
 
 
 @pytest.fixture

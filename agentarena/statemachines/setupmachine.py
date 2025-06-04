@@ -13,8 +13,9 @@ from agentarena.arena.models import ContestRoundState
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.constants import RoleType
+from agentarena.models.constants import PromptType, RoleType
 from agentarena.models.job import CommandJob
+from agentarena.models.requests import ParticipantRequest
 
 
 class SetupMachine(StateMachine):
@@ -95,56 +96,20 @@ class SetupMachine(StateMachine):
         log = log.bind(arena_agent=arena_agent.name)
         log.info("requesting random features from arena agent")
         channel = f"arena.contest.{self.contest.id}.setup.features"
-        arena = self.contest.arena
-        prompt = f"""
-You are a feature generator for an arena-style game. The arena details are as follows:
-
-    Name: "{arena.name}"
-    Description: "{arena.description}"
-    Playgrid Dimensions: {arena.width} x {arena.height}
-    Grid size: 2 meters per cell
-
-Your task is to generate {actual} random features for this arena. Each feature represents either an object that players can use to complete the game or an obstacle that players must avoid. Use creative and vivid language when naming and describing these features.
-
-Output Requirement:
-
-Return only valid JSON in the following format and nothing else:
-
-[
-{
-"name": "feature_name",
-"position": "x,y",
-"endPosition": {"x": number, "y": number}  // Include this key only when applicable
-},
-... // more feature objects
-]
-
-Use these examples as inspiration for colorful, imaginative features:
-
-    a pile of boxes, clothing, or other items
-    a tree, rock, or other natural feature
-    a fountain, pond, or other water feature
-    a bench, table, or other piece of furniture
-    a mysterious artifact
-    a treasure chest
-    a button, lever, or other interactive object
-    a tool, such as a wrench or a hammer
-    a car (requires endPosition)
-    a fence or wall of some height low/high (requires endPosition)
-    an environmental feature, such as a puddle or a patch of grass (which may not require endPosition)
-
-Additional Instructions:
-
-    Do not include any commentary or extra text—output only the JSON.
-    Use imaginative names and adjectives that fit the theme of the arena name if possible (e.g., "Enchanted Elm", "Mystical Fountain", "Glittering Gate").
-    Ensure the JSON is syntactically valid with each feature having a unique position.
-"""
+        job_id = self.uuid_service.make_id()
+        contest = self.contest.get_public()
+        req = ParticipantRequest(
+            job_id=job_id,
+            command=PromptType.ARENA_GENERATE_FEATURES,
+            data=contest.model_dump_json(),
+            message="",
+        )
 
         job = CommandJob(
             channel=channel,
-            data=prompt,
+            data=req.model_dump_json(),
             method="POST",
-            url=arena_agent.url("generate_features"),
+            url=arena_agent.url("request"),
         )
         await self.message_broker.send_job(job)
         sub = self.message_broker.client.subscribe(
