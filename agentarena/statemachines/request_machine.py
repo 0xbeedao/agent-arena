@@ -113,13 +113,17 @@ class RequestMachine(StateMachine):
         try:
             url = self._resolve_url()
             data = self.job.data
-            self.log.info("requesting", url=url, data=data)
             if data is None or data == "":
                 obj = {}
             else:
                 obj = json.loads(data) if isinstance(data, str) else data
+            self.log.info("requesting", url=url, data=data, obj=obj)
 
-            response = httpx.Client().request(method, url, data=obj)
+            if method == "get":
+                response = httpx.Client().request(method, url, data=obj)
+            else:
+                response = httpx.Client().request(method, url, json=obj)
+
             await self.receive_response(response)
         except Exception as e:
             self.log.error(
@@ -131,6 +135,7 @@ class RequestMachine(StateMachine):
 
     def is_valid_response(self, response):
         if response.status_code >= 400:
+            self.log.error("error", response=response.text)
             return False
         json = response.json()
         try:

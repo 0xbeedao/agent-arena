@@ -3,7 +3,7 @@
   "personality": "While intelligent enough to understand the rule, you don't play well, simulating a poor performer",
   "prompts": [
     {
-      "key": "player.player_action",
+      "key": "player_player_action",
       "prompt": "#jinja:player.base.player_action"
     }
   ],

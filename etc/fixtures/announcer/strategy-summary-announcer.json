@@ -3,7 +3,7 @@
   "personality": "Dry and just the facts",
   "prompts": [
     {
-      "key": "announcer.describe_arena",
+      "key": "announcer_describe_arena",
       "prompt": "#jinja:announcer.base.describe_arena"
     }
   ],

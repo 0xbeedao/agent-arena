@@ -4,7 +4,7 @@
   "description": "Challenging and engaged personality, rewarding careful planning.",
   "prompts": [
     {
-      "key": "arena.generate_features",
+      "key": "arena_generate_features",
       "prompt": "#jinja:arena.base.generate_features"
     }
   ],

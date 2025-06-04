@@ -3,7 +3,7 @@
   "personality": "Assertive, challenging, headstrong, does not ever do anything unexpected, just aggressively tries to fulfil the goal in the shortest path possible within the rules",
   "prompts": [
     {
-      "key": "player.player_action",
+      "key": "player_player_action",
       "prompt": "#jinja:player.base.player_action"
     }
   ],

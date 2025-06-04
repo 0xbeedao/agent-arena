@@ -179,7 +179,7 @@ class AgentController(
         log.info("new job")
 
         job = None
-        if req.command == PromptType.ARENA_GENERATE_FEATURES.value:
+        if req.command == PromptType.ARENA_GENERATE_FEATURES:
             job, response = await self.make_generate_features_job(
                 agent, req, session, log
             )

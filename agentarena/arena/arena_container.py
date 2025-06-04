@@ -198,6 +198,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         message_broker=message_broker,
         model_service=contest_service,
         participant_service=participant_service,
+        round_service=round_service,
         logging=logging,
     )
 

@@ -52,3 +52,5 @@ clean:
 nats:
     nats-server -l logs/nats.log &
 
+start:
+    dotenv -f '.env.contest' run xh post :8000/api/contest/$ARENA_LAST_CONTEST/start

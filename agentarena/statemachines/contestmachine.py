@@ -3,13 +3,14 @@ The Contest State Machine
 """
 
 import json
+import asyncio
 from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
 
 from nats.aio.msg import Msg
-from statemachine import State
+from statemachine import State, Event
 from statemachine import StateMachine
 
 from agentarena.arena.models import Contest, ContestRound
@@ -53,14 +54,18 @@ class ContestMachine(StateMachine):
 
     # Transitions
     start_contest = starting.to(role_call)
-    roles_present = role_call.to(setup_arena)
-    roles_error = role_call.to(fail)
+    # roles_present = role_call.to(setup_arena) # Replaced by explicit Event
+    # roles_error = role_call.to(fail) # Replaced by explicit Event
     setup_done = setup_arena.to(in_round)
     setup_error = setup_arena.to(fail)
     round_complete = in_round.to(check_end)
     round_error = in_round.to(fail)
     contest_complete = check_end.to(complete)
     more_rounds = check_end.to(in_round)
+
+    # Explicit Event definitions
+    roles_present = Event(role_call.to(setup_arena))
+    roles_error = Event(role_call.to(fail))
 
     def __init__(
         self,
@@ -115,7 +120,7 @@ class ContestMachine(StateMachine):
         if job_state == JobState.COMPLETE.value:
             self.log.info("Role call complete, transitioning to setup arena")
             try:
-                await self.roles_present(job_id)
+                asyncio.create_task(self.roles_present(job_id=job_id))
             except Exception as e:
                 self.log.error(
                     "Failed to transition from role_call to setup_arena",
@@ -125,10 +130,10 @@ class ContestMachine(StateMachine):
                     contest_id=self.contest.id,
                     current_state=self.current_state.id,
                 )
-                await self.roles_error(job_id)
+                self.roles_error(job_id=job_id, error_type=type(e).__name__)
         elif job_state == JobState.FAIL.value:
             self.log.error("Role call failed, transitioning to fail state")
-            await self.roles_error(job_id)
+            self.roles_error(job_id=job_id, error_type="JobFailed")
         else:
             self.log.warn(
                 f"Role call message in unexpected state: {job_state}, ignoring message"
@@ -178,10 +183,22 @@ class ContestMachine(StateMachine):
     async def on_enter_setup_arena(self):
         """Called when entering the SetupArena state."""
         # Initialize the setup machine if it exists
+        # Access job_id via event_data.kwargs.get("job_id") if needed
         self.log.info("Entering SetupArena state")
-        setup_machine = self.setup_machine
-        assert setup_machine is not None, "Setup machine should not be None"
-        await setup_machine.activate_initial_state()  # type: ignore
+        if self._setup_machine is None:
+            self.log.debug("Creating new SetupMachine instance")
+            self._setup_machine = SetupMachine(
+                self.contest,
+                message_broker=self.message_broker,
+                round_service=self.round_service,
+                log=self.log,
+            )
+
+        setup_machine = self._setup_machine
+        assert (
+            setup_machine is not None
+        ), "Setup machine should not be None during on_enter_setup_arena"
+        await setup_machine.start_generating_features()
 
     async def on_enter_in_round(self):
         """Called when entering the InRound state."""
@@ -193,39 +210,6 @@ class ContestMachine(StateMachine):
 
     def on_enter_completed(self):
         """Called when entering the Completed state."""
-
-    @property
-    def setup_machine(self) -> Optional[SetupMachine]:
-        """
-        Get the setup machine if in the InSetup state.
-
-        Returns:
-            Optional[SetupMachine]: The setup machine or None if not in InSetup state.
-        """
-        self.log.debug(f"getting setup_machine", state=self.current_state.id)
-        if self.current_state.id != ContestState.SETUP_ARENA.value:
-            return None
-        if self._setup_machine is None:
-            self.log.debug("Creating new SetupMachine instance")
-            self._setup_machine = SetupMachine(
-                self.contest,
-                message_broker=self.message_broker,
-                round_service=self.round_service,
-                log=self.log,
-            )
-        return self._setup_machine
-
-    @property
-    def round_machine(self) -> Optional[RoundMachine]:
-        """
-        Get the round machine if in the InRound state.
-
-        Returns:
-            Optional[RoundMachine]: The round machine or None if not in InRound state.
-        """
-        if not self.current_state == self.in_round:
-            return None
-        return self._round_machine
 
     def check_setup_done(self) -> bool:
         """

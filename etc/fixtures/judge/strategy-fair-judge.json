@@ -3,7 +3,7 @@
   "personality": "Analytical, detail-oriented, and fair.",
   "prompts": [
     {
-      "key": "judge.player_action_judgement",
+      "key": "judge_player_action_judgement",
       "prompt": "#jinja:judge.fair.player_action_judgement"
     }
   ],

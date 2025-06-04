@@ -145,21 +145,8 @@ class ContestController(
                         log.error("Contest not found")
                         return
 
-                    # Create the contest machine
-                    machine = ContestMachine(
-                        contest=contest,
-                        message_broker=self.message_broker,
-                        round_service=self.round_service,
-                        uuid_service=self.model_service.uuid_service,
-                        log=log,
-                    )
-                    await machine.activate_initial_state()  # type: ignore
-                    await machine.start_contest("start_contest")
-                    log.info(
-                        "started contest machine",
-                        contest_id=contest_id,
-                        state=machine.current_state.id,
-                    )
+                    # Create and run the contest machine in the current event loop
+                    await self.run_contest_machine(contest, log)
 
         except Exception as e:
             self.log.error("Failed to handle contest flow message", error=str(e))
@@ -243,6 +230,23 @@ class ContestController(
             except HTTPException as e:
                 log.error("Failed to start contest", error=str(e))
                 return False, e.detail
+
+    async def run_contest_machine(self, contest: Contest, log: ILogger):
+        """Run the contest machine in the current event loop context"""
+        machine = ContestMachine(
+            contest=contest,
+            message_broker=self.message_broker,
+            round_service=self.round_service,
+            uuid_service=self.model_service.uuid_service,
+            log=log,
+        )
+        await machine.activate_initial_state()
+        await machine.start_contest("start_contest")
+        log.info(
+            "started contest machine",
+            contest_id=contest.id,
+            state=machine.current_state.id,
+        )
 
     # @router.post("/contest/{contest_id}/start", response_model=Dict[str, str])
     async def start_contest(self, contest_id: str, session: Session) -> ContestPublic:

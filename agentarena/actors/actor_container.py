@@ -137,6 +137,7 @@ class ActorContainer(containers.DeclarativeContainer):
         AgentController,
         agent_service=agent_service,
         job_service=generatejob_service,
+        llm_service=llm_service,
         message_broker=message_broker,
         template_service=template_service,
         uuid_service=uuid_service,

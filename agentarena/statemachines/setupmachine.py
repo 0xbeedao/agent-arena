@@ -1,8 +1,9 @@
+import asyncio
 import json
 import secrets
 
 from nats.aio.msg import Msg
-from sqlmodel import Field
+from sqlmodel import Field, select
 from statemachine import State
 from statemachine import StateMachine
 
@@ -78,8 +79,16 @@ class SetupMachine(StateMachine):
         self.round_service = round_service
         self.log = log.bind(contest_id=contest.id)
         self.subscriptions = {}
-        if contest.rounds:
-            self.contest_round = contest.rounds[0]
+        with round_service.get_session() as session:
+            session.add(contest)
+            self.contest_public = contest.get_public()
+            stmt = (
+                select(ContestRound)
+                .where(ContestRound.round_no == 0)
+                .where(ContestRound.contest_id == contest.id)
+            )
+            round = session.exec(stmt).one_or_none()
+            self.contest_round = round
         super().__init__()
 
     async def generate_random_features(self, count: int):
@@ -88,34 +97,36 @@ class SetupMachine(StateMachine):
         actual = secrets.randbelow(count) + 1
         log = self.log.bind(state="generating_random_features", count=actual)
         log.debug("generating")
-        agents = self.contest.get_role(RoleType.ARENA)
-        if not agents:
-            log.error("No arena agents found for generating features")
-            return
-        arena_agent = agents[0]
-        log = log.bind(arena_agent=arena_agent.name)
-        log.info("requesting random features from arena agent")
-        channel = f"arena.contest.{self.contest.id}.setup.features"
-        job_id = self.uuid_service.make_id()
-        contest = self.contest.get_public()
-        req = ParticipantRequest(
-            job_id=job_id,
-            command=PromptType.ARENA_GENERATE_FEATURES,
-            data=contest.model_dump_json(),
-            message="",
-        )
+        with self.round_service.get_session() as session:
+            session.add(self.contest)
+            agents = self.contest.get_role(RoleType.ARENA)
+            if not agents:
+                log.error("No arena agents found for generating features")
+                return
+            arena_agent = agents[0]
+            log = log.bind(arena_agent=arena_agent.name)
+            log.info("requesting random features from arena agent")
+            channel = f"arena.contest.{self.contest.id}.setup.features"
+            job_id = self.round_service.uuid_service.make_id()
+            contest = self.contest.get_public()
+            req = ParticipantRequest(
+                job_id=job_id,
+                command=PromptType.ARENA_GENERATE_FEATURES,
+                data=contest.model_dump_json(),
+                message="",
+            )
 
-        job = CommandJob(
-            channel=channel,
-            data=req.model_dump_json(),
-            method="POST",
-            url=arena_agent.url("request"),
-        )
-        await self.message_broker.send_job(job)
-        sub = self.message_broker.client.subscribe(
-            channel, cb=self.handle_feature_generation_message
-        )
-        self.subscriptions[channel] = sub
+            job = CommandJob(
+                channel=channel,
+                data=req.model_dump_json(),
+                method="POST",
+                url=arena_agent.url("request"),
+            )
+            sub = self.message_broker.client.subscribe(
+                channel, cb=self.handle_feature_generation_message
+            )
+            self.subscriptions[channel] = sub
+            await self.message_broker.send_job(job)
 
     async def handle_feature_generation_message(self, msg: Msg):
         """Handle the message from the arena agent with generated features."""
@@ -123,13 +134,12 @@ class SetupMachine(StateMachine):
         log.debug("Received feature generation message", msg=msg)
         try:
             features_data = msg.data.decode("utf-8")
-            # TODO - finish
             log.info("Parsed feature generation message", data=features_data)
             await self.subscriptions[msg.subject].unsubscribe()
-            # await self.cycle("from feature generation message")
+            self.send("cycle", "from feature generation message")
         except Exception as e:
             log.error("Failed to parse feature generation message", error=e)
-            await self.failed("bad feature generation message")
+            self.send("step_failed", "bad feature generation message")
 
     def has_opening_round(self) -> bool:
         """Check if the contest has an opening round."""
@@ -142,26 +152,25 @@ class SetupMachine(StateMachine):
 
         # Create a new round 0 if it doesn't exist
         if not self.contest_round:
-            round = ContestRound(
-                id=self.contest.id,
-                round_no=0,
-                contest_id=self.contest.id,
-                state=ContestRoundState.IDLE,
-            )
             with self.round_service.get_session() as session:
-                round, response = await self.round_service.create(round, session)
-                if not response.success:
-                    log.error("Failed to create round 0", response=response)
-                    return
-                if not round:
-                    log.error("Failed to create round 0, no round returned")
-                    return
-                session.commit()
+                round = ContestRound(
+                    id=self.round_service.uuid_service.make_id(),
+                    round_no=0,
+                    contest_id=self.contest.id,
+                    narrative="",
+                    state=ContestRoundState.IDLE,
+                )
+                contest = session.get(Contest, self.contest.id)
+                if not contest:
+                    log.error("fatal: could not get contest")
+                else:
+                    contest.rounds.append(round)
+                    session.commit()
                 self.contest_round = round
                 self.log = self.log.bind(round_id=round.id)
                 log.info("Round 0 created successfully", round_id=round.id)
 
-        await self.cycle("from creating round")
+        self.send("cycle", "from creating round")
 
     async def on_enter_adding_fixed_features(self):
         """Called when entering the AddingFixedFeatures state."""
@@ -178,6 +187,7 @@ class SetupMachine(StateMachine):
         with self.round_service.get_session() as session:
             session.add(round)
             log.info("Copying arena features to round 0")
+            session.add(self.contest)
             for feature in self.contest.arena.features:
                 log.debug(f"Adding feature", feature=feature.name)
                 round.features.append(feature)
@@ -186,7 +196,7 @@ class SetupMachine(StateMachine):
             session.commit()
 
         log.info(f"{ct} Fixed features added successfully")
-        await self.cycle("from adding fixed features")
+        asyncio.create_task(self.cycle(""))
 
     async def on_enter_generating_features(self):
         """Called when entering the GeneratingFeatures state, which adds the random features."""
@@ -197,14 +207,14 @@ class SetupMachine(StateMachine):
             log.error("INVALID STATE! No contest round available, cannot add features")
             return
 
-        if self.contest.arena.max_random_features <= 0:
+        needed = self.contest_public.arena.max_random_features
+        if needed <= 0:
             log.info("No random features to generate, skipping")
-            await self.cycle("from generating features")
+            self.send("cycle", "from generating features")
             return
         # Generate random features and add them to the round
         log.info("Starting")
-        ct = 0
-        await self.generate_random_features(self.contest.arena.max_random_features)
+        await self.generate_random_features(needed)
 
     def on_enter_generating_positions(self):
         """Called when entering the GeneratingPositions state."""
@@ -214,9 +224,10 @@ class SetupMachine(StateMachine):
 
     async def after_transition(self, event, source, target):
         self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
+        state = self.current_state.id
         await self.message_broker.send_message(
-            f"arena.contest.{self.contest.id}.constestflow.setup.{source.id}.{target.id}",
-            json.dumps(self.get_state_dict()),
+            f"arena.contest.{self.contest_public.id}.constestflow.setup.{source.id}.{target.id}",
+            state,
         )
 
     def on_enter_state(self, target, event):

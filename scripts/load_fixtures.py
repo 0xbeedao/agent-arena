@@ -266,6 +266,10 @@ def load_fixtures(
 
     typer.echo(f"Loaded {len(contests)} contests")
 
+    if contests:
+        with open(".env.contest", "w") as envfile:
+            envfile.write(f"ARENA_LAST_CONTEST={contests[-1]['id']}")
+
 
 if __name__ == "__main__":
     app()

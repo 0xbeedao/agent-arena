@@ -3,7 +3,7 @@
   "personality": "Imaginative, emotionally expressive, and engaging.",
   "prompts": [
     {
-      "key": "player.player_action",
+      "key": "player_player_action",
       "prompt": "#jinja:player.base.player_action"
     }
   ],
