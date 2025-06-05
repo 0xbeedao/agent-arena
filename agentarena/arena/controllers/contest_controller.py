@@ -36,7 +36,7 @@ from agentarena.models.constants import RoleType
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
 from agentarena.models.requests import ControllerRequest
-from agentarena.statemachines.contestmachine import ContestMachine
+from agentarena.statemachines.contest_machine import ContestMachine
 
 
 class ContestController(

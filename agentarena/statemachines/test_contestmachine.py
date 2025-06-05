@@ -7,6 +7,8 @@ from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestState
+from agentarena.arena.models import Feature
+from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import Participant
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
@@ -15,7 +17,7 @@ from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import RoleType
-from agentarena.statemachines.contestmachine import ContestMachine
+from agentarena.statemachines.contest_machine import ContestMachine
 
 
 @pytest.fixture
@@ -45,6 +47,18 @@ def db_service(uuid_service, logging):
         logging=logging,
     )
     return service.create_db()
+
+
+@pytest.fixture
+def feature_service(db_service, uuid_service, message_broker, logging):
+    """Fixture to create a ModelService for Features"""
+    return ModelService[Feature, FeatureCreate](
+        model_class=Feature,
+        message_broker=message_broker,
+        db_service=db_service,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
 
 
 @pytest.fixture
@@ -107,12 +121,15 @@ def log(logging):
 
 
 @pytest.mark.asyncio
-async def test_initial_state(log, message_broker, uuid_service, round_service):
+async def test_initial_state(
+    log, message_broker, uuid_service, feature_service, round_service
+):
     contest = make_contest()
 
     machine = ContestMachine(
         contest,
         log=log,
+        feature_service=feature_service,
         message_broker=message_broker,
         uuid_service=uuid_service,
         round_service=round_service,
@@ -130,6 +147,7 @@ async def test_start_contest_transition_sends_batch(
     machine = ContestMachine(
         contest,
         log=log,
+        feature_service=feature_service,
         message_broker=message_broker,
         uuid_service=uuid_service,
         round_service=round_service,
@@ -142,12 +160,15 @@ async def test_start_contest_transition_sends_batch(
 
 
 @pytest.mark.asyncio
-async def test_start_state(log, message_broker, uuid_service, round_service):
+async def test_start_state(
+    log, message_broker, uuid_service, feature_service, round_service
+):
     contest = make_contest()
     contest.state = ContestState.IN_ROUND
     machine = ContestMachine(
         contest,
         log=log,
+        feature_service=feature_service,
         message_broker=message_broker,
         uuid_service=uuid_service,
         round_service=round_service,
@@ -160,20 +181,21 @@ async def test_start_state(log, message_broker, uuid_service, round_service):
 
 @pytest.mark.asyncio
 async def test_roles_present_transition(
-    log, message_broker, uuid_service, round_service
+    log, message_broker, uuid_service, round_service, feature_service
 ):
     contest = make_contest()
     contest.state = ContestState.ROLE_CALL
     machine = ContestMachine(
         contest,
         log=log,
+        feature_service=feature_service,
         message_broker=message_broker,
         uuid_service=uuid_service,
         round_service=round_service,
     )
     await machine.activate_initial_state()  # type: ignore
     assert machine.current_state.id == ContestState.ROLE_CALL.value
-    await machine.roles_present("test")
+    await machine.roles_present("test")  # type: ignore
     assert machine.current_state.id == ContestState.SETUP_ARENA.value
     states = machine.get_state_dict()
     assert "setup_state" in states

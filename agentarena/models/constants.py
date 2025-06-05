@@ -74,4 +74,5 @@ class RoleType(str, Enum):
     ANNOUNCER = "announcer"
 
 
-DEFAULT_AGENT_MODEL = "openrouter/deepseek/deepseek-r1-0528:free"
+DEFAULT_AGENT_MODEL = "openrouter/deepseek/deepseek-chat-v3-0324:free"
+# "openrouter/deepseek/deepseek-r1-0528:free"

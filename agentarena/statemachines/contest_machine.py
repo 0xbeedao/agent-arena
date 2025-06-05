@@ -13,11 +13,13 @@ from statemachine import Event
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import Contest, Feature, FeatureCreate
+from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import ContestState
+from agentarena.arena.models import Feature
+from agentarena.arena.models import FeatureCreate
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.model_service import ModelService
@@ -27,8 +29,8 @@ from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
 from agentarena.models.job import UrlJobRequest
 
-from .roundmachine import RoundMachine
-from .setupmachine import SetupMachine
+from .round_machine import RoundMachine
+from .setup_machine import SetupMachine
 
 
 class ContestMachine(StateMachine):

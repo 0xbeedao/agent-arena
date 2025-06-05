@@ -6,7 +6,7 @@ from agentarena.arena.models import ContestState
 from agentarena.arena.models import Participant
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.constants import RoleType
-from agentarena.statemachines.roundmachine import RoundMachine
+from agentarena.statemachines.round_machine import RoundMachine
 
 
 def make_agent(agent_id="agent1", role=RoleType.PLAYER):

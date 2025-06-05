@@ -35,12 +35,11 @@ app = FastAPI(
 
 async def startup_event():
     """Initialize resources on application startup."""
-    container.wire(
-        modules=[
-            # sys.modules[__name__],  # wire current module
-            "agentarena.statemachines.contestmachine",
-        ]
-    )
+    # container.wire(
+    #     modules=[
+    #         # sys.modules[__name__],  # wire current module
+    #     ]
+    # )
     container.init_resources()
     logger = container.logging()
     log = logger.get_logger("arena")
