@@ -204,7 +204,7 @@ class ContestMachine(StateMachine):
         assert (
             setup_machine is not None
         ), "Setup machine should not be None during on_enter_setup_arena"
-        await setup_machine.start_generating_features()
+        await setup_machine.start_generating_features("")
 
     async def on_enter_in_round(self):
         """Called when entering the InRound state."""

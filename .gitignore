@@ -9,6 +9,7 @@
 
 # local environment
 .env
+.env.contest
 
 # Distribution / packaging
 dist/**
