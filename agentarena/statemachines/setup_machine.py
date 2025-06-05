@@ -2,6 +2,7 @@ import asyncio
 import json
 import secrets
 
+from llm.utils import extract_fenced_code_block
 from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import select
@@ -22,7 +23,6 @@ from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
 from agentarena.models.requests import ParticipantRequest
-from llm.utils import extract_fenced_code_block
 
 
 def extract_fenced_json(raw: str):
