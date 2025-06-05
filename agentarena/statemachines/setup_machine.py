@@ -40,6 +40,61 @@ def extract_fenced_json(raw: str):
     return work or raw
 
 
+def parse_features_list(features_raw, log=None):
+    """
+    Parse the features list from a possibly nested or string-encoded structure.
+    Handles cases where the features are nested under 'data', are JSON strings, or are fenced code blocks.
+    """
+    features = features_raw
+    while True:
+        # Unwrap 'data' if present
+        if isinstance(features, dict) and "data" in features:
+            features = features["data"]
+            continue
+        # If it's a string, try to parse it
+        if isinstance(features, str):
+            s = features.strip()
+            if not s:
+                return []
+            if not s.startswith("["):
+                # We'll look for the first occurrence of '[' and the last occurrence of ']' and try to parse that substring
+                start = s.find("[")
+                end = s.rfind("]")
+                if start != -1 and end != -1 and end > start:
+                    json_str = s[start : end + 1]
+                    try:
+                        features = json.loads(json_str)
+                        continue
+                    except Exception as e:
+                        if log:
+                            log.error(
+                                "Failed to parse feature list from substring", error=e
+                            )
+                        return []
+                # If not found, try fenced code block
+                if s.find("```") != -1:
+                    features = extract_fenced_json(s)
+                    continue
+                # Otherwise, try to parse as JSON
+                try:
+                    features = json.loads(s)
+                    continue
+                except Exception as e:
+                    if log:
+                        log.error("Failed to parse feature list as JSON", error=e)
+                    return []
+            else:
+                try:
+                    features = json.loads(s)
+                    continue
+                except Exception as e:
+                    if log:
+                        log.error("Failed to parse feature list as JSON", error=e)
+                    return []
+        break
+    return features
+
+
 class SetupMachine(StateMachine):
     """
     Setup machine for generating features, positions, and descriptions.
@@ -55,8 +110,8 @@ class SetupMachine(StateMachine):
     adding_fixed_features = State(ContestRoundState.ADDING_FIXED_FEATURES.value)
     generating_features = State(ContestRoundState.GENERATING_FEATURES.value)
     describing_setup = State(ContestRoundState.DESCRIBING_SETUP.value)
-    complete = State(ContestRoundState.SETUP_COMPLETE.value, final=True)
-    fail = State(ContestRoundState.SETUP_FAIL.value, final=True)
+    setup_complete = State(ContestRoundState.SETUP_COMPLETE.value, final=True)
+    setup_fail = State(ContestRoundState.SETUP_FAIL.value, final=True)
 
     # Transitions
     start_generating_features = idle.to(
@@ -68,17 +123,17 @@ class SetupMachine(StateMachine):
     )
 
     step_failed = (
-        creating_round.to(fail)
-        | adding_fixed_features.to(fail)
-        | generating_features.to(fail)
-        | describing_setup.to(fail)
+        creating_round.to(setup_fail)
+        | adding_fixed_features.to(setup_fail)
+        | generating_features.to(setup_fail)
+        | describing_setup.to(setup_fail)
     )
 
     cycle = (
         creating_round.to(adding_fixed_features)
         | adding_fixed_features.to(generating_features)
         | generating_features.to(describing_setup)
-        | describing_setup.to(complete)
+        | describing_setup.to(setup_complete)
     )
 
     def __init__(
@@ -227,29 +282,10 @@ class SetupMachine(StateMachine):
         """Handle the message from the arena agent with generated features."""
         log = self.log.bind(msg=msg.subject)
         log.info("Received feature generation message", msg=msg)
-        features = []
         try:
             job_data = msg.data.decode("utf-8")
             features = json.loads(job_data)
-            while "data" in features:
-                features = features["data"]  # type: ignore
-                if isinstance(features, str):
-                    if not features.startswith("["):
-                        # try to extract the json from the string by looking for a json list
-                        # ai todo
-                    elif features.startswith("```"):
-                        features = extract_fenced_json(features)
-                    else:
-                        try:
-                            features = json.loads(features)
-                        except json.JSONDecodeError:
-                            log.error("Failed to parse feature generation message", error=e)
-                            asyncio.create_task(self.send("step_failed", "bad feature generation message"))  # type: ignore
-                            return
-
-            if isinstance(features, str):
-                features = json.loads(features)
-
+            features = parse_features_list(features, log=log)
             log.info("Parsed feature generation message", features=features)
         except Exception as e:
             log.error("Failed to parse feature generation message", error=e)
@@ -364,7 +400,6 @@ class SetupMachine(StateMachine):
     async def on_enter_state(self, target, event):
         if self.contest_round:
             # update the round state
-
             self.contest_round.state = target.id
             self.contest_round.updated_at = int(datetime.now().timestamp())
             self.session.commit()
