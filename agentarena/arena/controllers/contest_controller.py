@@ -336,7 +336,7 @@ class ContestController(
             with self.model_service.get_session() as session:
                 return await self.get_model(obj_id, session)
 
-        @router.get("", response_model=List[Contest])
+        @router.get("", response_model=List[ContestPublic])
         async def list_all():
             with self.model_service.get_session() as session:
                 return await self.get_model_list(session)

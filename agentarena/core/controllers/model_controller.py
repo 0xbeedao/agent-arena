@@ -74,6 +74,16 @@ class ModelController(Generic[T, MC, MU, MP]):
             raise HTTPException(status_code=500, detail="internal error")
         return obj
 
+    def convert_to_public(self, obj: DbBase) -> MP:
+        """
+        Convert the model to a public model
+        """
+        if hasattr(obj, "get_public"):
+            self.log.debug("converting to public", obj=obj.id)
+            return obj.get_public()  # type: ignore
+        self.log.debug("no get_public method", obj=obj.id)
+        return self.model_public.model_validate(obj)
+
     async def get_model(self, obj_id: str, session: Session) -> MP:
         """
         Get an instance of the model by id
@@ -92,12 +102,7 @@ class ModelController(Generic[T, MC, MU, MP]):
             raise HTTPException(status_code=404, detail=response.error)
         if not obj:
             raise HTTPException(status_code=500, detail="internal error")
-        if hasattr(obj, "get_public"):
-            self.log.debug("converting to public", obj=obj.id)
-            return obj.get_public()  # type: ignore
-        else:
-            self.log.debug("no to_public method", obj=obj.id)
-            return self.model_public.model_validate(obj)
+        return self.convert_to_public(obj)
 
     async def get_model_list(self, session: Session) -> List[MP]:
         """
@@ -107,7 +112,7 @@ class ModelController(Generic[T, MC, MU, MP]):
             A list of feature configurations
         """
         raw = await self.model_service.list(session)
-        return [self.model_public.model_validate(obj) for obj in raw]
+        return [self.convert_to_public(obj) for obj in raw]
 
     async def update_model(self, req_id: str, req: MU, session: Session) -> MP:
         """

@@ -15,8 +15,8 @@ from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.public import ArenaPublic
 from agentarena.core.services.uuid_service import UUIDService
+from agentarena.models.public import ArenaPublic
 from agentarena.models.public import ContestPublic
 
 
@@ -145,3 +145,22 @@ async def test_get_contest(ctrl, db_service, arena_ctrl):
         assert fresh.arena.id == arena.id
         assert fresh.state == ContestState.CREATED.value
         assert fresh.round is None
+
+
+@pytest.mark.asyncio
+async def test_get_contest_list(ctrl, db_service, arena_ctrl):
+    with db_service.get_session() as session:
+        arena = await get_arena(arena_ctrl, session)
+
+        for i in range(10):
+            create_contest = ContestCreate(  # noqa: F841
+                arena_id=arena.id,
+                player_positions="A;B;C;D",
+                participant_ids=["a", "b", "c"],
+            )
+            await ctrl.create_model(create_contest, session)
+
+        contests = await ctrl.get_model_list(session)
+        assert len(contests) == 10
+        assert all(isinstance(c, ContestPublic) for c in contests)
+        assert all(c.arena.id == arena.id for c in contests)
