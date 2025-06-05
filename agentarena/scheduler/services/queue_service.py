@@ -212,13 +212,14 @@ class QueueService(SubscribingService):
             log.debug("adding child response", child=child.id)
             stmt = (
                 select(CommandJobHistory)
+                .where(CommandJobHistory.job_id == child.id)
                 .where(CommandJobHistory.to_state == child.state)
-                .order_by(CommandJobHistory.created_at)  # type: ignore
+                .order_by(CommandJobHistory.created_at.desc())  # type: ignore
             )
             rows = session.exec(stmt).all()
             last = rows.pop() if rows else None
             data = last.data if last else ""
-            child_data.append(make_response(child, json.dumps(data), message))
+            child_data.append(make_response(child, data, message))
 
         res.child_data = child_data
 

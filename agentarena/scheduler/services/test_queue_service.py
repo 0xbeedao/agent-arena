@@ -1,3 +1,4 @@
+import json
 import time
 from datetime import datetime
 from unittest.mock import AsyncMock
@@ -442,3 +443,116 @@ async def test_batch_send_1(q, db_service):
         assert ready_batch is not None
         assert ready_batch.id == batch.id
         assert ready_batch.state == JobState.REQUEST
+
+
+@pytest.mark.asyncio
+async def test_data_encoding(q, job_service, mock_nats_client):
+    """Test that data payloads aren't double-encoded"""
+
+    # Create a sample job
+    jc = CommandJobCreate(
+        channel="test.channel",
+        state=JobState.IDLE,
+        data=json.dumps({"key": "original_value"}),
+        method="POST",
+        url="http://example.com",
+    )
+    with job_service.get_session() as session:
+        job, result = await job_service.create(jc, session)
+        assert result.success
+
+        # Create test data that should not be double-encoded
+        test_data = {"features": [{"name": "Test Feature"}]}
+        test_message = "Test completed"
+
+        # Call the method that triggers final message sending
+
+        await q.update_state(
+            job_id=job.id,
+            state=JobState.COMPLETE,
+            session=session,
+            message=test_message,
+            data=json.dumps(test_data),  # Data is already JSON string
+        )
+
+        session.commit()
+    mock_nats_client.publish.assert_awaited()
+    args, _ = mock_nats_client.publish.call_args
+    sent_response = args[1]
+    assert sent_response
+    assert isinstance(sent_response, bytes)
+    sent = json.loads(sent_response)
+
+    # Debug: Show the encoded structure
+    print("\nResponse JSON structure:")
+    print(sent)
+
+    # Check if data is double-encoded
+    data_field = sent["data"]
+    assert isinstance(data_field, str), "Data field should be a string"
+
+    try:
+        # If this succeeds, data was single-encoded as expected
+        parsed_data = json.loads(data_field)
+        assert parsed_data == test_data, "Parsed data should match original test data"
+    except json.JSONDecodeError:
+        # If this fails, data was double-encoded
+        assert False, "Data field is double-encoded JSON string"
+
+
+@pytest.mark.asyncio
+async def test_child_data_encoding(q, job_service, mock_nats_client):
+    # Create a parent job
+    pj = CommandJobCreate(
+        channel="parent.channel",
+        state=JobState.REQUEST,
+        data=json.dumps({"parent": "sent_data"}),
+        method="MESSAGE",
+        url="",
+    )
+    with job_service.get_session() as session:
+        parent, result = await job_service.create(pj, session)
+        assert result.success
+        assert parent
+
+        cj = CommandJobCreate(
+            channel="child.channel",
+            state=JobState.REQUEST,
+            data=json.dumps({"child": "sent_data"}),
+            method="GET",
+            url="http://example.com/child",
+            parent_id=parent.id,
+        )
+        child, result = await job_service.create(cj, session)
+        assert result.success
+        assert child
+        await q.update_state(
+            job_id=child.id,
+            state=JobState.COMPLETE,
+            session=session,
+            message="test complete",
+            data=json.dumps({"child": "result"}),
+        )
+        # batch now in IDLE
+        assert parent.state == JobState.IDLE
+        await q.update_state(
+            job_id=parent.id,
+            state=JobState.COMPLETE,
+            session=session,
+            message="batch complete",
+            data=json.dumps({"parent": "result"}),
+        )
+
+    mock_nats_client.publish.assert_awaited()
+    call_args = [call[0] for call in mock_nats_client.publish.call_args_list]
+    sent_response = call_args[-1][1]
+    assert sent_response
+    # b'{"channel":"parent.channel","data":"{\\"parent\\": \\"result\\"}","delay":0,"method":"MESSAGE","url":"","job_id":"0197407c8f923a42687fc118eb4ef5b9","message":"batch complete","state":"complete","child_data":[{"channel":"child.channel","data":"\\"{\\\\\\"parent\\\\\\": \\\\\\"result\\\\\\"}\\"","delay":0,"method":"GET","url":"http://example.com/child","job_id":"0197407c8fa32daaf1a075897dd313bd","message":"batch complete","state":"complete","child_data":[]}]}'
+    assert isinstance(sent_response, bytes)
+    sent = json.loads(sent_response)
+    assert "data" in sent
+    assert sent["data"] == '{"parent": "result"}'
+    cdata = sent["child_data"]
+    assert len(cdata) == 1
+    assert cdata[0]["data"] == '{"child": "result"}'
+    assert sent

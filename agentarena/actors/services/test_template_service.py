@@ -143,7 +143,7 @@ async def test_get_prompt_not_found(template_service, mock_session):
             "strategy1", PromptType.PLAYER_PLAYER_ACTION, mock_session
         )
 
-    assert "No such template player.player_action for strategy strategy1" in str(
+    assert "No such template player_player_action for strategy strategy1" in str(
         excinfo.value
     )
 
