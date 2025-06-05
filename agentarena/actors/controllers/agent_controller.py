@@ -172,10 +172,11 @@ class AgentController(
 
         job = None
         response = None
-        if req.command == PromptType.ARENA_GENERATE_FEATURES:
-            job, response = await self.make_generate_features_job(
-                agent, req, session, log
-            )
+        if req.command in [
+            PromptType.ARENA_GENERATE_FEATURES,
+            PromptType.ANNOUNCER_DESCRIBE_ARENA,
+        ]:
+            job, response = await self.make_generate_job(agent, req, session, log)
 
         if job and response:
             session.commit()
@@ -190,11 +191,11 @@ class AgentController(
             status_code=404, detail=f"Command not recognized: {req.command}"
         )
 
-    async def make_generate_features_job(
+    async def make_generate_job(
         self, agent: Agent, req: ParticipantRequest, session: Session, log: ILogger
     ) -> Tuple[Optional[GenerateJob], JobResponse]:
         prompt = await self.template_service.expand_prompt(agent, req, session)
-        self.log.debug(f"prompt:\n{prompt}")
+        self.log.debug(f"prompt:\n{prompt}", command=req.command.value)
         gc = self.llm_service.make_generate_job(req.job_id, agent.model, prompt)
         job, response = await self.job_service.create(gc, session)
         if not response.success or not job:

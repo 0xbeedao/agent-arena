@@ -92,7 +92,12 @@ class ModelController(Generic[T, MC, MU, MP]):
             raise HTTPException(status_code=404, detail=response.error)
         if not obj:
             raise HTTPException(status_code=500, detail="internal error")
-        return self.model_public.model_validate(obj)
+        if hasattr(obj, "get_public"):
+            self.log.debug("converting to public", obj=obj.id)
+            return obj.get_public()  # type: ignore
+        else:
+            self.log.debug("no to_public method", obj=obj.id)
+            return self.model_public.model_validate(obj)
 
     async def get_model_list(self, session: Session) -> List[MP]:
         """

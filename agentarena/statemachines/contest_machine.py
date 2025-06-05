@@ -3,6 +3,7 @@ The Contest State Machine
 """
 
 import asyncio
+from datetime import datetime
 import json
 from typing import Any
 from typing import Dict
@@ -72,7 +73,7 @@ class ContestMachine(StateMachine):
 
     def __init__(
         self,
-        contest: Contest,
+        contest_id: str,
         message_broker: MessageBroker,
         feature_service: ModelService[Feature, FeatureCreate],
         round_service: ModelService[ContestRound, ContestRoundCreate],
@@ -82,17 +83,30 @@ class ContestMachine(StateMachine):
         """Initialize the contest machine."""
         self._setup_machine = None
         self._round_machine = None
-        self.contest = contest
         self.feature_service = feature_service
         self.message_broker = message_broker
         self.round_service = round_service
         self.uuid_service = uuid_service
-        self.log = log
+        self.completion_channel = (
+            f"arena.contest.{contest_id}.contestflow.setup.complete"
+        )
+        self.session = self.round_service.get_session()
+        contest = self.session.get(Contest, contest_id)
+        assert contest is not None, "Contest not found"
+        self.contest = contest
+
         self.subscriptions = {}
-        state = contest.state.value if contest.state else ContestState.STARTING.value
-        if state == ContestState.CREATED.value:
-            state = ContestState.STARTING.value
+        state = ContestState.STARTING.value
+        if contest.rounds:
+            round = contest.rounds[0]
+            if round.state == ContestRoundState.SETUP_COMPLETE.value:
+                state = ContestState.IN_ROUND.value
+            elif round.state == ContestRoundState.SETUP_FAIL.value:
+                # TODO: Maybe restart the setup machine?
+                state = ContestState.FAIL.value
+        self.log = log.bind(contest_id=contest_id, state=state)
         super().__init__(start_value=state)
+        self.log.info("setup complete")
 
     async def handle_role_call(self, msg: Msg):
         """
@@ -146,6 +160,25 @@ class ContestMachine(StateMachine):
             # Optionally, you could handle other states or log them
             return
 
+    async def handle_setup_complete(self, msg: Msg):
+        """Handle the setup complete message."""
+        self.log.info("Handling setup complete message", msg=msg)
+        sub = self.subscriptions.get(msg.subject)
+        if sub:
+            self.log.debug(f"Unsubscribing from {msg.subject}")
+            await sub.unsubscribe()
+            del self.subscriptions[msg.subject]
+        final_state = msg.data.decode("utf-8")
+        if final_state == ContestRoundState.COMPLETE.value:
+            self.log.info("Setup complete, transitioning to in_round")
+            asyncio.create_task(self.setup_done(""))  # type: ignore
+        elif final_state == ContestRoundState.FAIL.value:
+            self.log.warn(f"Setup machine in fail state: {final_state}")
+            asyncio.create_task(self.setup_error(""))  # type: ignore
+        else:
+            self.log.warn(f"Setup machine in unexpected state: {final_state}")
+            asyncio.create_task(self.setup_error(""))  # type: ignore
+
     async def on_enter_role_call(self):
         """Called when entering the InSetup state."""
         job_id = self.uuid_service.make_id()
@@ -191,12 +224,26 @@ class ContestMachine(StateMachine):
         # Access job_id via event_data.kwargs.get("job_id") if needed
         self.log.info("Entering SetupArena state")
         if self._setup_machine is None:
+            if self.subscriptions.get(self.completion_channel):
+                self.log.debug(
+                    f"Already subscribed to {self.completion_channel}, skipping subscription"
+                )
+            else:
+                sub = await self.message_broker.client.subscribe(
+                    self.completion_channel,
+                    cb=self.handle_setup_complete,
+                )
+                self.subscriptions[self.completion_channel] = sub
+                self.log.debug(f"Subscribed to {self.completion_channel}")
+
             self.log.debug("Creating new SetupMachine instance")
             self._setup_machine = SetupMachine(
                 self.contest,
+                completion_channel=self.completion_channel,
                 feature_service=self.feature_service,
                 message_broker=self.message_broker,
                 round_service=self.round_service,
+                session=self.session,
                 log=self.log,
             )
 
@@ -268,8 +315,15 @@ class ContestMachine(StateMachine):
             json.dumps(self.get_state_dict()),
         )
 
-    def on_enter_state(self, target, event):
+    async def on_enter_state(self, target, event):
+        self.contest.state = target.id
+        self.contest.updated_at = int(datetime.now().timestamp())
+        self.session.commit()
+
         if target.final:
             self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
+            for sub in self.subscriptions.values():
+                await sub.unsubscribe()
+            self.subscriptions.clear()
         else:
             self.log.debug(f"{self.name} enter: {target.id} from {event}")

@@ -267,3 +267,9 @@ Continued work on the contest flow - now working on the setup machine.  I think 
 Also, I think that the state machines should save state to DB on change, which will allow for easier "hydration" of the machines on re-entry.
 
 Could also use a "pause" option on all the machines for testing - so that they don't auto-step to end.
+
+## 2025-06-05
+
+Moved back to Cursor.
+
+App is now working through feature creation - need to have it save state in the round as it goes, so that it will be easy to resume a contest, and to set up tests without having to cycle the whole thing every time.

@@ -15,8 +15,8 @@ from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
-from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.public import ArenaPublic
+from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.public import ContestPublic
 
 
@@ -92,22 +92,24 @@ def arena_ctrl(arena_service, logging):
     )
 
 
+async def get_arena(arena_ctrl, session):
+    create_arena = ArenaCreate(
+        name="test arena",
+        description="test",
+        height=10,
+        width=10,
+        rules="",
+        winning_condition="",
+        max_random_features=1,
+        features=[],
+    )
+    return await arena_ctrl.create_model(create_arena, session)
+
+
 @pytest.mark.asyncio
 async def test_create_contest_success(ctrl, db_service, arena_ctrl):
     with db_service.get_session() as session:
-        # Arrange
-        create_arena = ArenaCreate(
-            name="test arena",
-            description="test",
-            height=10,
-            width=10,
-            rules="",
-            winning_condition="",
-            max_random_features=1,
-            features=[],
-        )
-        arena = await arena_ctrl.create_model(create_arena, session)
-
+        arena = await get_arena(arena_ctrl, session)
         create_contest = ContestCreate(
             arena_id=arena.id,
             player_positions="A;B;C;D",
@@ -119,3 +121,27 @@ async def test_create_contest_success(ctrl, db_service, arena_ctrl):
         assert result.id
         assert result.arena_id == arena.id
         assert result.state == ContestState.CREATED.value
+
+
+@pytest.mark.asyncio
+async def test_get_contest(ctrl, db_service, arena_ctrl):
+    with db_service.get_session() as session:
+        arena = await get_arena(arena_ctrl, session)
+
+        create_contest = ContestCreate(
+            arena_id=arena.id,
+            player_positions="A;B;C;D",
+            participant_ids=["a", "b", "c"],
+        )
+
+        result = await ctrl.create_model(create_contest, session)
+        assert result.id
+
+        session.commit()
+
+        fresh = await ctrl.get_model(result.id, session)
+        assert isinstance(fresh, ContestPublic)
+        assert fresh.id
+        assert fresh.arena.id == arena.id
+        assert fresh.state == ContestState.CREATED.value
+        assert fresh.round is None
