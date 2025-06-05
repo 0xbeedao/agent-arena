@@ -22,7 +22,8 @@ from agentarena.core.services.db_service import DbService
 from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.job import GenerateJob, GenerateJobCreate
+from agentarena.models.job import GenerateJob
+from agentarena.models.job import GenerateJobCreate
 
 
 def get_wordlist(
@@ -121,7 +122,9 @@ class ActorContainer(containers.DeclarativeContainer):
 
     llm_service = providers.Singleton(
         LLMService,
+        db_service,
         message_broker=message_broker,
+        uuid_service=uuid_service,
         logging=logging,
     )
 

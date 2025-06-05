@@ -2,25 +2,28 @@ from datetime import datetime
 
 import llm
 from sqlmodel import Field
-from sqlmodel import Session
 
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.db_service import DbService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobState
 from agentarena.models.job import GenerateJob
+from agentarena.models.job import GenerateJobCreate
 
 
 class LLMService:
 
     def __init__(
         self,
+        db_service: DbService,
         message_broker: MessageBroker = Field(),
         uuid_service: UUIDService = Field(),
         logging: LoggingService = Field(),
     ):
         self.log = logging.get_logger("llm")
         self.message_broker = message_broker
+        self.db_service = db_service
         self.uuid_service = uuid_service
 
     def generate(self, model_alias: str, prompt: str) -> str:
@@ -34,12 +37,14 @@ class LLMService:
             self.log.warn("Could not get model from LLM", model=model_alias)
             raise ue
 
-    def make_generate_job(self, job_id: str, model: str, prompt: str) -> GenerateJob:
+    def make_generate_job(
+        self, job_id: str, model: str, prompt: str
+    ) -> GenerateJobCreate:
         """
         Make a job for the generation, and save its output to db.
         """
-        job = GenerateJob(
-            id=job_id,
+        job = GenerateJobCreate(
+            job_id=job_id,
             model=model,
             prompt=prompt,
             state=JobState.IDLE,
@@ -48,17 +53,47 @@ class LLMService:
         )
         return job
 
-    def execute_job(self, job: GenerateJob, session: Session):
-        session.add(job)
-        job.started_at = int(datetime.now().timestamp())
-        job.state = JobState.REQUEST
-        session.commit
+    def execute_job(self, gen_id: str):
+        log = self.log.bind(gen_id=gen_id)
+        job = None
+        generated = ""
+        model = ""
+        prompt = ""
+
+        with self.db_service.get_session() as session:
+            job = session.get(GenerateJob, gen_id)
+            if not job:
+                log.warn(f"Invalid GenerateJob")
+                return None
+
+            job.started_at = int(datetime.now().timestamp())
+            job.state = JobState.REQUEST
+            model = job.model
+            prompt = job.prompt
+            session.commit()
+
+        log.debug("start generation")
         try:
-            job.generated = self.generate(job.model, job.prompt)
-            job.state = JobState.COMPLETE
+            generated = self.generate(model, prompt)
         except llm.UnknownModelError:
-            job.state = JobState.FAIL
-        finally:
+            log.error(f"Invalid model {model}")
+            with self.db_service.get_session() as session:
+                job = session.get(GenerateJob, gen_id)
+                if job:
+                    job.state = JobState.FAIL
+                    job.finished_at = int(datetime.now().timestamp())
+                    session.commit()
+        log.debug("end generation")
+
+        with self.db_service.get_session() as session:
+            job = session.get(GenerateJob, gen_id)
+            if not job:
+                log.warn(f"Invalid GenerateJob")
+                return None
+
+            job.state = JobState.COMPLETE
+            job.generated = generated
             job.finished_at = int(datetime.now().timestamp())
-        session.commit()
+            session.commit()
+
         return job

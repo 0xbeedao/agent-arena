@@ -136,9 +136,10 @@ class RequestService:
         """
         Handle a waiting job (requeue).
         """
-        self.log.info("Job waiting, requeueing", job=getattr(job, "id", None))
+        job_id = getattr(job, "id", None)
+        self.log.info("Job waiting, requeueing", job=job_id)
         delay = 0
         if response is not None and response.delay is not None:
             delay = response.delay
-        result = await self.queue_service.requeue_job(job, session, delay=delay)
+        result = await self.queue_service.requeue_job(job_id, session, delay=delay)
         return result is not None

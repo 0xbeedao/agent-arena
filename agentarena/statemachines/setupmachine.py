@@ -3,7 +3,8 @@ import json
 import secrets
 
 from nats.aio.msg import Msg
-from sqlmodel import Field, select
+from sqlmodel import Field
+from sqlmodel import select
 from statemachine import State
 from statemachine import StateMachine
 
@@ -11,10 +12,14 @@ from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundState
+from agentarena.arena.models import Feature
+from agentarena.arena.models import FeatureCreate
+from agentarena.arena.models import FeatureOriginType
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.constants import PromptType, RoleType
+from agentarena.models.constants import PromptType
+from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
 from agentarena.models.requests import ParticipantRequest
 
@@ -67,6 +72,7 @@ class SetupMachine(StateMachine):
         self,
         contest: Contest,
         message_broker: MessageBroker = Field(description="Message Broker"),
+        feature_service: ModelService[Feature, FeatureCreate] = Field(),
         round_service: ModelService[ContestRound, ContestRoundCreate] = Field(
             description="Round Service"
         ),
@@ -75,6 +81,7 @@ class SetupMachine(StateMachine):
         """Initialize the setup machine."""
         self.contest = contest
         self.contest_round: ContestRound | None = None
+        self.feature_service = feature_service
         self.message_broker = message_broker
         self.round_service = round_service
         self.log = log.bind(contest_id=contest.id)
@@ -122,24 +129,54 @@ class SetupMachine(StateMachine):
                 method="POST",
                 url=arena_agent.url("request"),
             )
-            sub = self.message_broker.client.subscribe(
+            sub = await self.message_broker.client.subscribe(
                 channel, cb=self.handle_feature_generation_message
             )
+            log.info(f"subscribed to {channel}")
             self.subscriptions[channel] = sub
             await self.message_broker.send_job(job)
 
     async def handle_feature_generation_message(self, msg: Msg):
         """Handle the message from the arena agent with generated features."""
         log = self.log.bind(msg=msg.subject)
-        log.debug("Received feature generation message", msg=msg)
+        log.info("Received feature generation message", msg=msg)
+        features = []
         try:
-            features_data = msg.data.decode("utf-8")
-            log.info("Parsed feature generation message", data=features_data)
-            await self.subscriptions[msg.subject].unsubscribe()
-            self.send("cycle", "from feature generation message")
+            job_data = msg.data.decode("utf-8")
+            features = json.loads(job_data)
+            while "data" in features:
+                # get the inner
+                features = json.loads(features["data"])
+            log.info("Parsed feature generation message", features=features)
         except Exception as e:
             log.error("Failed to parse feature generation message", error=e)
             self.send("step_failed", "bad feature generation message")
+            return
+
+        await self.subscriptions[msg.subject].unsubscribe()
+        with self.round_service.get_session() as session:
+            round = self.contest_round
+            assert round, "should have a contest round"
+            session.add(round)
+            log.info("Copying new random features to round 0")
+            for f in features:
+                feature = Feature(
+                    id="",
+                    name=f["name"],
+                    description=f["description"] if "description" in f else "",
+                    position=f["position"],
+                    origin=FeatureOriginType.RANDOM,
+                )
+                # TODO handle end_pos
+                log.debug(f"Adding feature", feature=feature.name)
+                feature, result = await self.feature_service.create(feature, session)
+                if feature and result.success:
+                    round.features.append(feature)
+                else:
+                    log.info("could not create feature", result=result)
+
+            session.commit()
+            asyncio.create_task(self.send("cycle"))  # type: ignore
 
     def has_opening_round(self) -> bool:
         """Check if the contest has an opening round."""
@@ -226,7 +263,7 @@ class SetupMachine(StateMachine):
         self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
         state = self.current_state.id
         await self.message_broker.send_message(
-            f"arena.contest.{self.contest_public.id}.constestflow.setup.{source.id}.{target.id}",
+            f"arena.contest.{self.contest_public.id}.contestflow.setup.{source.id}.{target.id}",
             state,
         )
 

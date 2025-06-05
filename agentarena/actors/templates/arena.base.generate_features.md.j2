@@ -41,13 +41,16 @@ Return only valid JSON in the following format and nothing else:
 [
 {
 "name": "feature_name",
+"description": "a one sentence description of the item, optionally including any special game effects",
 "position": "x,y",
 "endPosition": "x,y"  // Include this key only when applicable
 },
 ... // more feature objects
 ]
 ```
-## Examples
+## Example
+
+### objects
 
 Use these examples as inspiration for colorful, imaginative features:
 
@@ -62,6 +65,13 @@ Use these examples as inspiration for colorful, imaginative features:
 - a car (requires endPosition)
 - a fence or wall of some height low/high (requires endPosition)
 - an environmental feature, such as a puddle or a patch of grass (which may not require endPosition)
+
+### example optional special game effects for the description
+
+- trap, slows or injures players
+- boon, adds health to player touching it
+- consumable, one use object that has X effect
+- hidden treasure - describe what's inside
 
 ## Additional Instructions
 

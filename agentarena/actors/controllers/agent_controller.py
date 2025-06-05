@@ -22,7 +22,6 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.core.services.db_service import DbService
 from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
@@ -35,15 +34,6 @@ from agentarena.models.job import GenerateJobCreate
 from agentarena.models.job import JobResponse
 from agentarena.models.requests import HealthStatus
 from agentarena.models.requests import ParticipantRequest
-
-
-async def start_generate(
-    job: GenerateJob, db_service: DbService, llm_service: LLMService, log: ILogger
-):
-    log.info("starting generate")
-    with db_service.get_session() as session:
-        llm_service.execute_job(job, session)
-        log.info("generate complete")
 
 
 class AgentController(
@@ -160,8 +150,9 @@ class AgentController(
             )
 
         # do we already have this job?
-        job, response = await self.job_service.get(job_id, session)
-        if job and response.success:
+        stmt = select(GenerateJob).where(GenerateJob.job_id == job_id)
+        job = session.exec(stmt).one_or_none()
+        if job:
             response_state = JobResponseState.PENDING
             if job.state == JobState.COMPLETE:
                 response_state = JobResponseState.COMPLETE
@@ -172,28 +163,25 @@ class AgentController(
             return JobResponse(
                 job_id=job_id,
                 channel="",
+                delay=3 if response_state == JobResponseState.PENDING else 0,
                 state=response_state,
-                data=job.text,
+                data=job.generated,
             )
 
         log.info("new job")
 
         job = None
+        response = None
         if req.command == PromptType.ARENA_GENERATE_FEATURES:
             job, response = await self.make_generate_features_job(
                 agent, req, session, log
             )
 
-        if job:
+        if job and response:
             session.commit()
-            log.info("adding generate job to background tasks")
-            background_tasks.add_task(
-                start_generate,
-                job,
-                self.model_service.db_service,
-                self.llm_service,
-                log,
-            )
+            gen_id = job.id
+            log.info(f"adding generate job to background tasks {gen_id}")
+            background_tasks.add_task(self.llm_service.execute_job, gen_id)
             return response
 
         session.rollback()
@@ -207,9 +195,7 @@ class AgentController(
     ) -> Tuple[Optional[GenerateJob], JobResponse]:
         prompt = await self.template_service.expand_prompt(agent, req, session)
         self.log.debug(f"prompt:\n{prompt}")
-        gc = GenerateJobCreate(
-            id=req.job_id, model=agent.model, prompt=prompt, text=None
-        )
+        gc = self.llm_service.make_generate_job(req.job_id, agent.model, prompt)
         job, response = await self.job_service.create(gc, session)
         if not response.success or not job:
             self.log.error("error", response=response)
@@ -220,10 +206,7 @@ class AgentController(
                 job_id=req.job_id,
                 url=f"{self.base_path}/agent/{agent.participant_id}/request",
             )
-
-        job = self.llm_service.make_generate_job(req.job_id, agent.model, prompt)
-        session.add(job)
-        session.flush()
+        session.commit()
         log.info("Created generate job")
         return job, JobResponse(
             channel="",
@@ -248,9 +231,19 @@ class AgentController(
             background_tasks: BackgroundTasks,
             req: ParticipantRequest = Body(...),
         ):
-            with self.model_service.db_service.get_session() as session:
+            with self.model_service.get_session() as session:
                 return await self.agent_request(
                     agent_id, req, session, background_tasks
                 )
+
+        @router.get("/request/{job_id}", response_model=GenerateJob)
+        async def get_job(job_id: str):
+            with self.model_service.get_session() as session:
+                job, result = await self.job_service.get(job_id, session)
+
+                if job and result.success:
+                    return job
+
+            raise HTTPException(status_code=404, detail=result)
 
         return router

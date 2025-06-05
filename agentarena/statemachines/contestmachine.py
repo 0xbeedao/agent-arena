@@ -2,18 +2,19 @@
 The Contest State Machine
 """
 
-import json
 import asyncio
+import json
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Optional
 
 from nats.aio.msg import Msg
-from statemachine import State, Event
+from statemachine import Event
+from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import Contest, ContestRound
+from agentarena.arena.models import Contest, Feature, FeatureCreate
+from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import ContestState
@@ -71,6 +72,7 @@ class ContestMachine(StateMachine):
         self,
         contest: Contest,
         message_broker: MessageBroker,
+        feature_service: ModelService[Feature, FeatureCreate],
         round_service: ModelService[ContestRound, ContestRoundCreate],
         uuid_service: UUIDService,
         log: ILogger,
@@ -79,6 +81,7 @@ class ContestMachine(StateMachine):
         self._setup_machine = None
         self._round_machine = None
         self.contest = contest
+        self.feature_service = feature_service
         self.message_broker = message_broker
         self.round_service = round_service
         self.uuid_service = uuid_service
@@ -189,6 +192,7 @@ class ContestMachine(StateMachine):
             self.log.debug("Creating new SetupMachine instance")
             self._setup_machine = SetupMachine(
                 self.contest,
+                feature_service=self.feature_service,
                 message_broker=self.message_broker,
                 round_service=self.round_service,
                 log=self.log,

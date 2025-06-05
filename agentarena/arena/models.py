@@ -17,14 +17,12 @@ from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import ContestState
 from agentarena.models.constants import RoleType
 from agentarena.models.dbbase import DbBase
-from agentarena.models.public import (
-    ArenaPublic,
-    ContestPublic,
-    ContestRoundPublic,
-    FeaturePublic,
-    ParticipantPublic,
-    PlayerPublic,
-)
+from agentarena.models.public import ArenaPublic
+from agentarena.models.public import ContestPublic
+from agentarena.models.public import ContestRoundPublic
+from agentarena.models.public import FeaturePublic
+from agentarena.models.public import ParticipantPublic
+from agentarena.models.public import PlayerPublic
 
 
 class FeatureOriginType(str, Enum):

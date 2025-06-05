@@ -187,6 +187,7 @@ class CommandJobBatchRequest(SQLModel, table=False):
 
 
 class GenerateJobBase(SQLModel):
+    job_id: str = Field(description="external job ID foreign key")
     generated: Optional[str] = Field(
         default=None,
         description="The response data",
@@ -212,7 +213,7 @@ class GenerateJob(GenerateJobBase, DbBase, table=True):
 
 
 class GenerateJobCreate(GenerateJobBase, table=False):
-    id: str = Field()
+    pass
 
 
 class ModelChangeMessage(BaseModel):

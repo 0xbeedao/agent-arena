@@ -22,6 +22,8 @@ from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import ContestUpdate
+from agentarena.arena.models import Feature
+from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
 from agentarena.clients.message_broker import MessageBroker
@@ -31,9 +33,9 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.constants import RoleType
-from agentarena.models.requests import ControllerRequest
 from agentarena.models.job import JobResponse
 from agentarena.models.job import JobResponseState
+from agentarena.models.requests import ControllerRequest
 from agentarena.statemachines.contestmachine import ContestMachine
 
 
@@ -45,6 +47,7 @@ class ContestController(
     def __init__(
         self,
         base_path: str = "/api",
+        feature_service: ModelService[Feature, FeatureCreate] = Field(),
         message_broker: MessageBroker = Field(
             description="Message broker service",
         ),
@@ -59,6 +62,7 @@ class ContestController(
         ),
         logging: LoggingService = Field(description="Logger factory"),
     ):
+        self.feature_service = feature_service
         self.participant_service = participant_service
         self.round_service = round_service
         self.message_broker = message_broker
@@ -236,6 +240,7 @@ class ContestController(
         machine = ContestMachine(
             contest=contest,
             message_broker=self.message_broker,
+            feature_service=self.feature_service,
             round_service=self.round_service,
             uuid_service=self.model_service.uuid_service,
             log=log,
