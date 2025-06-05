@@ -125,7 +125,7 @@ class ContestMachine(StateMachine):
         if job_state == JobState.COMPLETE.value:
             self.log.info("Role call complete, transitioning to setup arena")
             try:
-                asyncio.create_task(self.roles_present(job_id=job_id))
+                asyncio.create_task(self.roles_present(job_id=job_id))  # type: ignore
             except Exception as e:
                 self.log.error(
                     "Failed to transition from role_call to setup_arena",

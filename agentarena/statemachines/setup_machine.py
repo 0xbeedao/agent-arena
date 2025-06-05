@@ -159,7 +159,7 @@ class SetupMachine(StateMachine):
             job_data = msg.data.decode("utf-8")
             features = json.loads(job_data)
             while "data" in features:
-                features = features["data"]
+                features = features["data"]  # type: ignore
                 if isinstance(features, str):
                     if features.startswith("```"):
                         features = extract_fenced_json(features)

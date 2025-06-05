@@ -141,7 +141,11 @@ async def test_initial_state(
 
 @pytest.mark.asyncio
 async def test_start_contest_transition_sends_batch(
-    log, message_broker, uuid_service, round_service
+    log,
+    message_broker,
+    uuid_service,
+    round_service,
+    feature_service,
 ):
     contest = make_contest()
     machine = ContestMachine(
