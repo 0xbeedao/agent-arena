@@ -23,6 +23,7 @@ from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
+from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobState
@@ -76,7 +77,7 @@ class ContestMachine(StateMachine):
         contest_id: str,
         message_broker: MessageBroker,
         feature_service: ModelService[Feature, FeatureCreate],
-        round_service: ModelService[ContestRound, ContestRoundCreate],
+        round_service: RoundService,
         uuid_service: UUIDService,
         log: ILogger,
     ):

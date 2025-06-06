@@ -27,7 +27,7 @@ def logging():
 
 @pytest.fixture
 def uuid_service(logging):
-    return UUIDService(word_list=[], prod=False)
+    return UUIDService(word_list=[], prod=False, logging=logging)
 
 
 @pytest.fixture
@@ -144,7 +144,7 @@ async def test_get_contest(ctrl, db_service, arena_ctrl):
         assert fresh.id
         assert fresh.arena.id == arena.id
         assert fresh.state == ContestState.CREATED.value
-        assert fresh.round is None
+        assert fresh.rounds == []
 
 
 @pytest.mark.asyncio
@@ -152,7 +152,7 @@ async def test_get_contest_list(ctrl, db_service, arena_ctrl):
     with db_service.get_session() as session:
         arena = await get_arena(arena_ctrl, session)
 
-        for i in range(10):
+        for _ in range(10):
             create_contest = ContestCreate(  # noqa: F841
                 arena_id=arena.id,
                 player_positions="A;B;C;D",

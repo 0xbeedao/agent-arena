@@ -19,6 +19,7 @@ from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import FeatureOriginType
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
+from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
@@ -142,9 +143,7 @@ class SetupMachine(StateMachine):
         completion_channel: str = Field(description="Completion channel"),
         message_broker: MessageBroker = Field(description="Message Broker"),
         feature_service: ModelService[Feature, FeatureCreate] = Field(),
-        round_service: ModelService[ContestRound, ContestRoundCreate] = Field(
-            description="Round Service"
-        ),
+        round_service: RoundService = Field(description="Round Service"),
         session: Session = Field(description="Session"),
         log: ILogger = Field(description="Log"),
     ):
@@ -341,20 +340,14 @@ class SetupMachine(StateMachine):
         # Create a new round 0 if it doesn't exist
         # TODO: we need to add the initial player_states here - and this should probably by done in the round service
         if not self.contest_round:
-            round = ContestRound(
-                id=self.round_service.uuid_service.make_id(),
-                round_no=0,
-                contest_id=self.contest.id,
-                narrative="",
-                state=ContestRoundState.IDLE,
+            round = await self.round_service.create_round(
+                self.contest.id, 0, self.session
             )
-            self.contest.rounds.append(round)
-            self.session.commit()
             self.contest_round = round
             self.log = self.log.bind(round_id=round.id)
-            log.info("Round 0 created successfully", round_id=round.id)
+            log.info("Round 0 created successfully")
 
-        self.send("cycle", "from creating round")
+        await self.send("cycle", "from creating round")  # type: ignore
 
     async def on_enter_adding_fixed_features(self):
         """Called when entering the AddingFixedFeatures state."""

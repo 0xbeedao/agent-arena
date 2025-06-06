@@ -18,8 +18,6 @@ from sqlmodel import Session
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestPublic
-from agentarena.arena.models import ContestRound
-from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import ContestUpdate
 from agentarena.arena.models import Feature
@@ -30,6 +28,7 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.constants import RoleType
@@ -57,9 +56,7 @@ class ContestController(
         participant_service: ModelService[Participant, ParticipantCreate] = Field(
             description="The feature service"
         ),
-        round_service: ModelService[ContestRound, ContestRoundCreate] = Field(
-            description="The round service"
-        ),
+        round_service: RoundService = Field(description="The round service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.feature_service = feature_service
@@ -219,7 +216,7 @@ class ContestController(
     async def handle_start_message(
         self, msg: Msg, contest_id: str, log: ILogger
     ) -> Tuple[bool, str]:
-        log.info("Contest start request received")
+        log.info("Contest start request received", msg=msg)
         with self.model_service.get_session() as session:
             try:
                 result = await self.start_contest(contest_id, session)

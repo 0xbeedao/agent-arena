@@ -6,12 +6,11 @@ from dependency_injector import providers
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models import Arena
+from agentarena.arena.models import Arena, PlayerState, PlayerStateCreate
 from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestRound
-from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundStats
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
@@ -27,6 +26,7 @@ from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
+from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 
@@ -145,10 +145,19 @@ class ArenaContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
-    round_service = providers.Singleton(
-        ModelService[ContestRound, ContestRoundCreate],
-        model_class=ContestRound,
+    playerstate_service = providers.Singleton(
+        ModelService[PlayerState, PlayerStateCreate],
+        model_class=PlayerState,
         db_service=db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+    round_service = providers.Singleton(
+        RoundService,
+        db_service=db_service,
+        playerstate_service=playerstate_service,
         message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,

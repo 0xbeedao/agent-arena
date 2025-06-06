@@ -14,7 +14,7 @@ from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
-from agentarena.core.services.model_service import ModelService
+from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.statemachines.setup_machine import SetupMachine
 
@@ -72,8 +72,8 @@ def db_service(uuid_service, logging):
 
 @pytest.fixture
 def round_service(db_service, uuid_service, message_broker, logging):
-    """Fixture to create a ModelService for CommandJob"""
-    return ModelService[ContestRound, ContestRoundCreate](
+    """Fixture to create a RoundService for ContestRound"""
+    return RoundService(
         model_class=ContestRound,
         message_broker=message_broker,
         db_service=db_service,

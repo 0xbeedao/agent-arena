@@ -1,3 +1,4 @@
 {
-  "player_positions": "1,1;9,9"
+  "player_positions": "[\"1,1\",\"9,9\"]",
+  "player_inventories": "[]"
 }

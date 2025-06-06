@@ -15,6 +15,7 @@ from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
+from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import RoleType
 from agentarena.statemachines.contest_machine import ContestMachine
@@ -63,8 +64,8 @@ def feature_service(db_service, uuid_service, message_broker, logging):
 
 @pytest.fixture
 def round_service(db_service, uuid_service, message_broker, logging):
-    """Fixture to create a ModelService for CommandJob"""
-    return ModelService[ContestRound, ContestRoundCreate](
+    """Fixture to create a RoundService for ContestRound"""
+    return RoundService(
         model_class=ContestRound,
         message_broker=message_broker,
         db_service=db_service,
@@ -127,7 +128,7 @@ async def test_initial_state(
     contest = make_contest()
 
     machine = ContestMachine(
-        contest,
+        contest.id,
         log=log,
         feature_service=feature_service,
         message_broker=message_broker,
@@ -149,7 +150,7 @@ async def test_start_contest_transition_sends_batch(
 ):
     contest = make_contest()
     machine = ContestMachine(
-        contest,
+        contest.id,
         log=log,
         feature_service=feature_service,
         message_broker=message_broker,
@@ -170,7 +171,7 @@ async def test_start_state(
     contest = make_contest()
     contest.state = ContestState.IN_ROUND
     machine = ContestMachine(
-        contest,
+        contest.id,
         log=log,
         feature_service=feature_service,
         message_broker=message_broker,
@@ -190,7 +191,7 @@ async def test_roles_present_transition(
     contest = make_contest()
     contest.state = ContestState.ROLE_CALL
     machine = ContestMachine(
-        contest,
+        contest.id,
         log=log,
         feature_service=feature_service,
         message_broker=message_broker,

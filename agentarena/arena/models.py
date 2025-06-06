@@ -145,9 +145,9 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
                     id=p.participant_id,
                     name=p.participant.name,
                     position=p.position,
-                    inventory=p.inventory or [],
+                    inventory=p.inventory,
                     health=p.health,
-                    score=0,
+                    score=p.score,
                 )
             )
         return ContestRoundPublic(
@@ -203,9 +203,13 @@ class ContestBase(SQLModel, table=False):
 
     arena_id: str = Field(description="Reference to ArenaDTO", foreign_key="arena.id")
     current_round: int = Field(default=1, description="Current round")
+    player_inventories: str = Field(
+        default="[]",
+        description="Json for a list of lists of player inventories",
+    )
     player_positions: str = Field(
-        default="",
-        description="A semicolon delimited list of starting player positions",
+        default="[]",
+        description="Json for a list of starting player positions",
     )
     state: ContestState = Field(
         default=ContestState.CREATED, description="Contest state"
@@ -245,9 +249,6 @@ class Contest(ContestBase, DbBase, table=True):
         return roles
 
     def get_public(self):
-        round = None
-        if self.rounds:
-            round = self.rounds[-1].get_public()
         return ContestPublic(
             id=self.id,
             arena=self.arena.get_public(),
@@ -273,7 +274,10 @@ class ContestCreate(SQLModel, table=False):
 
     arena_id: str = Field(description="Arena ID", foreign_key="arena.id")
     player_positions: str = Field(
-        default=[], description="A semicolon delimited list of player positions"
+        default=[], description="Json for a list of player x,y positions"
+    )
+    player_inventories: str = Field(
+        default=[], description="Json for a list of lists of player inventories"
     )
     participant_ids: List[str] = Field(
         description="IDs of Participants to load", foreign_key="participant.id"
@@ -454,11 +458,11 @@ class PlayerStateBase(SQLModel, table=False):
         description="Reference to Contest Round", foreign_key="contestround.id"
     )
     position: str = Field(description="Grid coordinate as 'x,y'")
-    inventory: Optional[List[str]] = Field(
+    inventory: List[str] = Field(
         default_factory=List, sa_column=Column(JSON), description="Player inventory"
     )
     health: str = Field(default="Fresh", description="Health state")
-    score: int = Field(default=0, description="game score")
+    score: int = Field(default=0, description="game score on a scale of 0-100")
 
 
 class PlayerState(PlayerStateBase, DbBase, table=True):
