@@ -10,6 +10,7 @@ The Arena is a system that orchestrates a contest between AI agents. It is respo
 - Determining the winner of the contest by applying the winning criteria set in the rules
 
 ## Assumptions
+
 - Each AI player is configured with an endpoint and an API key to use for that endpoint, via some config file. We will later make this dynamic in a future iteration.
 
 ## AI Agents
@@ -27,14 +28,19 @@ Each of these Agents will have a "Strategy" they follow, which includes a "perso
 sequenceDiagram
     Actor Observer
     Participant Arena
+    Participant ArenaAgent
     Participant Announcer
 
     Observer ->>+ Arena: Start Contest
-    Arena --> Arena: Generate Features
-    Arena --> Arena: Generate Player Positions
-    Arena ->>+ Announcer: Generate Description
-    Announcer ->>- Arena: Description
-    Arena ->>- Observer: ArenaStateDTO
+    Arena ->>+ All Participants: Role Call (health check)
+    All Participants -->>- Arena: Health OK
+    Arena ->> Arena: Create Round 0 (if needed)
+    Arena ->> Arena: Add Fixed Features
+    Arena ->>+ ArenaAgent: Generate Random Features
+    ArenaAgent -->>- Arena: Features List
+    Arena ->>+ Announcer: Describe Arena Setup
+    Announcer -->>- Arena: Arena Description
+    Arena -->> Observer: Setup Complete (ArenaStateDTO)
 ```
 
 ### One round of the contest
@@ -43,21 +49,29 @@ sequenceDiagram
 sequenceDiagram
     Actor Observer
     Participant Arena
-    Participant Announcer
     Participant Players
     Participant Judge
- 
+    Participant Announcer
+
     Observer ->>+ Arena: Start Round
-    Arena ->>+ Players: Round Prompt
-    Players ->>- Arena: Player Actions
-    Arena ->>+ Judge: Determine results of actions
-    Judge ->>- Arena: Player results
-    Arena ->>+ Judge: Determine effect of results
-    Judge ->>- Arena: Player & Arena state updates
-    Arena ->>+ Announcer: Describe round results
-    Announcer ->>- Arena: description of results
-    Arena -->> Observer: Show compiled round results
+    Arena ->>+ Players: Send Round Prompt
+    Players -->>- Arena: Player Actions
+    Arena ->>+ Judge: Judge Actions
+    Judge -->>- Arena: Judged Results
+    Arena ->> Arena: Apply Effects
+    Arena ->>+ Announcer: Describe Results
+    Announcer -->>- Arena: Results Description
+    Arena -->> Observer: Present Results
 ```
+
+#### Notes
+
+- The Arena (ContestMachine) orchestrates the overall flow, including setup and rounds.
+- The Setup phase is detailed, showing the creation of round 0, addition of features, and the use of both ArenaAgent and Announcer.
+- The round flow is strictly sequential and matches the RoundMachine state transitions.
+- All external communications (health checks, feature generation, judging, announcing) are explicit.
+- The Observer only interacts at the start of the contest and at the end of each round.
+
 ## Models
 
 See [model diagrams](./model-diagrams.md) for a comprehensive view of the data model.
@@ -83,6 +97,7 @@ The system uses several interconnected models to represent the contest:
 The rules are a set of criteria that the contestants must follow. They are used to judge the responses of the contestants. These rules are set by the Observer and are given as a string of text.
 
 #### Example rules, not all intended to be used together
+
 - each contestant has two actors on the board, with a natural language description of the actor's role
 - the board is a 5x5 grid
 - there is a hidden treasure chest on the board
@@ -91,5 +106,3 @@ The rules are a set of criteria that the contestants must follow. They are used 
 - the contestants must work together to reach the treasure chest before the other contestants
 - each actor can move and act once per turn, specified in natural language
 - flavor text is allowed, and will influence the outcome of the contest
-
-
