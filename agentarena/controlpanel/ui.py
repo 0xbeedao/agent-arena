@@ -12,6 +12,7 @@ from textual.widgets import Header
 from textual.widgets import Label
 from textual.widgets import Static
 
+from agentarena.controlpanel.contest_view import ContestView
 from agentarena.controlpanel.dashboard_view import DashboardView
 from agentarena.core.factories.logger_factory import ILogger
 
@@ -48,7 +49,7 @@ class ControlPanelUI(App):
             with Vertical(id="jobviz"):
                 yield Label("Job Visualizer Content")
             with Vertical(id="contest"):
-                Label("Contest Content")
+                yield ContestView(self.clients, self.loggingservice)
         yield StatusBar()
         yield Footer()
 
@@ -66,3 +67,11 @@ class ControlPanelUI(App):
     async def on_collapsible_expanded(self, event: Collapsible.Expanded) -> None:
         self._structlog.info("collapsible", trigger=event.collapsible.id)
         await self.query_one(DashboardView).on_collapsible_expanded(event)
+
+    async def show_contest(self, contest_obj):
+        # Switch to contest view
+        self.query_one(ContentSwitcher).current = "contest"
+        # Update the ContestView's contest attribute
+        contest_view = self.query_one(ContestView)
+        contest_view.contest = contest_obj
+        contest_view.refresh()

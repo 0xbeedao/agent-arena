@@ -251,7 +251,7 @@ class ModelService(Generic[T, MC]):
         session.commit()
         session.refresh(db_obj)
         await self.message_broker.publish_model_change(
-            f"sys.arena.{self.model_name}.{obj_id}.update",
+            f"arena.{self.model_name}.{obj_id}.update",
             obj_id,
             detail=json.dumps(obj_data),
         )

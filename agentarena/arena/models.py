@@ -251,11 +251,12 @@ class Contest(ContestBase, DbBase, table=True):
         return ContestPublic(
             id=self.id,
             arena=self.arena.get_public(),
-            round=round,
+            participants=[p.get_public() for p in self.participants],
+            rounds=[r.get_public() for r in self.rounds],
             start_time=self.start_time or 0,
             end_time=self.end_time or 0,
             state=self.state,
-            winner=self.winner.get_public() if self.winner else None,
+            winner_id=self.winner_id,
         )
 
     def get_role(self, role: RoleType):

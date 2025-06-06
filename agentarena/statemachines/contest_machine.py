@@ -169,10 +169,10 @@ class ContestMachine(StateMachine):
             await sub.unsubscribe()
             del self.subscriptions[msg.subject]
         final_state = msg.data.decode("utf-8")
-        if final_state == ContestRoundState.COMPLETE.value:
+        if final_state == ContestRoundState.SETUP_COMPLETE.value:
             self.log.info("Setup complete, transitioning to in_round")
             asyncio.create_task(self.setup_done(""))  # type: ignore
-        elif final_state == ContestRoundState.FAIL.value:
+        elif final_state == ContestRoundState.SETUP_FAIL.value:
             self.log.warn(f"Setup machine in fail state: {final_state}")
             asyncio.create_task(self.setup_error(""))  # type: ignore
         else:

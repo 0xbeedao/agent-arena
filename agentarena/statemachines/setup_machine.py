@@ -20,7 +20,7 @@ from agentarena.arena.models import FeatureOriginType
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.constants import PromptType
+from agentarena.models.constants import JobResponseState, JobState, PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
 from agentarena.models.requests import ParticipantRequest
@@ -283,8 +283,21 @@ class SetupMachine(StateMachine):
         log.info("Received feature generation message", msg=msg)
         try:
             job_data = msg.data.decode("utf-8")
-            features = json.loads(job_data)
-            features = parse_features_list(features, log=log)
+            obj = json.loads(job_data)
+            state = obj.get("state", None)
+
+            while isinstance(obj, dict) and "data" in obj:
+                obj = obj["data"]
+                if isinstance(obj, str) and obj.find('"data"') != -1:
+                    obj = json.loads(obj)
+                if state is None:
+                    state = obj.get("state", None)
+
+            if state != JobResponseState.COMPLETE.value:
+                log.error("Feature generation job failed", obj=obj)
+                asyncio.create_task(self.send("step_failed", "job failed"))  # type: ignore
+                return
+            features = parse_features_list(obj, log=log)
             log.info("Parsed feature generation message", features=features)
         except Exception as e:
             log.error("Failed to parse feature generation message", error=e)

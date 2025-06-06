@@ -18,7 +18,7 @@ class DashboardView(Static):
     participants = reactive([], recompose=True)
     strategies = reactive([], recompose=True)
     arenas_expanded = reactive(False)
-    contests_expanded = reactive(False)
+    contests_expanded = reactive(True)
     participants_expanded = reactive(False)
     strategies_expanded = reactive(False)
 
@@ -30,18 +30,18 @@ class DashboardView(Static):
     def compose(self):
         """Compose dashboard view."""
         with Collapsible(
-            collapsed=not self.arenas_expanded,
-            title="Arenas",
-            id="load-arenas",
-        ):
-            yield DataTable(id="arena-table", classes="arena-table")
-
-        with Collapsible(
             collapsed=not self.contests_expanded,
             title="Contests",
             id="load-contests",
         ):
             yield DataTable(id="contest-table", classes="contest-table")
+
+        with Collapsible(
+            collapsed=not self.arenas_expanded,
+            title="Arenas",
+            id="load-arenas",
+        ):
+            yield DataTable(id="arena-table", classes="arena-table")
 
         with Collapsible(
             collapsed=len(self.participants) == 0,
@@ -177,3 +177,18 @@ class DashboardView(Static):
             await self.load_strategies(log)
         else:
             log.info("not handled")
+
+    async def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
+        # Only handle clicks in the contest-table
+        if event.data_table.id != "contest-table":
+            return
+        row, col = event.coordinate
+        # Only handle clicks in the ID column
+        if col != 0:
+            return
+        contest_id = event.value
+        # Find the contest object
+        contest = next((c for c in self.contests if c["id"] == contest_id), None)
+        if contest:
+            # Notify the app to show this contest
+            await self.app.show_contest(contest)

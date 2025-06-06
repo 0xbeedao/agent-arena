@@ -14,7 +14,7 @@ Your task is to describe the arena setup for the other player LLM Agents in a wa
 
 ## Arena Details to describe
 
-{% for feature in round.features %}
+{% for feature in rounds[0].features %}
 - {{feature.name}} at "{{feature.position}}"
 {% endfor %}
 

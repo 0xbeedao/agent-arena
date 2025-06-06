@@ -28,12 +28,13 @@ class ContestPublic(BaseModel):
     id: str = Field(default="", description="ID")
     arena: ArenaPublic = Field()
     end_time: int = Field(description="Timestamp")
-    round: Optional["ContestRoundPublic"] = Field()
+    participants: List["ParticipantPublic"] = Field(default=[])
+    rounds: List["ContestRoundPublic"] = Field()
     start_time: int = Field(description="Timestamp")
     state: ContestState = Field(
         default=ContestState.CREATED, description="Contest state"
     )
-    winner: Optional["ParticipantPublic"] = Field(default=None)
+    winner_id: Optional[str] = Field(default=None, description="ID of winning player")
 
 
 class ContestRoundPublic(BaseModel):
