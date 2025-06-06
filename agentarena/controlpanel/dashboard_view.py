@@ -107,7 +107,11 @@ class DashboardView(Static):
             log.info(f"Loaded {len(contests)}")
             log.info(contests=contests)
             rows = [
-                [c["id"], c["round"]["round_no"] if c["round"] else "-1", c["state"]]
+                [
+                    c["id"],
+                    c["rounds"][0]["round_no"] if c["rounds"] else "-1",
+                    c["state"],
+                ]
                 for c in self.contests
             ]
             table = self.query_one("#contest-table", DataTable)

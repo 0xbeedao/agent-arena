@@ -1,16 +1,17 @@
 """Dashboard View for Control Panel UI using Textual."""
 
+import asyncio
 from datetime import datetime
-from typing import Dict, List
 
-from textual.reactive import reactive
+from nats.aio.msg import Msg
 from textual.containers import Horizontal
 from textual.containers import Vertical
-from textual.widgets import Collapsible
+from textual.reactive import reactive
 from textual.widgets import DataTable
 from textual.widgets import Label
 from textual.widgets import Static
 
+from agentarena.controlpanel.components import StatusLabel
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
 
@@ -35,10 +36,45 @@ class ContestView(Static):
         super().__init__()
         self._structlog: ILogger = logger.get_logger("contest")
         self.clients = clients
+        self.subscriptions = {}
+
+    async def _subscribe(self, contest_id: str):
+        self.subscriptions[contest_id] = await self.clients["arena"].subscribe(
+            f"arena.contest.{contest_id}.contestflow.*", self.handle_flow
+        )
+
+    async def _unsubscribe(self, contest_id: str):
+        if contest_id in self.subscriptions:
+            await self.subscriptions[contest_id].unsubscribe()
+            del self.subscriptions[contest_id]
+
+    async def handle_flow(self, msg: Msg):
+        self._structlog.info("flow", msg=msg)
+        title = ".".join(msg.subject.split(".")[3:])
+        self.notify(
+            msg.subject,
+            title=title,
+            timeout=5,
+            severity="information",
+        )
+        if self.contest:
+            self.contest = await self.clients["arena"].get(
+                f"/api/contest/{self.contest['id']}"
+            )
 
     def watch_contest(self, contest):
-        # Update the label when contest changes
-        self.refresh()
+        # When contest changes, unsubscribe from all and subscribe to new contest
+
+        async def update_subscriptions():
+            # Unsubscribe from all current subscriptions
+            for contest_id in list(self.subscriptions.keys()):
+                await self._unsubscribe(contest_id)
+            # Subscribe to new contest if it exists
+            if contest and "id" in contest:
+                await self._subscribe(contest["id"])
+            self.refresh()
+
+        asyncio.create_task(update_subscriptions())
 
     def compose(self):
         """Compose dashboard view."""
@@ -57,17 +93,13 @@ class ContestView(Static):
                     f"Start Time: {safe_format_time(self.contest, 'start_time')}"
                 )
                 yield Label(f"End Time: {safe_format_time(self.contest, 'end_time')}")
-                yield Label(f"State: {self.contest['state']}")
+                yield StatusLabel(self.contest["state"])
 
-                if self.contest["round"]:
-                    round = self.contest["round"]
+                if "rounds" in self.contest and self.contest["rounds"]:
+                    round = self.contest["rounds"][0]
                     with Vertical(id=f"round-{round['round_no']}"):
                         yield Label(f"Round Number: {round['round_no']}")
-                        yield Label(f"State: {round['state']}")
-                        yield Label(
-                            f"Start Time: {safe_format_time(round, 'start_time')}"
-                        )
-                        yield Label(f"End Time: {safe_format_time(round, 'end_time')}")
+                        yield StatusLabel(round["state"])
                         yield Label(f"Narrative: {round['narrative']}")
                         yield Label("Features:")
                         # Features table

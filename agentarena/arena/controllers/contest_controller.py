@@ -68,7 +68,7 @@ class ContestController(
         self.message_broker = message_broker
         to_subscribe = [
             ("arena.contest.request", self.handle_request),
-            ("arena.contest.*.flow.*", self.handle_flow),
+            ("arena.contest.*.contestflow.*", self.handle_flow),
         ]
         super().__init__(
             base_path=base_path,
@@ -307,7 +307,8 @@ class ContestController(
         contest.start_time = int(datetime.now().timestamp())
         await self.model_service.update(contest_id, contest, session)
         await self.message_broker.send_message(
-            f"arena.contest.{contest_id}.flow.{ContestState.STARTING.value}", contest_id
+            f"arena.contest.{contest_id}.contestflow.{ContestState.STARTING.value}",
+            contest_id,
         )
 
         return contest.get_public()

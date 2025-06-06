@@ -20,7 +20,8 @@ from agentarena.arena.models import FeatureOriginType
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.constants import JobResponseState, JobState, PromptType
+from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
 from agentarena.models.requests import ParticipantRequest
@@ -338,6 +339,7 @@ class SetupMachine(StateMachine):
         log.info("Creating round 0 for contest")
 
         # Create a new round 0 if it doesn't exist
+        # TODO: we need to add the initial player_states here - and this should probably by done in the round service
         if not self.contest_round:
             round = ContestRound(
                 id=self.round_service.uuid_service.make_id(),
