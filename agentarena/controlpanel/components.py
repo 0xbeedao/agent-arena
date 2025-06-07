@@ -14,6 +14,7 @@ class StatusLabel(Label):
         JobResponseState.COMPLETE: "green",
         JobResponseState.PENDING: "yellow",
         JobResponseState.FAIL: "red",
+        ContestState.CREATED: "green",
         ContestState.COMPLETE: "green",
         ContestState.FAIL: "red",
         ContestState.STARTING: "yellow",

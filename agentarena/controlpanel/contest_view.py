@@ -8,9 +8,13 @@ from textual.containers import Horizontal
 from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import DataTable
+from textual.widgets import Collapsible
 from textual.widgets import Label
+from textual.widgets import Markdown
+from textual.widgets import Button
 from textual.widgets import Static
 
+from agentarena.models.constants import ContestState
 from agentarena.controlpanel.components import StatusLabel
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
@@ -39,11 +43,13 @@ class ContestView(Static):
         self.subscriptions = {}
 
     async def _subscribe(self, contest_id: str):
-        self.subscriptions[contest_id] = await self.clients["arena"].subscribe(
-            f"arena.contest.{contest_id}.contestflow.*", self.handle_flow
+        self._structlog.info("subscribing to contest", contest_id=contest_id)
+        self.subscriptions[contest_id] = await self.clients["broker"].subscribe(
+            f"arena.contest.{contest_id}.contestflow.>", self.handle_flow
         )
 
     async def _unsubscribe(self, contest_id: str):
+        self._structlog.info("unsubscribing from contest", contest_id=contest_id)
         if contest_id in self.subscriptions:
             await self.subscriptions[contest_id].unsubscribe()
             del self.subscriptions[contest_id]
@@ -64,6 +70,8 @@ class ContestView(Static):
 
     def watch_contest(self, contest):
         # When contest changes, unsubscribe from all and subscribe to new contest
+        self._structlog = self._structlog.bind(contest=contest)
+        self._structlog.info("watch_contest")
 
         async def update_subscriptions():
             # Unsubscribe from all current subscriptions
@@ -78,42 +86,55 @@ class ContestView(Static):
 
     def compose(self):
         """Compose dashboard view."""
-        with Horizontal(id="contest-header"):
-            yield Label("Contest:")
-            if self.contest:
-                yield Label(self.contest["id"])
-                yield Label(f"Name {self.contest['arena']['name']}")
-            else:
-                yield Label("Contest: None")
-        if self.contest:
-            with Vertical(id="contest-details"):
-                yield Label(f"Name: {self.contest['arena']['name']}")
-                yield Label(f"Description: {self.contest['arena']['description']}")
-                yield Label(
-                    f"Start Time: {safe_format_time(self.contest, 'start_time')}"
-                )
-                yield Label(f"End Time: {safe_format_time(self.contest, 'end_time')}")
-                yield StatusLabel(self.contest["state"])
+        with Horizontal(id="contest-page"):
+            with Vertical(id="contest-primary"):
+                with Horizontal(id="contest-header"):
+                    yield Label("Contest:")
+                    if self.contest:
+                        yield Label(
+                            f"[bold][yellow]{self.contest['arena']['name']}[/yellow][/bold]  "
+                        )
+                        yield Label(
+                            f"Start Time: {safe_format_time(self.contest, 'start_time')}  "
+                        )
+                        yield Label(
+                            f"End Time: {safe_format_time(self.contest, 'end_time')}  "
+                        )
+                        yield StatusLabel(self.contest["state"])
+                        yield Label(f'  {self.contest["id"]}')
+                    else:
+                        yield Label("Contest: None")
+                if self.contest:
+                    yield Label(self.contest["arena"]["description"])
 
-                if "rounds" in self.contest and self.contest["rounds"]:
+                if self.contest and "rounds" in self.contest and self.contest["rounds"]:
                     round = self.contest["rounds"][0]
-                    with Vertical(id=f"round-{round['round_no']}"):
-                        yield Label(f"Round Number: {round['round_no']}")
-                        yield StatusLabel(round["state"])
-                        yield Label(f"Narrative: {round['narrative']}")
-                        yield Label("Features:")
+                    yield Label(f"Round Number: {round['round_no']}")
+                    yield StatusLabel(round["state"])
+                    yield Label("Narrative:")
+                    yield Markdown(round["narrative"])
+                    with Collapsible(
+                        collapsed=True,
+                        title="Features",
+                        id="round-features",
+                    ):
                         # Features table
                         features_table = DataTable(id="features-table")
                         features_table.add_column("Name", width=20)
-                        features_table.add_column("Description", width=40)
                         features_table.add_column("Position", width=10)
+                        features_table.add_column("Description", width=None)
                         features_rows = [
-                            [f["name"], f["description"], f["position"]]
+                            [f["name"], f["position"], f["description"]]
                             for f in round["features"]
                         ]
                         features_table.add_rows(features_rows)
                         yield features_table
 
+                    with Collapsible(
+                        collapsed=True,
+                        title="Players",
+                        id="round-players",
+                    ):
                         # Players table
                         players_table = DataTable(id="players-table")
                         players_table.add_column("Name", width=20)
@@ -126,3 +147,24 @@ class ContestView(Static):
                         ]
                         players_table.add_rows(player_rows)
                         yield players_table
+            with Vertical(id="contest-actions"):
+                starting = False
+                if self.contest and self.contest["state"] == ContestState.CREATED:
+                    starting = True
+                yield Button("Start Round", id="start-round", disabled=(not starting))
+                yield Button("Advance Round", id="advance-round", disabled=starting)
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        cmd = event.button.id
+        self._structlog.info("button", btn=cmd)
+        if self.contest:
+            if cmd == "start-round":
+                await self.clients["arena"].post(
+                    f"/api/contest/{self.contest['id']}/start", None
+                )
+            elif cmd == "advance-round":
+                await self.clients["arena"].post(
+                    f"/api/contest/{self.contest['id']}/advance", None
+                )
+        else:
+            self._structlog.error("no contest for command", cmd=cmd)

@@ -158,6 +158,7 @@ def load_contest_fixture(
 
     contest_req = {
         "player_positions": fixture_data["player_positions"],
+        "player_inventories": fixture_data["player_inventories"],
         "arena_id": arena_id,
         "participant_ids": participants,
     }

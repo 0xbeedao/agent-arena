@@ -27,7 +27,7 @@ def logging():
 
 @pytest.fixture
 def uuid_service(logging):
-    return UUIDService(word_list=[], prod=False, logging=logging)
+    return UUIDService(word_list=[], prod=False)
 
 
 @pytest.fixture

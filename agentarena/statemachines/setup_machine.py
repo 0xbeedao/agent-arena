@@ -266,6 +266,7 @@ class SetupMachine(StateMachine):
                 return
             round.state = ContestRoundState.DESCRIBING_SETUP
             round.updated_at = int(datetime.now().timestamp())
+            log.info("Setting round narrative", description=description)
             round.narrative = description
             self.session.commit()
 
@@ -291,7 +292,7 @@ class SetupMachine(StateMachine):
                 if isinstance(obj, str) and obj.find('"data"') != -1:
                     obj = json.loads(obj)
                 if state is None:
-                    state = obj.get("state", None)
+                    state = obj.get("state", None)  # type: ignore
 
             if state != JobResponseState.COMPLETE.value:
                 log.error("Feature generation job failed", obj=obj)

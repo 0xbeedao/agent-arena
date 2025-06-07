@@ -155,6 +155,7 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
             round_no=self.round_no,
             players=players,
             state=self.state,
+            narrative=self.narrative,
         )
 
 

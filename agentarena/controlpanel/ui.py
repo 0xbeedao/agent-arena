@@ -4,6 +4,7 @@ from textual.app import App
 from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.containers import Vertical
+from textual.reactive import reactive
 from textual.widgets import Button
 from textual.widgets import Collapsible
 from textual.widgets import ContentSwitcher
@@ -11,6 +12,7 @@ from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Label
 from textual.widgets import Static
+from textual.binding import Binding
 
 from agentarena.controlpanel.contest_view import ContestView
 from agentarena.controlpanel.dashboard_view import DashboardView
@@ -25,10 +27,23 @@ class StatusBar(Static):
         yield Label("", id="status-controls")
 
 
+def decorated_tab(label: str, tab_id: str, current_tab: str | None):
+    if current_tab == tab_id:
+        return f"[bold]{label}[/bold]"
+    else:
+        return tab_id
+
+
 class ControlPanelUI(App):
     """Main UI application."""
 
     CSS_PATH = "controlpanel.css"
+    current_tab = reactive("dashboard")
+
+    BINDINGS = [
+        Binding("q", "quit", "Quit"),
+        Binding("^", "next_tab", "Next Tab"),
+    ]
 
     def __init__(self, clients, logger):
         super().__init__()
@@ -40,9 +55,17 @@ class ControlPanelUI(App):
         """Create child widgets for the app."""
         yield Header()
         with Horizontal(id="buttons"):
-            yield Button("Dashboard", id="dashboard")
-            yield Button("Job Visualizer", id="jobviz")
-            yield Button("Contest", id="contest")
+            self._structlog.info("current_tab", current_tab=self.current_tab)
+            yield Button(
+                decorated_tab("Dashboard", "dashboard", self.current_tab),
+                id="dashboard",
+            )
+            yield Button(
+                decorated_tab("Job Visualizer", "jobviz", self.current_tab), id="jobviz"
+            )
+            yield Button(
+                decorated_tab("Contest", "contest", self.current_tab), id="contest"
+            )
         with ContentSwitcher(initial="dashboard"):
             with Vertical(id="dashboard"):
                 yield DashboardView(self.clients, self.loggingservice)
@@ -61,8 +84,11 @@ class ControlPanelUI(App):
         self.run()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        self._structlog.info("button", btn=event.button.id)
-        self.query_one(ContentSwitcher).current = event.button.id
+        btn_id = event.button.id
+        if btn_id in ["dashboard", "jobviz", "contest"]:
+            self._structlog.info("button", btn=btn_id)
+            self.current_tab = btn_id
+            self.query_one(ContentSwitcher).current = btn_id
 
     async def on_collapsible_expanded(self, event: Collapsible.Expanded) -> None:
         self._structlog.info("collapsible", trigger=event.collapsible.id)
@@ -75,3 +101,20 @@ class ControlPanelUI(App):
         contest_view = self.query_one(ContestView)
         contest_view.contest = contest_obj
         contest_view.refresh()
+
+    def action_next_tab(self) -> None:
+        """Switch ContentSwitcher to the next view."""
+        switcher = self.query_one(ContentSwitcher)
+        views = [child.id for child in switcher.children if isinstance(child.id, str)]
+        if not views:
+            return
+        try:
+            current = (
+                switcher.current if isinstance(switcher.current, str) else views[0]
+            )
+            current_index = views.index(current)
+        except ValueError:
+            current_index = 0
+        next_index = (current_index + 1) % len(views)
+        self.current_tab = views[next_index]
+        switcher.current = views[next_index]

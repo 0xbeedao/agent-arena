@@ -24,7 +24,14 @@ StatusBar {
     border: solid $primary;
 }
 
-ContestView {
+#contest {
+    width: 1fr;
+    align-vertical: top;
+    background: $panel;
+    border: solid $primary;
+}
+
+#contest-details {
     width: 1fr;
     align-vertical: top;
     background: $panel;
@@ -45,4 +52,17 @@ Button:hover {
 
 #buttons {
     height: 4;
+}
+
+#contest-details {
+    height: 1fr;
+    width: 100%;
+}
+
+#contest-header Label {
+    padding: 1 1 1 1;
+}
+
+#contest-actions {
+    width: 20;
 }
