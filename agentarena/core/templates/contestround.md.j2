@@ -1,0 +1,18 @@
+### Round {{ round.round_no }}: {{ round.state }}
+
+{{ round.narrative }}
+
+### Features
+{% for feature in round.features %}
+| **Name** | **Position** | **Description** |
+|----------|--------------|-----------------|
+{% for feature in round.features %}
+| {{ feature.name }} | {{ feature.position }} | {{ feature.description }} |
+{% endfor %}
+
+### Players
+| **Name** | **Position** | **Inventory** | **Health** | **Score** |
+|----------|--------------|---------------|------------|-----------|
+{% for player in round.players %}
+| {{ player.name }} | {{ player.position }} | {{ player.inventory }} | {{ player.health }} | {{ player.score }} |
+{% endfor %}

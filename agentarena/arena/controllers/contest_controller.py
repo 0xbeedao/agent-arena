@@ -78,6 +78,7 @@ class ContestController(
             logging=logging,
         )
         SubscribingService.__init__(self, to_subscribe, self.log)
+        self.log.info(f"Templates: {template_service.env.list_templates()}")
 
     # @router.post("/contest", response_model=Dict[str, str])
     async def create_contest(self, req: ContestCreate, session: Session) -> Contest:
@@ -332,10 +333,15 @@ class ContestController(
             with self.model_service.get_session() as session:
                 return await self.start_contest(contest_id, session)
 
-        @router.get("/{obj_id}", response_model=ContestPublic)
-        async def get(obj_id: str, format: str = "json"):
+        @router.get("/{obj_id}.{format}", response_model=str)
+        async def get_md(obj_id: str, format: str = "md"):
             with self.model_service.get_session() as session:
-                return await self.get_model(obj_id, session, format=format)
+                return await self.get_model_with_format(obj_id, session, format=format)
+
+        @router.get("/{obj_id}", response_model=ContestPublic)
+        async def get(obj_id: str):
+            with self.model_service.get_session() as session:
+                return await self.get_model(obj_id, session)
 
         @router.get("", response_model=List[ContestPublic])
         async def list_all():

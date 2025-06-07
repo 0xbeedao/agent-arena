@@ -7,9 +7,9 @@ from agentarena.util.jinja_helpers import datetimeformat_filter
 
 class JinjaRenderer:
 
-    def __init__(self):
+    def __init__(self, base_path: str = "agentarena.core"):
         self.env = Environment(
-            loader=PackageLoader("agentarena"), autoescape=select_autoescape()
+            loader=PackageLoader(base_path), autoescape=select_autoescape()
         )
         self.env.filters["datetimeformat"] = datetimeformat_filter
 
@@ -21,7 +21,11 @@ class JinjaRenderer:
             raise InvalidTemplateException(key)
 
     def render_template(self, key: str, data: dict) -> str:
-        possibles = [key, f"{key}.md", f"{key}.md.j2"]
+        possibles = [key]
+        if key.find(".") == -1:
+            possibles.extend([f"{key}.md", f"{key}.md.j2"])
+        else:
+            possibles.append(f"{key}.j2")
         try:
             template = self.env.select_template(possibles)
         except InvalidTemplateException as te:

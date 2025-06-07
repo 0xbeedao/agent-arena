@@ -203,7 +203,7 @@ class ContestBase(SQLModel, table=False):
     """
 
     arena_id: str = Field(description="Reference to ArenaDTO", foreign_key="arena.id")
-    current_round: int = Field(default=1, description="Current round")
+    current_round: int = Field(default=0, description="Current round")
     player_inventories: str = Field(
         default="[]",
         description="Json for a list of lists of player inventories",

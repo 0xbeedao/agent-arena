@@ -1,0 +1,45 @@
+{# Displays a full ContestPublic object #}
+## Contest {{ contest.id }}
+
+**{{ contest.arena.name}}**
+{{ contest.state.value }} 
+{% if contest.start_time %}
+Started: {{ contest.start_time | datetimeformat }}
+Ended: {{ contest.end_time | datetimeformat }}
+{% endif %}
+ 
+{{ contest.arena.description }}
+Dimensions: {{ contest.arena.height }} x {{ contest.arena.width }}
+Max Random Features: {{ contest.arena.max_random_features }}
+Rules: {{ contest.arena.rules }}
+Winning Condition: {{ contest.arena.winning_condition }}
+
+### Participants ({{ contest.participants | length }})
+| **Name** | **Role** | **Description** |
+|----------|--------------|-----------------|
+{%- for participant in contest.participants %}
+| {{ participant.name }} | {{ participant.role }} | {{ participant.description }} |
+{%- endfor %}
+{% if contest.rounds %}
+## Rounds
+
+{% for round in contest.rounds %}
+### Round {{ round.round_no }}: {{ round.state.value }}
+
+{{ round.narrative }}
+
+### Features ({{ round.features | length }})
+| **Name** | **Position** | **Description** |
+|----------|--------------|-----------------|
+{%- for feature in round.features %}
+| {{ feature.name }} | {{ feature.position }} | {{ feature.description }} |
+{%- endfor %}
+
+### Players ({{ round.players | length }})
+| **Name** | **Position** | **Inventory** | **Health** | **Score** |
+|----------|--------------|---------------|------------|-----------|
+{%- for player in round.players %}
+| {{ player.name }} | {{ player.position }} | {{ player.inventory }} | {{ player.health }} | {{ player.score }} |
+{%- endfor %}
+{% endfor %}
+{% endif %}

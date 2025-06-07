@@ -1,7 +1,7 @@
 import datetime
 
 
-def datetimeformat_filter(self, value, format="%Y-%m-%d %H:%M:%S"):
+def datetimeformat_filter(value, format="%Y-%m-%d %H:%M:%S"):
     """
     Jinja filter to format a timestamp as a local datetime string.
     """

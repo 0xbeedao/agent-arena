@@ -7,11 +7,13 @@ from typing import TypeVar
 from fastapi import APIRouter
 from fastapi import Body
 from fastapi import HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import SQLModel
 
+from agentarena.core.exceptions import InvalidTemplateException
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
@@ -87,9 +89,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         self.log.debug("no get_public method", obj=obj.id)
         return self.model_public.model_validate(obj)
 
-    async def get_model(
-        self, obj_id: str, session: Session, format: str = "json"
-    ) -> MP:
+    async def get_model(self, obj_id: str, session: Session) -> MP:
         """
         Get an instance of the model by id
 
@@ -108,11 +108,31 @@ class ModelController(Generic[T, MC, MU, MP]):
         if not obj:
             raise HTTPException(status_code=500, detail="internal error")
         pub = self.convert_to_public(obj)
-        if format == "md":
-            return self.template_service.render_template(
-                f"{self.model_name}.md", pub.model_dump()
-            )
         return pub
+
+    async def get_model_with_format(
+        self, obj_id: str, session: Session, format: str = "md"
+    ) -> Response:
+        """
+        Get an instance of the model by id with a specific format
+        """
+        obj, response = await self.model_service.get(obj_id, session)
+        if not response.success or not obj:
+            raise HTTPException(status_code=404, detail=response.error)
+        pub = self.convert_to_public(obj)
+        if format == "md":
+            try:
+                self.log.info(
+                    "rendering template", model=self.model_name, format=format, obj=pub
+                )
+                rendered = self.template_service.render_template(
+                    f"{self.model_name}.{format}", {self.model_name: pub}
+                )
+                return Response(content=rendered, media_type="text/markdown")
+            except Exception as e:
+                self.log.error("Invalid template", error=e)
+                raise HTTPException(status_code=422, detail="bad template")
+        return Response(content=obj.model_dump_json(), media_type="application/json")
 
     async def get_model_list(self, session: Session) -> List[MP]:
         """
