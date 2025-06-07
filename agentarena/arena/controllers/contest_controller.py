@@ -29,6 +29,7 @@ from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.arena.services.round_service import RoundService
+from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.constants import RoleType
@@ -57,6 +58,7 @@ class ContestController(
             description="The feature service"
         ),
         round_service: RoundService = Field(description="The round service"),
+        template_service: JinjaRenderer = Field(description="The template service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.feature_service = feature_service
@@ -72,6 +74,7 @@ class ContestController(
             model_service=model_service,
             model_public=ContestPublic,
             model_name="contest",
+            template_service=template_service,
             logging=logging,
         )
         SubscribingService.__init__(self, to_subscribe, self.log)
@@ -330,9 +333,9 @@ class ContestController(
                 return await self.start_contest(contest_id, session)
 
         @router.get("/{obj_id}", response_model=ContestPublic)
-        async def get(obj_id: str):
+        async def get(obj_id: str, format: str = "json"):
             with self.model_service.get_session() as session:
-                return await self.get_model(obj_id, session)
+                return await self.get_model(obj_id, session, format=format)
 
         @router.get("", response_model=List[ContestPublic])
         async def list_all():

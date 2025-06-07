@@ -152,6 +152,7 @@ class ActorContainer(containers.DeclarativeContainer):
         message_broker=message_broker,
         prompt_service=strategyprompt_service,
         strategy_service=strategy_service,
+        template_service=template_service,
         uuid_service=uuid_service,
         logging=logging,
     )

@@ -13,6 +13,7 @@ from sqlmodel import Session
 from sqlmodel import SQLModel
 
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.dbbase import DbBase
 
@@ -33,6 +34,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         model_service: ModelService[T, MC] = Field(
             description="The model service for this model"
         ),
+        template_service: JinjaRenderer = Field(description="The template service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         """
@@ -49,6 +51,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         self.model_update = model_update
         self.model_public = model_public
         self.model_service = model_service
+        self.template_service = template_service
         self.log = logging.get_logger(
             "controller", model=model_name, path=self.base_path
         )
@@ -84,7 +87,9 @@ class ModelController(Generic[T, MC, MU, MP]):
         self.log.debug("no get_public method", obj=obj.id)
         return self.model_public.model_validate(obj)
 
-    async def get_model(self, obj_id: str, session: Session) -> MP:
+    async def get_model(
+        self, obj_id: str, session: Session, format: str = "json"
+    ) -> MP:
         """
         Get an instance of the model by id
 
@@ -102,7 +107,12 @@ class ModelController(Generic[T, MC, MU, MP]):
             raise HTTPException(status_code=404, detail=response.error)
         if not obj:
             raise HTTPException(status_code=500, detail="internal error")
-        return self.convert_to_public(obj)
+        pub = self.convert_to_public(obj)
+        if format == "md":
+            return self.template_service.render_template(
+                f"{self.model_name}.md", pub.model_dump()
+            )
+        return pub
 
     async def get_model_list(self, session: Session) -> List[MP]:
         """

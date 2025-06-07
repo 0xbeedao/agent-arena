@@ -16,6 +16,7 @@ from agentarena.actors.models import StrategyUpdate
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 
@@ -31,14 +32,18 @@ class StrategyController(
             description="Message broker client for publishing messages"
         ),
         prompt_service: ModelService[StrategyPrompt, StrategyPromptCreate] = Field(
-            description="prompt svc",
+            description="prompt service",
         ),
         strategy_service: ModelService[Strategy, StrategyCreate] = Field(
-            description="the `participant service"
+            description="strategy service"
         ),
+        template_service: JinjaRenderer = Field(description="The template service"),
         uuid_service: UUIDService = Field(description="UUID Service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
+        self.message_broker = message_broker
+        self.prompt_service = prompt_service
+        self.uuid_service = uuid_service
         super().__init__(
             base_path=base_path,
             model_name="Strategy",
@@ -46,11 +51,9 @@ class StrategyController(
             model_update=StrategyUpdate,
             model_public=StrategyPublic,
             model_service=strategy_service,
+            template_service=template_service,
             logging=logging,
         )
-        self.message_broker = message_broker
-        self.prompt_service = prompt_service
-        self.uuid_service = uuid_service
 
     async def create_strategy(
         self, req: StrategyCreate, session: Session

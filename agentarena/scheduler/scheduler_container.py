@@ -11,6 +11,7 @@ from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
+from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import CommandJob
@@ -92,6 +93,10 @@ class SchedulerContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
+    template_service = providers.Singleton(
+        JinjaRenderer,
+    )
+
     # model services
 
     commandjob_service = providers.Singleton(
@@ -144,6 +149,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         JobController,
         base_path="/api",
         model_service=commandjob_service,
+        template_service=template_service,
         logging=logging,
     )
 

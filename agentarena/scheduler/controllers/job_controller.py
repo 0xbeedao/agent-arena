@@ -4,6 +4,7 @@ from sqlmodel import Field
 
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobCreate
@@ -26,6 +27,7 @@ class JobController(
         model_service: ModelService[CommandJob, CommandJobCreate] = Field(
             description="The CommandJob model service"
         ),
+        template_service: JinjaRenderer = Field(description="The template service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         """
@@ -41,6 +43,7 @@ class JobController(
             model_name="commandjob",
             model_service=model_service,
             model_public=CommandJobPublic,
+            template_service=template_service,
             logging=logging,
         )
 

@@ -11,17 +11,16 @@ from agentarena.actors.models import Agent
 from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
+from agentarena.core.exceptions import InvalidTemplateException
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.constants import PromptType
 from agentarena.models.requests import ParticipantRequest
+from agentarena.util.jinja_helpers import datetimeformat_filter
 
 
-class InvalidTemplateException(Exception):
-    pass
-
-
-class TemplateService:
+class TemplateService(JinjaRenderer):
     """
     Provides template filling services, using Jinja2
     """
@@ -34,9 +33,7 @@ class TemplateService:
 
         self.strategy_service = strategy_service
         self.log = logging.get_logger("service")
-        self.env = Environment(
-            loader=PackageLoader("agentarena.actors"), autoescape=select_autoescape()
-        )
+        super().__init__()
         self.log.debug("Found templates", templates=self.env.list_templates())
 
     async def expand_prompt(
@@ -73,17 +70,3 @@ class TemplateService:
                 f"No such template {prompt_type.value} for strategy {strategy_id}"
             )
         return prompt
-
-    def get_template(self, key: str):
-        possibles = [key, f"{key}.md", f"{key}.md.j2"]
-        try:
-            return self.env.select_template(possibles)
-        except TemplateNotFound as te:
-            self.log.error("could not find template", key=key)
-            raise InvalidTemplateException(key)
-
-    def render_template(self, key, data: object) -> str:
-        """
-        Render the template by key, with the kwargs as values
-        """
-        return self.get_template(key).render(data)

@@ -20,6 +20,7 @@ from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import FeatureOriginType
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.public import ArenaPublic
 
@@ -35,6 +36,7 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
         feature_service: ModelService[Feature, FeatureCreate] = Field(
             description="The feature service"
         ),
+        template_service: JinjaRenderer = Field(description="The template service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.feature_service = feature_service
@@ -43,6 +45,7 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
             model_service=arena_service,
             model_public=ArenaPublic,
             model_name="arena",
+            template_service=template_service,
             logging=logging,
         )
 

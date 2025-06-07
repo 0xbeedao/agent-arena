@@ -27,6 +27,7 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
 from agentarena.arena.services.round_service import RoundService
+from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 
@@ -181,12 +182,17 @@ class ArenaContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
+    template_service = providers.Singleton(
+        JinjaRenderer,
+    )
+
     # controllers
 
     arena_controller = providers.Singleton(
         ArenaController,
         arena_service=arena_service,
         feature_service=feature_service,
+        template_service=template_service,
         logging=logging,
     )
 
@@ -199,12 +205,14 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_update=ParticipantUpdate,
         model_public=ParticipantPublic,
         model_service=participant_service,
+        template_service=template_service,
         logging=logging,
     )
 
     contest_controller = providers.Singleton(
         ContestController,
         feature_service=feature_service,
+        template_service=template_service,
         message_broker=message_broker,
         model_service=contest_service,
         participant_service=participant_service,
