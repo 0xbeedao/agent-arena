@@ -13,6 +13,7 @@ from textual.widgets import Label
 from textual.widgets import Markdown
 from textual.widgets import Button
 from textual.widgets import Static
+from textual.widgets import Rule
 
 from agentarena.models.constants import ContestState
 from agentarena.controlpanel.components import StatusLabel
@@ -28,6 +29,67 @@ def safe_format_time(contest, key: str):
 
 def format_time(timestamp):
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+
+class ContestButtons(Static):
+    def __init__(self, contest: dict | None):
+        super().__init__()
+        self.contest = contest
+
+    def compose(self):
+        starting = False
+        if self.contest and self.contest["state"] == ContestState.CREATED:
+            starting = True
+        yield Button("Start Round", id="start-round", disabled=(not starting))
+        yield Button("Advance Round", id="advance-round", disabled=starting)
+
+
+class FeaturesTable(Static):
+    def __init__(self, features: list):
+        super().__init__()
+        self.features = features
+
+    def compose(self):
+        with Collapsible(
+            collapsed=True,
+            title="Features",
+            id="round-features",
+        ):
+            # Features table
+            features_table = DataTable(id="features-table")
+            features_table.add_column("Name", width=20)
+            features_table.add_column("Position", width=10)
+            features_table.add_column("Description", width=None)
+            features_rows = [
+                [f["name"], f["position"], f["description"]] for f in self.features
+            ]
+            features_table.add_rows(features_rows)
+            yield features_table
+
+
+class PlayersTable(Static):
+    def __init__(self, players: list):
+        super().__init__()
+        self.players = players
+
+    def compose(self):
+        with Collapsible(
+            collapsed=True,
+            title="Players",
+            id="round-players",
+        ):
+            # Players table
+            players_table = DataTable(id="players-table")
+            players_table.add_column("Name", width=20)
+            players_table.add_column("Position", width=10)
+            players_table.add_column("Inventory", width=20)
+            players_table.add_column("Health", width=10)
+            player_rows = [
+                [p["name"], p["position"], p["inventory"], p["health"]]
+                for p in self.players
+            ]
+            players_table.add_rows(player_rows)
+            yield players_table
 
 
 class ContestView(Static):
@@ -89,7 +151,6 @@ class ContestView(Static):
         with Horizontal(id="contest-page"):
             with Vertical(id="contest-primary"):
                 with Horizontal(id="contest-header"):
-                    yield Label("Contest:")
                     if self.contest:
                         yield Label(
                             f"[bold][yellow]{self.contest['arena']['name']}[/yellow][/bold]  "
@@ -106,53 +167,18 @@ class ContestView(Static):
                         yield Label("Contest: None")
                 if self.contest:
                     yield Label(self.contest["arena"]["description"])
-
-                if self.contest and "rounds" in self.contest and self.contest["rounds"]:
-                    round = self.contest["rounds"][0]
-                    yield Label(f"Round Number: {round['round_no']}")
-                    yield StatusLabel(round["state"])
-                    yield Label("Narrative:")
-                    yield Markdown(round["narrative"])
-                    with Collapsible(
-                        collapsed=True,
-                        title="Features",
-                        id="round-features",
-                    ):
-                        # Features table
-                        features_table = DataTable(id="features-table")
-                        features_table.add_column("Name", width=20)
-                        features_table.add_column("Position", width=10)
-                        features_table.add_column("Description", width=None)
-                        features_rows = [
-                            [f["name"], f["position"], f["description"]]
-                            for f in round["features"]
-                        ]
-                        features_table.add_rows(features_rows)
-                        yield features_table
-
-                    with Collapsible(
-                        collapsed=True,
-                        title="Players",
-                        id="round-players",
-                    ):
-                        # Players table
-                        players_table = DataTable(id="players-table")
-                        players_table.add_column("Name", width=20)
-                        players_table.add_column("Position", width=10)
-                        players_table.add_column("Inventory", width=20)
-                        players_table.add_column("Health", width=10)
-                        player_rows = [
-                            [p["name"], p["position"], p["inventory"], p["health"]]
-                            for p in round["players"]
-                        ]
-                        players_table.add_rows(player_rows)
-                        yield players_table
+                yield Rule()
+                if self.contest and "rounds" in self.contest:
+                    for round in self.contest["rounds"]:
+                        yield Label(f"Round Number: {round['round_no']}")
+                        yield StatusLabel(round["state"])
+                        yield Label("Narrative:")
+                        yield Markdown(round["narrative"])
+                        yield FeaturesTable(round["features"])
+                        yield PlayersTable(round["players"])
+                        yield Rule()
             with Vertical(id="contest-actions"):
-                starting = False
-                if self.contest and self.contest["state"] == ContestState.CREATED:
-                    starting = True
-                yield Button("Start Round", id="start-round", disabled=(not starting))
-                yield Button("Advance Round", id="advance-round", disabled=starting)
+                yield ContestButtons(self.contest)
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         cmd = event.button.id

@@ -59,6 +59,10 @@ Button:hover {
     width: 100%;
 }
 
+#contest-header {
+    height: 2;
+}
+
 #contest-header Label {
     padding: 1 1 1 1;
 }
