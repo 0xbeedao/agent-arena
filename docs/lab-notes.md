@@ -277,3 +277,19 @@ App is now working through feature creation - need to have it save state in the 
 ## 2025-06-08
 
 Need to debug step the "redokey" method in job_controller - why is it not rekeying?
+
+## 2025-06-09
+
+It is working! Just need to save this data to the actions
+
+```json
+{"channel":"arena.contest.Shut-Pedal-ATTACH-PERMIT-Animal.round.0.player.onions-Blink-maurer-trend-preach.prompt","data":"{\\"channel\\":\\"\\",                     
+                             \\"data\\":\\"```json\\\\n{\\\\n  \\\\\\"action\\\\\\": \\\\\\"move\\\\\\",\\\\n  \\\\\\"target\\\\\\": \\\\\\"5,5\\\\\\",\\\\n                                             
+                             \\\\\\"narration\\\\\\": \\\\\\"Merope eyes the Spectral Standard from across the courtyard, determined to claim it for her team. The cheers from the                       
+                             walls only fuel her resolve as she dashes towards the center.\\\\\\",\\\\n  \\\\\\"memories\\\\\\": \\\\\\"Remembering the layout of the courtyard,                         
+                             Merope notes the positions of the Beweaponed Balustrade and Treacherous Tapestry to avoid future                                                                            
+                             pitfalls.\\\\\\"\\\\n}\\\\n```\\",\\"delay\\":0,\\"method\\":\\"GET\\",\\"url\\":\\"\\",\\"job_id\\":\\"Small-point-DAMIEN-EXILED-goofy\\",\\"message\\                     
+                             ":\\"\\",\\"state\\":\\"complete\\",\\"child_data\\":[]}","delay":0,"method":"POST","url":"$ACTOR$/api/agent/onions-Blink-maurer-trend-preach/request",                     
+                             "job_id":"best-blow-Cause-dance-RETIRE","message":"","state":"complete","child_data":[]
+                             }
+```

@@ -8,6 +8,7 @@ from sqlmodel import Session
 from sqlmodel import select
 from statemachine import State
 from statemachine import StateMachine
+from codecs import decode
 
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestRound
@@ -189,7 +190,9 @@ class SetupMachine(StateMachine):
         log = self.log.bind(msg=msg.subject)
         log.info("Received arena description message", msg=msg.subject)
         try:
-            description = extract_text_response(msg.data.decode("utf-8"))
+            description = extract_text_response(
+                decode(msg.data, "utf-8", "unicode_escape")
+            )
 
             round = self.contest_round
             if not round:
@@ -213,7 +216,7 @@ class SetupMachine(StateMachine):
         log = self.log.bind(msg=msg.subject)
         log.info("Received feature generation message", msg=msg)
         try:
-            job_data = msg.data.decode("utf-8")
+            job_data = decode(msg.data, "utf-8", "unicode_escape")
             obj = json.loads(job_data)
             state = obj.get("state", None)
 

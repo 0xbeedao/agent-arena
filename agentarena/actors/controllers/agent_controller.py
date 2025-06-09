@@ -12,6 +12,7 @@ from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import select
+from codecs import decode
 
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
@@ -80,7 +81,7 @@ class AgentController(
         Handle healthcheck requests for agents.
         """
         self.log.info("healthcheck message received", msg=msg)
-        participant_id = msg.data.decode("utf-8")
+        participant_id = decode(msg.data, "utf-8", "unicode_escape")
         with self.model_service.db_service.get_session() as session:
             response = await self.healthcheck(participant_id, session)
             await self.message_broker.publish_response(msg, response)

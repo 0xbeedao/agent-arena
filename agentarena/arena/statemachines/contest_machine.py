@@ -13,8 +13,9 @@ from nats.aio.msg import Msg
 from statemachine import Event
 from statemachine import State
 from statemachine import StateMachine
+from codecs import decode
 
-from agentarena.arena.models import Contest
+from agentarena.arena.models import Contest, PlayerAction, PlayerActionCreate
 from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Feature
@@ -77,6 +78,7 @@ class ContestMachine(StateMachine):
         contest_id: str,
         message_broker: MessageBroker,
         feature_service: ModelService[Feature, FeatureCreate],
+        playeraction_service: ModelService[PlayerAction, PlayerActionCreate],
         round_service: RoundService,
         uuid_service: UUIDService,
         view_service: ViewService,
@@ -87,6 +89,7 @@ class ContestMachine(StateMachine):
         self._round_machine = None
         self.feature_service = feature_service
         self.message_broker = message_broker
+        self.playeraction_service = playeraction_service
         self.round_service = round_service
         self.uuid_service = uuid_service
         self.view_service = view_service
@@ -125,7 +128,7 @@ class ContestMachine(StateMachine):
             self.log.error("Received empty role call message", msg=msg)
             return
         try:
-            obj = json.loads(msg.data.decode("utf-8"))
+            obj = json.loads(decode(msg.data, "utf-8", "unicode_escape"))
         except json.JSONDecodeError as e:
             self.log.error("Failed to decode role call message", error=str(e), msg=msg)
             return
@@ -168,7 +171,7 @@ class ContestMachine(StateMachine):
         """Handle the setup complete message."""
         self.log.info("Handling setup complete message", msg=msg)
         await self.subscriber.unsubscribe(msg.subject, self.log)
-        final_state = msg.data.decode("utf-8")
+        final_state = decode(msg.data, "utf-8", "unicode_escape")
         if final_state == ContestRoundState.SETUP_COMPLETE.value:
             self.log.info("Setup complete, transitioning to in_round")
             asyncio.create_task(self.setup_done(""))  # type: ignore
@@ -253,6 +256,7 @@ class ContestMachine(StateMachine):
         self._round_machine = RoundMachine(
             round,
             message_broker=self.message_broker,
+            playeraction_service=self.playeraction_service,
             view_service=self.view_service,
             session=self.session,
             log=self.log,

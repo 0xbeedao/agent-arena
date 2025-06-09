@@ -6,7 +6,7 @@ from dependency_injector import providers
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models import Arena
+from agentarena.arena.models import Arena, PlayerAction, PlayerActionCreate
 from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
@@ -149,6 +149,15 @@ class ArenaContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
+    playeraction_service = providers.Singleton(
+        ModelService[PlayerAction, PlayerActionCreate],
+        model_class=PlayerAction,
+        db_service=db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
     playerstate_service = providers.Singleton(
         ModelService[PlayerState, PlayerStateCreate],
         model_class=PlayerState,
@@ -220,6 +229,7 @@ class ArenaContainer(containers.DeclarativeContainer):
 
     contest_controller = providers.Singleton(
         ContestController,
+        playeraction_service=playeraction_service,
         feature_service=feature_service,
         template_service=template_service,
         message_broker=message_broker,

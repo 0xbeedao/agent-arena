@@ -490,9 +490,9 @@ class PlayerActionBase(SQLModel, table=False):
         description="contest round ref", foreign_key="contestround.id"
     )
     action: str = Field(description="Action description")
-    target: Optional[str] = Field(
-        default=None, description="Target coordinate as 'x,y'"
-    )
+    narration: str = Field(description="Narration to share with other players")
+    memories: str = Field(description="Private memories not shared with other players")
+    target: str = Field(description="Target coordinate as 'x,y'")
 
 
 class PlayerAction(PlayerActionBase, DbBase, table=True):

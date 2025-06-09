@@ -5,19 +5,24 @@ from sqlmodel import Field
 from sqlmodel import Session
 from statemachine import State
 from statemachine import StateMachine
+from codecs import decode
 
-from agentarena.arena.models import ContestRound
+from agentarena.arena.models import ContestRound, PlayerAction, PlayerActionCreate
 from agentarena.arena.models import Participant
 from agentarena.arena.services.view_service import ViewService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
+from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import Subscriber
 from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
 from agentarena.models.requests import ParticipantRequest
-from agentarena.util.response_parsers import extract_text_response
+from agentarena.util.response_parsers import (
+    extract_obj_from_json,
+    extract_text_response,
+)
 
 
 class RoundMachine(StateMachine):
@@ -65,12 +70,16 @@ class RoundMachine(StateMachine):
     def __init__(
         self,
         contest_round: ContestRound,
+        playeraction_service: ModelService[PlayerAction, PlayerActionCreate] = Field(
+            description="Player Action Service"
+        ),
         message_broker: MessageBroker = Field(description="Message Broker"),
         view_service: ViewService = Field(description="View Service"),
         session: Session = Field(description="Session"),
         log: ILogger = Field(description="Logger"),
     ):
         """Initialize the round machine."""
+        self.action_service = playeraction_service
         self.completion_channel = f"arena.contest.{contest_round.contest.id}.round.{contest_round.round_no}.complete"
         self.contest_round = contest_round
         self.message_broker = message_broker
@@ -131,8 +140,30 @@ class RoundMachine(StateMachine):
         log.info("received player prompt message", msg=msg)
         await self.subscriber.unsubscribe(msg.subject, log)
         try:
-            action = extract_text_response(msg.data.decode("utf-8"))
+            raw = decode(msg.data, "utf-8", "unicode_escape")
+            if not raw:
+                log.error("No data in message")
+                return
+            action = extract_obj_from_json(raw)
+            if not action:
+                log.error("No action in message")
+                return
             log.info("received action", action=action)
+            pa = PlayerActionCreate(
+                participant_id=player_id,
+                contestround_id=self.contest_round.id,
+                action=action.get(
+                    "action", "invalid action, player failed to respond."
+                ),
+                narration=action.get("narration", ""),
+                memories=action.get("memories", ""),
+                target=action.get("target", ""),
+            )
+            created, result = await self.action_service.create(pa, self.session)
+            if not created or not result.success:
+                log.error("Failed to create action", error=result.error)
+                return
+            log.info("created action", action=created.id)
         except Exception as e:
             log.error("Failed to extract text response", error=e)
             return

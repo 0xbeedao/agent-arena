@@ -14,8 +14,9 @@ from fastapi import HTTPException
 from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
+from codecs import decode
 
-from agentarena.arena.models import Contest
+from agentarena.arena.models import Contest, PlayerAction, PlayerActionCreate
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestPublic
 from agentarena.arena.models import ContestState
@@ -58,6 +59,9 @@ class ContestController(
         participant_service: ModelService[Participant, ParticipantCreate] = Field(
             description="The feature service"
         ),
+        playeraction_service: ModelService[PlayerAction, PlayerActionCreate] = Field(
+            description="The player action service"
+        ),
         round_service: RoundService = Field(description="The round service"),
         template_service: JinjaRenderer = Field(description="The template service"),
         view_service: ViewService = Field(description="The view service"),
@@ -65,6 +69,7 @@ class ContestController(
     ):
         self.feature_service = feature_service
         self.participant_service = participant_service
+        self.playeraction_service = playeraction_service
         self.round_service = round_service
         assert message_broker is not None, "Message broker is not set"
         self.message_broker = message_broker
@@ -178,7 +183,9 @@ class ContestController(
         else:
             try:
                 request: ControllerRequest | None = (
-                    ControllerRequest.model_validate_json(msg.data.decode("utf-8"))
+                    ControllerRequest.model_validate_json(
+                        decode(msg.data, "utf-8", "unicode_escape")
+                    )
                 )
             except Exception as e:
                 self.log.error(
@@ -244,6 +251,7 @@ class ContestController(
             contest_id=contest_id,
             message_broker=self.message_broker,
             feature_service=self.feature_service,
+            playeraction_service=self.playeraction_service,
             round_service=self.round_service,
             uuid_service=self.model_service.uuid_service,
             view_service=self.view_service,

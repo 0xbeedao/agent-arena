@@ -2,6 +2,7 @@ import nats
 from nats.aio.client import Client as NatsClient
 from nats.aio.msg import Msg
 from sqlmodel import Field
+from codecs import encode, decode
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
@@ -48,7 +49,7 @@ class MessageBroker:
             detail=detail,
             action=channel.split(".")[-1],
         )
-        json = payload.model_dump_json().encode("utf-8")
+        json = encode(payload.model_dump_json(), "utf-8", "unicode_escape")
         await self.client.publish(channel, json)
 
     async def publish_response(self, msg: Msg, response: JobResponse):
@@ -62,10 +63,10 @@ class MessageBroker:
             log.warn("No channel specified for response", job_id=response.job_id)
             return
         log.debug("Publishing response", job_id=response.job_id)
-        json = response.model_dump_json()
+        json = encode(response.model_dump_json(), "utf-8", "unicode_escape")
 
         log.debug("Publishing response to channel", channel=channel, response=json)
-        await self.client.publish(channel, json.encode("utf-8"))
+        await self.client.publish(channel, json)
 
     async def send_job(self, req: CommandJob):
         """
@@ -74,7 +75,7 @@ class MessageBroker:
         obj_id = self.uuid_service.ensure_id(req)
         obj = req.model_copy()
         obj.id = obj_id
-        json = obj.model_dump_json()
+        json = encode(obj.model_dump_json(), "utf-8", "unicode_escape")
 
         await self.send_message("arena.request.job", json)
 
@@ -93,9 +94,15 @@ class MessageBroker:
         for job in jobs:
             await self.send_job(job)
 
-    async def send_message(self, channel: str, payload: str):
+    async def send_message(self, channel: str, payload: str | bytes):
         self.log.debug("Sending message", channel=channel, payload=payload)
-        await self.client.publish(channel, payload.encode("utf-8"))
+        if isinstance(payload, str):
+            to_send = encode(payload, "utf-8", "unicode_escape")
+        elif isinstance(payload, bytes):
+            to_send = payload
+        else:
+            raise ValueError(f"Invalid payload type: {type(payload)}")
+        await self.client.publish(channel, to_send)
 
     async def send_response(self, channel: str, res: JobResponse):
         """
