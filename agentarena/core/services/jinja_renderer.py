@@ -1,8 +1,12 @@
-import sys
-from jinja2 import Environment, PackageLoader, TemplateNotFound, select_autoescape
+from jinja2 import Environment
+from jinja2 import PackageLoader
+from jinja2 import TemplateNotFound
+from jinja2 import select_autoescape
 
 from agentarena.core.exceptions import InvalidTemplateException
 from agentarena.util.jinja_helpers import datetimeformat_filter
+from agentarena.util.jinja_helpers import find_obj_by_id
+from agentarena.util.jinja_helpers import get_attr_by_id
 
 
 class JinjaRenderer:
@@ -12,6 +16,8 @@ class JinjaRenderer:
             loader=PackageLoader(base_path), autoescape=select_autoescape()
         )
         self.env.filters["datetimeformat"] = datetimeformat_filter
+        self.env.filters["find_obj_by_id"] = find_obj_by_id
+        self.env.filters["get_attr_by_id"] = get_attr_by_id
 
     def get_template(self, key: str):
         possibles = [key, f"{key}.md", f"{key}.md.j2"]
@@ -21,11 +27,7 @@ class JinjaRenderer:
             raise InvalidTemplateException(key)
 
     def render_template(self, key: str, data: dict) -> str:
-        possibles = [key]
-        if key.find(".") == -1:
-            possibles.extend([f"{key}.md", f"{key}.md.j2"])
-        else:
-            possibles.append(f"{key}.j2")
+        possibles = [key, f"{key}.j2", f"{key}.md", f"{key}.md.j2"]
         try:
             template = self.env.select_template(possibles)
         except InvalidTemplateException as te:

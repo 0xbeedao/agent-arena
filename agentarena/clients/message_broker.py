@@ -8,8 +8,8 @@ from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
-from agentarena.models.job import JobResponse
-from agentarena.models.job import ModelChangeMessage
+from agentarena.models.public import JobResponse
+from agentarena.models.public import ModelChangeMessage
 
 
 async def get_message_broker_connection(
@@ -33,6 +33,7 @@ class MessageBroker:
         logging: LoggingService = Field(),
     ):
         self.client = client
+        assert self.client is not None, "Message broker client is not set"
         self.uuid_service = uuid_service
         self.log = logging.get_logger("factory")
 
@@ -54,6 +55,7 @@ class MessageBroker:
         """
         Publish a response to the message broker.
         """
+        #  always directly reply to the sender, if given a "reply" param, per standard NATs rules
         channel = msg.reply or response.channel
         log = self.log.bind(job_id=response.job_id, channel=channel)
         if not channel:

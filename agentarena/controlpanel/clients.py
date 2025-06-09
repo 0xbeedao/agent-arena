@@ -1,11 +1,11 @@
 """API Clients for Control Panel."""
 
-from typing import Any, Callable
+from typing import Any
 from typing import Dict
+
+import httpx
 import nats
 from nats.aio.client import Client as NatsClient
-from nats.aio.msg import Msg
-import httpx
 
 
 class BaseClient:

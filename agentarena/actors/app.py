@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from agentarena.core.middleware import add_logging_middleware
+from agentarena.models.validation import ModelResponse
 from agentarena.util.files import find_directory_of_file
 
 from .actor_container import ActorContainer
@@ -99,6 +100,9 @@ async def setup_routers():
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     """Handle HTTP exceptions."""
+    detail = exc.detail
+    if isinstance(detail, ModelResponse):
+        detail = detail.model_dump()
     return JSONResponse(
         status_code=exc.status_code,
         content={"message": exc.detail},

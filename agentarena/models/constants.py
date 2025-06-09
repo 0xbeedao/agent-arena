@@ -6,16 +6,29 @@ class ContestRoundState(str, Enum):
     Represents the state of a contest round.
     """
 
+    # Contest states
     IDLE = "idle"
+    IN_PROGRESS = "in_progress"
+    COMPLETE = "complete"
+    FAIL = "fail"
+
+    # setup states
     CREATING_ROUND = "creating_round"
     ADDING_FIXED_FEATURES = "adding_fixed_features"
     GENERATING_FEATURES = "generating_features"
     DESCRIBING_SETUP = "describing_setup"
     SETUP_COMPLETE = "setup_complete"
     SETUP_FAIL = "setup_fail"
-    IN_PROGRESS = "in_progress"
-    COMPLETE = "complete"
-    FAIL = "fail"
+
+    # round states
+    ROUND_PROMPTING = "round_prompting"
+    AWAITING_ACTIONS = "awaiting_actions"
+    JUDGING_ACTIONS = "judging_actions"
+    APPLYING_EFFECTS = "applying_effects"
+    DESCRIBING_RESULTS = "describing_results"
+    PRESENTING_RESULTS = "presenting_results"
+    ROUND_COMPLETE = "round_complete"
+    ROUND_FAIL = "round_fail"
 
 
 class ContestState(str, Enum):

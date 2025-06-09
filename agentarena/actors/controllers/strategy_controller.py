@@ -63,7 +63,7 @@ class StrategyController(
         del req.prompts
         strategy, result = await self.model_service.create(req, session)
         if not result.success:
-            raise HTTPException(status_code=422, detail=result)
+            raise HTTPException(status_code=422, detail=result.model_dump())
         if not strategy:
             raise HTTPException(status_code=422, detail="internal error")
 
@@ -91,9 +91,6 @@ class StrategyController(
 
     def get_router(self):
         prefix = self.base_path
-        if not prefix.endswith(self.model_name):
-            prefix = f"{prefix}/strategy"
-        prefix = prefix.lower()
         self.log.info("setting up routes", path=prefix)
         router = APIRouter(prefix=prefix, tags=["arena"])
 

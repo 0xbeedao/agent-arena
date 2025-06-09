@@ -273,3 +273,7 @@ Could also use a "pause" option on all the machines for testing - so that they d
 Moved back to Cursor.
 
 App is now working through feature creation - need to have it save state in the round as it goes, so that it will be easy to resume a contest, and to set up tests without having to cycle the whole thing every time.
+
+## 2025-06-08
+
+Need to debug step the "redokey" method in job_controller - why is it not rekeying?

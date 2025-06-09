@@ -31,7 +31,7 @@ from agentarena.models.constants import JobState
 from agentarena.models.constants import PromptType
 from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
-from agentarena.models.job import JobResponse
+from agentarena.models.public import JobResponse
 from agentarena.models.requests import HealthStatus
 from agentarena.models.requests import ParticipantRequest
 
@@ -134,6 +134,10 @@ class AgentController(
         session: Session,
         background_tasks: BackgroundTasks,
     ):
+        """
+        Handle a request for prompting an agent.
+        This will either create a new job or return a pending job.
+        """
         stmt = select(Agent).where(Agent.participant_id == participant_id)
         agent = session.exec(stmt).one_or_none()
         job_id = req.job_id
@@ -172,10 +176,7 @@ class AgentController(
 
         job = None
         response = None
-        if req.command in [
-            PromptType.ARENA_GENERATE_FEATURES,
-            PromptType.ANNOUNCER_DESCRIBE_ARENA,
-        ]:
+        if req.command in PromptType:
             job, response = await self.make_generate_job(agent, req, session, log)
 
         if job and response:
@@ -245,6 +246,6 @@ class AgentController(
                 if job and result.success:
                     return job
 
-            raise HTTPException(status_code=404, detail=result)
+            raise HTTPException(status_code=404, detail=result.model_dump())
 
         return router

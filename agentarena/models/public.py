@@ -8,8 +8,9 @@ from typing import Optional
 from pydantic import BaseModel
 from pydantic import Field
 
-from agentarena.models.constants import ContestRoundState
+from agentarena.models.constants import ContestRoundState, JobState
 from agentarena.models.constants import ContestState
+from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import RoleType
 
 
@@ -22,6 +23,30 @@ class ArenaPublic(BaseModel):
     width: int = Field(description="Arena width", gt=0)
     rules: str = Field(description="Game rules")
     winning_condition: str = Field(description="winning condition description")
+
+
+class CommandJobPublic(BaseModel):
+    id: str = Field(default="", description="ID")
+    channel: str = Field(description="Channel")
+    data: Optional[str] = Field(default=None, description="Data")
+    method: str = Field(description="Method")
+    priority: int = Field(description="Priority")
+    send_at: int = Field(description="Timestamp")
+    state: JobState = Field(description="Job state")
+    started_at: int = Field(description="Timestamp")
+    finished_at: Optional[int] = Field(default=None, description="Timestamp")
+    parent_id: Optional[str] = Field(default=None, description="Parent job ID")
+    url: str = Field(description="Url")
+    history: List["CommandJobHistoryPublic"] = Field(default=[])
+
+
+class CommandJobHistoryPublic(BaseModel):
+    id: str = Field(default="", description="ID")
+    job_id: str = Field(description="Job ID")
+    from_state: JobState = Field(description="Original Job state")
+    to_state: JobState = Field(description="Updated Job state")
+    message: Optional[str] = Field(default=None, description="Message")
+    data: Optional[str] = Field(default=None, description="Data")
 
 
 class ContestPublic(BaseModel):
@@ -53,6 +78,47 @@ class FeaturePublic(BaseModel):
     )
 
 
+class UrlJobRequest(BaseModel):
+    channel: str = Field(
+        default="job.url.request",
+        description="job command - this will be published as the subject on NATS",
+    )
+    data: Optional[str] = Field(
+        default=None,
+        description="optional payload to send to Url",
+    )
+    delay: Optional[int] = Field(
+        default=0, description="Request delay of x seconds before retry"
+    )
+    method: Optional[str] = Field(default="GET", description="HTTP method")
+    url: Optional[str] = Field(description="Url to Call")
+
+
+class JobResponse(UrlJobRequest):
+    job_id: str = Field(description="Job ID")
+    message: Optional[str] = Field(
+        default="", description="Message regarding state, e.g. an error"
+    )
+    state: JobResponseState = Field(
+        description="JobResponseState field, one of ['completed', 'pending', 'fail']",
+    )
+    child_data: Optional[List["JobResponse"]] = Field(
+        default_factory=list,
+        description="child job responses",
+    )
+    url: Optional[str] = Field(default="")
+
+
+class ModelChangeMessage(BaseModel):
+    """
+    Message sent to the controller when a model changes.
+    """
+
+    action: str = Field(description="Action that triggered the change")
+    model_id: str = Field(description="ID of the changed model")
+    detail: Optional[str] = Field(default="", description="Details about the change")
+
+
 class ParticipantPublic(BaseModel):
     id: str = Field(default="", description="ID")
     description: str = Field(
@@ -80,3 +146,6 @@ class PlayerPublic(BaseModel):
     inventory: List[str] = Field(default=[], description="Player inventory")
     health: str = Field(default="Fresh", description="description of player health")
     score: int = Field(default=0, description="game score")
+    memories: Optional[str] = Field(
+        default="", description="Player memories for this round"
+    )

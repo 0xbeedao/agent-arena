@@ -1,10 +1,8 @@
 from textual.widgets import Label
 
-from agentarena.models.constants import (
-    JobResponseState,
-    ContestState,
-    ContestRoundState,
-)
+from agentarena.models.constants import ContestRoundState
+from agentarena.models.constants import ContestState
+from agentarena.models.constants import JobResponseState
 
 
 class StatusLabel(Label):
@@ -29,6 +27,17 @@ class StatusLabel(Label):
         ContestRoundState.DESCRIBING_SETUP: "yellow",
         ContestRoundState.SETUP_COMPLETE: "green",
         ContestRoundState.SETUP_FAIL: "red",
+        ContestRoundState.IN_PROGRESS: "yellow",
+        ContestRoundState.COMPLETE: "green",
+        ContestRoundState.FAIL: "red",
+        ContestRoundState.ROUND_PROMPTING: "yellow",
+        ContestRoundState.AWAITING_ACTIONS: "yellow",
+        ContestRoundState.JUDGING_ACTIONS: "yellow",
+        ContestRoundState.APPLYING_EFFECTS: "yellow",
+        ContestRoundState.DESCRIBING_RESULTS: "yellow",
+        ContestRoundState.PRESENTING_RESULTS: "yellow",
+        ContestRoundState.ROUND_COMPLETE: "green",
+        ContestRoundState.ROUND_FAIL: "red",
     }
 
     def __init__(self, state: JobResponseState, **kwargs):

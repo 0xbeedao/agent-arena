@@ -5,9 +5,9 @@ from nats.aio.client import Client as NatsClient
 from sqlmodel import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.job import JobResponse
-from agentarena.models.job import JobResponseState
-from agentarena.models.job import UrlJobRequest
+from agentarena.models.constants import JobResponseState
+from agentarena.models.public import JobResponse
+from agentarena.models.public import UrlJobRequest
 from agentarena.models.requests import HealthStatus
 
 

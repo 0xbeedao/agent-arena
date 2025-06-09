@@ -8,10 +8,10 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
-from agentarena.models.job import JobResponse
+from agentarena.models.public import JobResponse
 from agentarena.scheduler.services.queue_service import QueueService
-from agentarena.statemachines.request_machine import RequestMachine
-from agentarena.statemachines.request_machine import RequestState
+from agentarena.scheduler.statemachines.request_machine import RequestMachine
+from agentarena.scheduler.statemachines.request_machine import RequestState
 
 
 class RequestService:

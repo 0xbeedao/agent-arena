@@ -42,4 +42,12 @@ Winning Condition: {{ contest.arena.winning_condition }}
 | {{ player.name }} | {{ player.position }} | {{ player.inventory }} | {{ player.health }} | {{ player.score }} |
 {%- endfor %}
 {% endfor %}
+
+{%- if round.round_no > 0 %}
+## Memories
+
+{%- for player in round.players %}
+| {{ player.name }} | {{ player.memories }} |
+{%- endfor %}
+{%- endif %}
 {% endif %}

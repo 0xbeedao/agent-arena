@@ -4,9 +4,9 @@ from agentarena.arena.models import Arena
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Participant
+from agentarena.arena.statemachines.round_machine import RoundMachine
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.constants import RoleType
-from agentarena.statemachines.round_machine import RoundMachine
 
 
 def make_agent(agent_id="agent1", role=RoleType.PLAYER):

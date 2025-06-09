@@ -7,48 +7,19 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-from pydantic import BaseModel
 from sqlmodel import JSON
 from sqlmodel import Column
 from sqlmodel import Field
 from sqlmodel import Relationship
 from sqlmodel import SQLModel
 
-from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import JobState
 from agentarena.models.dbbase import DbBase
-
-
-class UrlJobRequest(SQLModel, table=False):
-    channel: str = Field(
-        default="job.url.request",
-        description="job command - this will be published as the subject on NATS",
-    )
-    data: Optional[str] = Field(
-        default=None,
-        description="optional payload to send to Url",
-    )
-    delay: Optional[int] = Field(
-        default=0, description="Request delay of x seconds before retry"
-    )
-    method: Optional[str] = Field(default="GET", description="HTTP method")
-    url: Optional[str] = Field(description="Url to Call")
-
-
-class JobResponse(UrlJobRequest, table=False):
-    job_id: str = Field(description="Job ID", foreign_key="commandjob.id")
-    message: Optional[str] = Field(
-        default="", description="Message regarding state, e.g. an error"
-    )
-    state: JobResponseState = Field(
-        description="JobResponseState field, one of ['completed', 'pending', 'fail']",
-    )
-    child_data: Optional[List["JobResponse"]] = Field(
-        default_factory=list,
-        sa_column=Column(JSON),
-        description="child job responses",
-    )
-    url: Optional[str] = Field(default="")
+from agentarena.models.public import (
+    CommandJobHistoryPublic,
+    CommandJobPublic,
+    UrlJobRequest,
+)
 
 
 class CommandJobBase(SQLModel):
@@ -92,6 +63,22 @@ class CommandJob(CommandJobBase, DbBase, table=True):
         sa_relationship_kwargs={"remote_side": "CommandJob.parent_id"},
     )
     history: List["CommandJobHistory"] = Relationship(back_populates="job")
+
+    def get_public(self) -> CommandJobPublic:
+        return CommandJobPublic(
+            id=self.id,
+            channel=self.channel,
+            data=self.data,
+            method=self.method,
+            priority=self.priority,
+            send_at=self.send_at,
+            state=self.state,
+            started_at=self.started_at,
+            finished_at=self.finished_at,
+            parent_id=self.parent_id,
+            url=self.url,
+            history=[h.get_public() for h in self.history],
+        )
 
     def make_child(self, req: UrlJobRequest) -> "CommandJob":
         """
@@ -149,10 +136,6 @@ class CommandJobUpdate(SQLModel):
     )
 
 
-class CommandJobPublic(CommandJobBase):
-    id: str
-
-
 class CommandJobHistoryBase(SQLModel):
     job_id: str = Field(foreign_key="commandjob.id")
     from_state: JobState = Field(description="Original Job state, see JobState states")
@@ -168,12 +151,18 @@ class CommandJobHistoryBase(SQLModel):
 class CommandJobHistory(DbBase, CommandJobHistoryBase, table=True):
     job: CommandJob = Relationship(back_populates="history")
 
+    def get_public(self) -> CommandJobHistoryPublic:
+        return CommandJobHistoryPublic(
+            id=self.id,
+            job_id=self.job_id,
+            from_state=self.from_state,
+            to_state=self.to_state,
+            message=self.message,
+            data=self.data,
+        )
+
 
 class CommandJobHistoryCreate(CommandJobHistoryBase):
-    pass
-
-
-class CommandJobHistoryPublic(CommandJobHistoryBase):
     pass
 
 
@@ -214,13 +203,3 @@ class GenerateJob(GenerateJobBase, DbBase, table=True):
 
 class GenerateJobCreate(GenerateJobBase, table=False):
     pass
-
-
-class ModelChangeMessage(BaseModel):
-    """
-    Message sent to the controller when a model changes.
-    """
-
-    action: str = Field(description="Action that triggered the change")
-    model_id: str = Field(description="ID of the changed model")
-    detail: Optional[str] = Field(default="", description="Details about the change")

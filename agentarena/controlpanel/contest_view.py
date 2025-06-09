@@ -7,18 +7,18 @@ from nats.aio.msg import Msg
 from textual.containers import Horizontal
 from textual.containers import Vertical
 from textual.reactive import reactive
-from textual.widgets import DataTable
+from textual.widgets import Button
 from textual.widgets import Collapsible
+from textual.widgets import DataTable
 from textual.widgets import Label
 from textual.widgets import Markdown
-from textual.widgets import Button
-from textual.widgets import Static
 from textual.widgets import Rule
+from textual.widgets import Static
 
-from agentarena.models.constants import ContestState
 from agentarena.controlpanel.components import StatusLabel
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.models.constants import ContestState
 
 
 def safe_format_time(contest, key: str):

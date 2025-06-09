@@ -9,8 +9,8 @@ from statemachine import StateMachine
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.models.job import CommandJob
-from agentarena.models.job import JobResponse
-from agentarena.models.job import JobResponseState
+from agentarena.models.public import JobResponse
+from agentarena.models.public import JobResponseState
 
 
 class RequestState(Enum):

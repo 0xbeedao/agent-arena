@@ -10,8 +10,8 @@ from agentarena.core.services.db_service import DbService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
-from agentarena.models.job import JobResponse
-from agentarena.models.job import JobResponseState
+from agentarena.models.public import JobResponse
+from agentarena.models.public import JobResponseState
 from agentarena.scheduler.services.request_service import RequestService
 
 

@@ -147,9 +147,10 @@ class SchedulerContainer(containers.DeclarativeContainer):
 
     job_controller = providers.Singleton(
         JobController,
-        base_path="/api",
+        base_path="/api/job",
         model_service=commandjob_service,
         template_service=template_service,
+        history_service=jobhistory_service,
         logging=logging,
     )
 

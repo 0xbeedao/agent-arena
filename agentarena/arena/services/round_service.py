@@ -1,20 +1,21 @@
 import json
 from typing import List
-from agentarena.arena.models import (
-    Contest,
-    ContestRound,
-    ContestRoundCreate,
-    Participant,
-    PlayerState,
-    PlayerStateCreate,
-)
+
+from sqlmodel import Session
+
+from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestRound
+from agentarena.arena.models import ContestRoundCreate
+from agentarena.arena.models import Participant
+from agentarena.arena.models import PlayerState
+from agentarena.arena.models import PlayerStateCreate
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import ContestRoundState, RoleType
-from sqlmodel import Session
+from agentarena.models.constants import ContestRoundState
+from agentarena.models.constants import RoleType
 
 
 class RoundService(ModelService[ContestRound, ContestRoundCreate]):

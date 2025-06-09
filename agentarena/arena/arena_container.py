@@ -6,7 +6,7 @@ from dependency_injector import providers
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models import Arena, PlayerState, PlayerStateCreate
+from agentarena.arena.models import Arena
 from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
@@ -18,6 +18,10 @@ from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
 from agentarena.arena.models import ParticipantPublic
 from agentarena.arena.models import ParticipantUpdate
+from agentarena.arena.models import PlayerState
+from agentarena.arena.models import PlayerStateCreate
+from agentarena.arena.services.round_service import RoundService
+from agentarena.arena.services.view_service import ViewService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.clients.message_broker import get_message_broker_connection
 from agentarena.core.controllers.model_controller import ModelController
@@ -26,7 +30,6 @@ from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services import uuid_service
 from agentarena.core.services.db_service import DbService
-from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
@@ -186,6 +189,11 @@ class ArenaContainer(containers.DeclarativeContainer):
         JinjaRenderer,
     )
 
+    view_service = providers.Singleton(
+        ViewService,
+        logging=logging,
+    )
+
     # controllers
 
     arena_controller = providers.Singleton(
@@ -200,6 +208,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         ModelController[
             Participant, ParticipantCreate, ParticipantUpdate, ParticipantPublic
         ],
+        base_path="/api/participant",
         model_name="participant",
         model_create=ParticipantCreate,
         model_update=ParticipantUpdate,
@@ -217,6 +226,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_service=contest_service,
         participant_service=participant_service,
         round_service=round_service,
+        view_service=view_service,
         logging=logging,
     )
 

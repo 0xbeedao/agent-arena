@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from sqlmodel import Field
+from typing import Optional
+from pydantic import BaseModel, Field
 
 
 class ValidationResponse(BaseModel):
@@ -12,3 +12,19 @@ class ValidationResponse(BaseModel):
     success: bool = Field(description="Is the data valid?")
     message: str = Field(description="Validation message")
     data: str = Field(description="Additional data related to validation")
+
+
+class ModelResponse(BaseModel):
+    """
+    Response model for creating a new instance.
+
+    This model is used to return the ID of the created instance.
+    """
+
+    success: bool = Field(description="Is the operation successful?")
+    id: Optional[str] = Field(default=None, description="ID of the created instance")
+    validation: Optional[ValidationResponse] = Field(
+        default=None, description="Validation response"
+    )
+    error: Optional[str] = Field(default=None, description="Error message")
+    data: Optional[str] = Field(default=None, description="Data")

@@ -7,16 +7,17 @@ from unittest.mock import AsyncMock
 import pytest
 
 from agentarena.arena.models import Contest
-from agentarena.arena.models import ContestRound
-from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestState
+from agentarena.arena.models import PlayerState
+from agentarena.arena.models import PlayerStateCreate
+from agentarena.arena.services.round_service import RoundService
+from agentarena.arena.statemachines.setup_machine import SetupMachine
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
-from agentarena.arena.services.round_service import RoundService
+from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.statemachines.setup_machine import SetupMachine
 
 
 @pytest.fixture()
@@ -71,11 +72,25 @@ def db_service(uuid_service, logging):
 
 
 @pytest.fixture
-def round_service(db_service, uuid_service, message_broker, logging):
+def playerstate_service(db_service, uuid_service, message_broker, logging):
+    """Fixture to create a PlayerStateService for PlayerState"""
+    return ModelService[PlayerState, PlayerStateCreate](
+        model_class=PlayerState,
+        message_broker=message_broker,
+        db_service=db_service,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture
+def round_service(
+    db_service, uuid_service, message_broker, logging, playerstate_service
+):
     """Fixture to create a RoundService for ContestRound"""
     return RoundService(
-        model_class=ContestRound,
         message_broker=message_broker,
+        playerstate_service=playerstate_service,
         db_service=db_service,
         uuid_service=uuid_service,
         logging=logging,

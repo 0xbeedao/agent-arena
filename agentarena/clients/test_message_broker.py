@@ -10,7 +10,7 @@ from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
 from agentarena.models.job import CommandJobCreate
-from agentarena.models.job import UrlJobRequest
+from agentarena.models.public import UrlJobRequest
 
 
 @pytest.fixture

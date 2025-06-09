@@ -13,7 +13,6 @@ from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import SQLModel
 
-from agentarena.core.exceptions import InvalidTemplateException
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
@@ -47,7 +46,10 @@ class ModelController(Generic[T, MC, MU, MP]):
             db_service: The database service
             table_name: Optional table name (if not provided, will be inferred from model_class name)
         """
-        self.base_path = f"{base_path}/{model_name}"
+        safe_path = base_path.rstrip("/")
+        if len(safe_path.split("/")) == 2 and not safe_path.endswith(model_name):
+            safe_path = f"{safe_path}/{model_name}"
+        self.base_path = safe_path.lower()
         self.model_name = model_name
         self.model_create = model_create
         self.model_update = model_update
@@ -74,7 +76,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         self.log.info("create request", req=req)
         obj, response = await self.model_service.create(req, session)
         if response and not response.success:
-            raise HTTPException(status_code=422, detail=response.validation)
+            raise HTTPException(status_code=422, detail=response.model_dump())
         if not obj:
             raise HTTPException(status_code=500, detail="internal error")
         return obj
@@ -104,7 +106,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         """
         obj, response = await self.model_service.get(obj_id, session)
         if not response.success:
-            raise HTTPException(status_code=404, detail=response.error)
+            raise HTTPException(status_code=404, detail=response.model_dump())
         if not obj:
             raise HTTPException(status_code=500, detail="internal error")
         pub = self.convert_to_public(obj)
@@ -118,7 +120,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         """
         obj, response = await self.model_service.get(obj_id, session)
         if not response.success or not obj:
-            raise HTTPException(status_code=404, detail=response.error)
+            raise HTTPException(status_code=404, detail=response.model_dump())
         pub = self.convert_to_public(obj)
         if format == "md":
             try:
@@ -161,7 +163,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         obj, response = await self.model_service.update(req_id, req, session)
         if not response.success:
             self.log.info("Failed to update object", validation=response)
-            raise HTTPException(status_code=422, detail=response.validation)
+            raise HTTPException(status_code=422, detail=response.model_dump())
         if not obj:
             raise HTTPException(status_code=500, detail="internal error")
         data = obj
@@ -185,13 +187,11 @@ class ModelController(Generic[T, MC, MU, MP]):
         """
         response = await self.model_service.delete(obj_id, session)
         if not response.success:
-            raise HTTPException(status_code=422, detail=response.validation)
+            raise HTTPException(status_code=422, detail=response.model_dump())
         return {"success": response.success}
 
     def get_router(self):
         prefix = self.base_path
-        if not prefix.endswith(self.model_name):
-            prefix = f"{prefix}/{self.model_name}"
         self.log.info("setting up routes", path=prefix)
 
         router = APIRouter(prefix=prefix, tags=[self.model_name])

@@ -16,7 +16,7 @@ from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobCreate
 from agentarena.models.job import CommandJobHistory
-from agentarena.models.job import UrlJobRequest
+from agentarena.models.public import UrlJobRequest
 from agentarena.scheduler.services.queue_service import QueueService
 
 

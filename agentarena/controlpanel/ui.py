@@ -2,6 +2,7 @@
 
 from textual.app import App
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.containers import Vertical
 from textual.reactive import reactive
@@ -12,7 +13,6 @@ from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Label
 from textual.widgets import Static
-from textual.binding import Binding
 
 from agentarena.controlpanel.contest_view import ContestView
 from agentarena.controlpanel.dashboard_view import DashboardView

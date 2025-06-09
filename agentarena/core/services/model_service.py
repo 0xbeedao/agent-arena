@@ -22,23 +22,9 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.dbbase import DbBase
-from agentarena.models.validation import ValidationResponse
+from agentarena.models.validation import ModelResponse, ValidationResponse
 
 from .db_service import DbService
-
-
-class ModelResponse(BaseModel):
-    """
-    Response model for creating a new instance.
-
-    This model is used to return the ID of the created instance.
-    """
-
-    success: bool
-    id: Optional[str] = None
-    validation: Optional[ValidationResponse] = None
-    error: Optional[str] = None
-    data: Optional[str] = None
 
 
 T = TypeVar("T", bound=DbBase)  # SQLModel with a table

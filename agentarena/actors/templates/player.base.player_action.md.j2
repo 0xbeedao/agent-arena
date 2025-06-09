@@ -5,39 +5,51 @@ You are a player in an Arena game.
 ## Arena
 
 - ID: {{contest.id}}
-- Name: {{arena.name}}
-- Winning Conditions: {{arena.winning_conditions}}
-- Description: {{arena.description}}
-- Playgrid Dimensions: {{arena.width} x {arena.height}}
+- Name: {{contest.arena.name}}
+- Winning Conditions: {{contest.arena.winning_conditions}}
+- Description: {{contest.arena.description}}
+- Playgrid Dimensions: {{contest.arena.width}} x {{contest.arena.height}}
 - Grid size: 2 meters per cell
-- Current Round: {{round_no}}
+- Current Round: {{contest.rounds[-1].round_no + 1}}
 
 ## You
 
-- Name: {{player.name}}
-- Personality: {{player.personality}}
-- Description: {{player.description}}
-- Position: {{player.current_position}}
+- Name: {{agent.name}}
+- Personality: {{agent.personality}}
+- Description: {{agent.description}}
+- Position: {{ contest.rounds[-1].players | get_attr_by_id(agent.id, "position") }}
 
 ## In sight
 
-{% for feature in features %}
+### Features
+{%- for feature in contest.rounds[-1].features %}
 - {{feature.name}} at "{{feature.position}}"
-{% endfor %}
-{% for other in other_players %}
-- {{other.name}} at "{{other.position}}"
-{% endfor %}
+{%- endfor %}
+
+### Other Players
+
+{%- for other in contest.rounds[-1].players %}
+{%- if other.id != agent.id %}
+- Player "{{ other.name }}" at {{other.position}}, description: {{other.description}}
+{%- endif %}
+{%- endfor %}
+
+{%- if contest.rounds[-1].round_no > 0 %}
+## Memories
+
+{%- for round in contest.rounds %}
+- Round {{ round.round_no }}: {{ round.players | get_attr_by_id(agent.id, "memories") }}
+{%- endfor %}
+{% endif %}
 
 ## Task
 
-Your task is to respond with an action for this 
+Your task is to respond with an action for this round.
 
 ## Output
 
 Return only valid JSON in the following format and nothing else:
 
-```JSON
-{"action": <action>, "target (optional)": "x,y", "narration": <narration>}
-```
+{"action": <action>, "target (optional)": "x,y", "narration": <narration to share with other players, may be up to 5 sentences>, "memories": <private memories you will be given next round, up to 1000 characters, no scripts.>}
 
-{# requires: PlayerActionRequest as "**" in env #}
+{# requires: Contest (player view) in env #}

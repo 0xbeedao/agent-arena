@@ -10,10 +10,6 @@ from sqlmodel import Field
 
 from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
-from agentarena.models.public import ArenaPublic
-from agentarena.models.public import ContestPublic
-from agentarena.models.public import FeaturePublic
-from agentarena.models.public import ParticipantPublic
 
 
 class ControllerRequest(BaseModel):
@@ -53,16 +49,3 @@ class ParticipantRequest(BaseModel):
     state: Optional[JobResponseState] = Field(
         default=None, description="state of event, a JobState"
     )
-
-
-class PlayerActionRequest(BaseModel):
-    """
-    Model sent to Players for action requests, as JSON in the data field
-    """
-
-    player: ParticipantPublic = Field()
-    arena: ArenaPublic = Field()
-    contest: ContestPublic = Field()
-    features: List[FeaturePublic] = Field()
-    players: List[ParticipantPublic] = Field()
-    round_no: int = Field()

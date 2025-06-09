@@ -1,23 +1,19 @@
-from datetime import datetime
-from typing import Dict
 from unittest.mock import AsyncMock
 
 import pytest
 
 from agentarena.arena.controllers.contest_controller import ContestController
-from agentarena.arena.models import (
-    Arena,
-    ArenaCreate,
-    ArenaUpdate,
-    Contest,
-    ContestCreate,
-    Feature,
-    FeatureCreate,
-    Participant,
-    ParticipantCreate,
-    PlayerState,
-    PlayerStateCreate,
-)
+from agentarena.arena.models import Arena
+from agentarena.arena.models import ArenaCreate
+from agentarena.arena.models import ArenaUpdate
+from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestCreate
+from agentarena.arena.models import Feature
+from agentarena.arena.models import FeatureCreate
+from agentarena.arena.models import Participant
+from agentarena.arena.models import ParticipantCreate
+from agentarena.arena.models import PlayerState
+from agentarena.arena.models import PlayerStateCreate
 from agentarena.arena.services.round_service import RoundService
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.db_factory import get_engine
@@ -27,10 +23,7 @@ from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import RoleType
-from agentarena.models.job import CommandJob
-from agentarena.models.job import CommandJobCreate
-from agentarena.models.job import CommandJobUpdate
-from agentarena.models.public import ArenaPublic, ContestPublic
+from agentarena.models.public import ArenaPublic
 
 
 @pytest.fixture

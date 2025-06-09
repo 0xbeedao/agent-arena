@@ -15,21 +15,21 @@ from statemachine import State
 from statemachine import StateMachine
 
 from agentarena.arena.models import Contest
-from agentarena.arena.models import ContestRound
-from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
+from agentarena.arena.services.round_service import RoundService
+from agentarena.arena.services.view_service import ViewService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
-from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.model_service import ModelService
+from agentarena.core.services.subscribing_service import Subscriber
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobState
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobBatchRequest
-from agentarena.models.job import UrlJobRequest
+from agentarena.models.public import UrlJobRequest
 
 from .round_machine import RoundMachine
 from .setup_machine import SetupMachine
@@ -79,6 +79,7 @@ class ContestMachine(StateMachine):
         feature_service: ModelService[Feature, FeatureCreate],
         round_service: RoundService,
         uuid_service: UUIDService,
+        view_service: ViewService,
         log: ILogger,
     ):
         """Initialize the contest machine."""
@@ -88,6 +89,7 @@ class ContestMachine(StateMachine):
         self.message_broker = message_broker
         self.round_service = round_service
         self.uuid_service = uuid_service
+        self.view_service = view_service
         self.completion_channel = (
             f"arena.contest.{contest_id}.contestflow.setup.complete"
         )
@@ -96,7 +98,6 @@ class ContestMachine(StateMachine):
         assert contest is not None, "Contest not found"
         self.contest = contest
 
-        self.subscriptions = {}
         state = ContestState.STARTING.value
         if contest.rounds:
             round = contest.rounds[0]
@@ -105,8 +106,9 @@ class ContestMachine(StateMachine):
             elif round.state == ContestRoundState.SETUP_FAIL.value:
                 # TODO: Maybe restart the setup machine?
                 state = ContestState.FAIL.value
+        self.subscriber = Subscriber()
         self.log = log.bind(contest_id=contest_id, state=state)
-        super().__init__(start_value=state)
+        StateMachine.__init__(self, start_value=state)
         self.log.info("setup complete")
 
     async def handle_role_call(self, msg: Msg):
@@ -117,11 +119,7 @@ class ContestMachine(StateMachine):
         It processes the message and transitions to the next state if needed.
         """
         self.log.info("Handling role call message", msg=msg)
-        sub = self.subscriptions.get(msg.subject)
-        if sub:
-            self.log.debug(f"Unsubscribing from {msg.subject}")
-            await sub.unsubscribe()
-            del self.subscriptions[msg.subject]
+        await self.subscriber.unsubscribe(msg.subject, self.log)
         obj = None
         if not msg.data:
             self.log.error("Received empty role call message", msg=msg)
@@ -161,14 +159,15 @@ class ContestMachine(StateMachine):
             # Optionally, you could handle other states or log them
             return
 
+    async def handle_round_complete(self, msg: Msg):
+        """Handle the round complete message."""
+        self.log.info("Handling round complete message", msg=msg)
+        await self.subscriber.unsubscribe(msg.subject, self.log)
+
     async def handle_setup_complete(self, msg: Msg):
         """Handle the setup complete message."""
         self.log.info("Handling setup complete message", msg=msg)
-        sub = self.subscriptions.get(msg.subject)
-        if sub:
-            self.log.debug(f"Unsubscribing from {msg.subject}")
-            await sub.unsubscribe()
-            del self.subscriptions[msg.subject]
+        await self.subscriber.unsubscribe(msg.subject, self.log)
         final_state = msg.data.decode("utf-8")
         if final_state == ContestRoundState.SETUP_COMPLETE.value:
             self.log.info("Setup complete, transitioning to in_round")
@@ -184,14 +183,9 @@ class ContestMachine(StateMachine):
         """Called when entering the InSetup state."""
         job_id = self.uuid_service.make_id()
         channel = f"arena.contest.{self.contest.id}.role_call"
-        if self.subscriptions.get(channel):
-            self.log.debug(f"Already subscribed to {channel}, skipping subscription")
-        else:
-            sub = await self.message_broker.client.subscribe(
-                channel, cb=self.handle_role_call
-            )
-            self.log.debug(f"Subscribed to {channel}")
-            self.subscriptions[channel] = sub
+        await self.subscriber.subscribe(
+            self.message_broker.client, channel, self.log, cb=self.handle_role_call
+        )
 
         batchJob = CommandJob(
             id=job_id,
@@ -225,25 +219,13 @@ class ContestMachine(StateMachine):
         # Access job_id via event_data.kwargs.get("job_id") if needed
         self.log.info("Entering SetupArena state")
         if self._setup_machine is None:
-            if self.subscriptions.get(self.completion_channel):
-                self.log.debug(
-                    f"Already subscribed to {self.completion_channel}, skipping subscription"
-                )
-            else:
-                sub = await self.message_broker.client.subscribe(
-                    self.completion_channel,
-                    cb=self.handle_setup_complete,
-                )
-                self.subscriptions[self.completion_channel] = sub
-                self.log.debug(f"Subscribed to {self.completion_channel}")
-
             self.log.debug("Creating new SetupMachine instance")
             self._setup_machine = SetupMachine(
                 self.contest,
-                completion_channel=self.completion_channel,
                 feature_service=self.feature_service,
                 message_broker=self.message_broker,
                 round_service=self.round_service,
+                view_service=self.view_service,
                 session=self.session,
                 log=self.log,
             )
@@ -252,12 +234,34 @@ class ContestMachine(StateMachine):
         assert (
             setup_machine is not None
         ), "Setup machine should not be None during on_enter_setup_arena"
-        await setup_machine.start_generating_features("")
+        channel = setup_machine.completion_channel
+        await self.subscriber.subscribe(
+            self.message_broker.client, channel, self.log, cb=self.handle_setup_complete
+        )
+        await setup_machine.activate_initial_state()  # type: ignore
+        await setup_machine.start_generating_features("from contest machine")
 
     async def on_enter_in_round(self):
-        """Called when entering the InRound state."""
+        """Called when entering the InRound state.
+        This will create a new round machine and subscribe to the round complete channel.
+        When it is complete, it will send a message to the contest machine to transition to the next state.
+        """
         # Create a new round machine when entering the InRound state
-        self._round_machine = RoundMachine(self.contest, log=self.log)
+        round = self.contest.rounds[-1]
+        round.state = ContestRoundState.IN_PROGRESS
+        self.session.commit()
+        self._round_machine = RoundMachine(
+            round,
+            message_broker=self.message_broker,
+            view_service=self.view_service,
+            session=self.session,
+            log=self.log,
+        )
+        channel = self._round_machine.completion_channel
+        await self.subscriber.subscribe(
+            self.message_broker.client, channel, self.log, cb=self.handle_round_complete
+        )
+        await self._round_machine.activate_initial_state()  # type: ignore
 
     def on_enter_checking_end(self):
         """Called when entering the CheckingEnd state."""
@@ -303,10 +307,6 @@ class ContestMachine(StateMachine):
 
         if self._setup_machine is not None:
             result["setup_state"] = self._setup_machine.current_state.id
-
-        # if self.in_round.is_active and self._round_machine is not None:
-        #     result["round_state"] = self._round_machine.current_state.id
-
         return result
 
     async def after_transition(self, event, source, target):
@@ -323,8 +323,6 @@ class ContestMachine(StateMachine):
 
         if target.final:
             self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
-            for sub in self.subscriptions.values():
-                await sub.unsubscribe()
-            self.subscriptions.clear()
+            await self.subscriber.unsubscribe_all(self.log)
         else:
             self.log.debug(f"{self.name} enter: {target.id} from {event}")

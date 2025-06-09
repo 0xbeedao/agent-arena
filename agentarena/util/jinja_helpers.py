@@ -1,4 +1,5 @@
-import datetime
+from typing import Any
+from typing import Sequence
 
 
 def datetimeformat_filter(value, format="%Y-%m-%d %H:%M:%S"):
@@ -13,3 +14,25 @@ def datetimeformat_filter(value, format="%Y-%m-%d %H:%M:%S"):
         return datetime.fromtimestamp(value).strftime(format)
     except Exception:
         return str(value)
+
+
+def find_obj_by_id(obj_list: Sequence[Any], id: str):
+    """
+    Find an object in a list by its ID.
+    """
+    for obj in obj_list:
+        if getattr(obj, "id", None) == id:
+            return obj
+    return None
+
+
+def get_attr_by_id(obj_list: Sequence[Any], id: str, attr: str):
+    """
+    Get an attribute from an object in a list by its ID.
+    """
+    if not obj_list:
+        return None
+    for obj in obj_list:
+        if getattr(obj, "id", None) == id:
+            return getattr(obj, attr, None)
+    return None

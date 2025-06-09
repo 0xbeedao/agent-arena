@@ -24,19 +24,20 @@ from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
+from agentarena.arena.services.round_service import RoundService
+from agentarena.arena.services.view_service import ViewService
+from agentarena.arena.statemachines.contest_machine import ContestMachine
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
+from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import RoleType
-from agentarena.models.job import JobResponse
-from agentarena.models.job import JobResponseState
+from agentarena.models.public import JobResponse
 from agentarena.models.requests import ControllerRequest
-from agentarena.statemachines.contest_machine import ContestMachine
 
 
 class ContestController(
@@ -59,12 +60,15 @@ class ContestController(
         ),
         round_service: RoundService = Field(description="The round service"),
         template_service: JinjaRenderer = Field(description="The template service"),
+        view_service: ViewService = Field(description="The view service"),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         self.feature_service = feature_service
         self.participant_service = participant_service
         self.round_service = round_service
+        assert message_broker is not None, "Message broker is not set"
         self.message_broker = message_broker
+        self.view_service = view_service
         to_subscribe = [
             ("arena.contest.request", self.handle_request),
             ("arena.contest.*.contestflow.*", self.handle_flow),
@@ -107,7 +111,7 @@ class ContestController(
 
         contest, result = await self.model_service.create(req, session)
         if not result.success:
-            raise HTTPException(status_code=422, detail=result.model_dump_json())
+            raise HTTPException(status_code=422, detail=result.model_dump())
         if not contest:
             raise HTTPException(status_code=422, detail="internal error")
 
@@ -202,7 +206,6 @@ class ContestController(
             response = JobResponse(
                 job_id=contest_id,
                 message=message,
-                channel="",
                 state=JobResponseState.COMPLETE,
                 url=f"/api/contest/{contest_id}",
             )
@@ -210,7 +213,6 @@ class ContestController(
             response = JobResponse(
                 job_id=contest_id or "unknown",
                 message=message or "Unknown error",
-                channel="",
                 state=JobResponseState.FAIL,
                 url=f"/api/contest/{contest_id or 'unknown'}",
             )
@@ -244,6 +246,7 @@ class ContestController(
             feature_service=self.feature_service,
             round_service=self.round_service,
             uuid_service=self.model_service.uuid_service,
+            view_service=self.view_service,
             log=log,
         )
         await machine.activate_initial_state()  # type: ignore
@@ -271,7 +274,7 @@ class ContestController(
         contest, response = await self.model_service.get(contest_id, session)
         if not response.success:
             boundlog.error("failed to get contest")
-            raise HTTPException(status_code=404, detail=response.validation)
+            raise HTTPException(status_code=404, detail=response.model_dump())
         if not contest:
             boundlog.error("failed to get contest data")
             raise HTTPException(status_code=404, detail="internal error")
@@ -316,8 +319,6 @@ class ContestController(
 
     def get_router(self):
         prefix = self.base_path
-        if not prefix.endswith(self.model_name):
-            prefix = f"{prefix}/contest"
         self.log.info("setting up routes", path=prefix)
         router = APIRouter(prefix=prefix, tags=["arena"])
 

@@ -64,7 +64,7 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
         req.features = []
         arena, result = await self.model_service.create(req, session)
         if not result.success:
-            raise HTTPException(status_code=422, detail=result)
+            raise HTTPException(status_code=422, detail=result.model_dump())
         if not arena:
             raise HTTPException(status_code=422, detail="internal error")
 
@@ -82,7 +82,7 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
             log.info("Creating feature")
             feature, result = await self.feature_service.create(feature, session)
             if not result.success:
-                raise HTTPException(status_code=422, detail=result)
+                raise HTTPException(status_code=422, detail=result.model_dump())
             if not feature:
                 raise HTTPException(status_code=422, detail="internal error")
             arena.features.append(feature)
@@ -94,8 +94,6 @@ class ArenaController(ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPubl
 
     def get_router(self):
         prefix = self.base_path
-        if not prefix.endswith(self.model_name):
-            prefix = f"{prefix}/arena"
         self.log.info("setting up routes", path=prefix)
         router = APIRouter(prefix=prefix, tags=["arena"])
 

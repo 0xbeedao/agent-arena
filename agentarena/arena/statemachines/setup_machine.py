@@ -2,7 +2,6 @@ import asyncio
 import json
 from datetime import datetime
 
-from llm.utils import extract_fenced_code_block
 from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
@@ -12,88 +11,23 @@ from statemachine import StateMachine
 
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestRound
-from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import FeatureOriginType
+from agentarena.arena.services.round_service import RoundService
+from agentarena.arena.services.view_service import ViewService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
-from agentarena.arena.services.round_service import RoundService
 from agentarena.core.services.model_service import ModelService
+from agentarena.core.services.subscribing_service import Subscriber
 from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
 from agentarena.models.requests import ParticipantRequest
-
-
-def extract_fenced_json(raw: str):
-    """
-    returns the json object if possible, extracting from fence if needed
-    """
-    try:
-        obj = json.loads(raw)
-        return obj
-    except json.JSONDecodeError:
-        pass
-    work = extract_fenced_code_block(raw)
-    return work or raw
-
-
-def parse_features_list(features_raw, log=None):
-    """
-    Parse the features list from a possibly nested or string-encoded structure.
-    Handles cases where the features are nested under 'data', are JSON strings, or are fenced code blocks.
-    """
-    features = features_raw
-    while True:
-        # Unwrap 'data' if present
-        if isinstance(features, dict) and "data" in features:
-            features = features["data"]
-            continue
-        # If it's a string, try to parse it
-        if isinstance(features, str):
-            s = features.strip()
-            if not s:
-                return []
-            if not s.startswith("["):
-                # We'll look for the first occurrence of '[' and the last occurrence of ']' and try to parse that substring
-                start = s.find("[")
-                end = s.rfind("]")
-                if start != -1 and end != -1 and end > start:
-                    json_str = s[start : end + 1]
-                    try:
-                        features = json.loads(json_str)
-                        continue
-                    except Exception as e:
-                        if log:
-                            log.error(
-                                "Failed to parse feature list from substring", error=e
-                            )
-                        return []
-                # If not found, try fenced code block
-                if s.find("```") != -1:
-                    features = extract_fenced_json(s)
-                    continue
-                # Otherwise, try to parse as JSON
-                try:
-                    features = json.loads(s)
-                    continue
-                except Exception as e:
-                    if log:
-                        log.error("Failed to parse feature list as JSON", error=e)
-                    return []
-            else:
-                try:
-                    features = json.loads(s)
-                    continue
-                except Exception as e:
-                    if log:
-                        log.error("Failed to parse feature list as JSON", error=e)
-                    return []
-        break
-    return features
+from agentarena.util.response_parsers import extract_text_response
+from agentarena.util.response_parsers import parse_list
 
 
 class SetupMachine(StateMachine):
@@ -140,24 +74,24 @@ class SetupMachine(StateMachine):
     def __init__(
         self,
         contest: Contest,
-        completion_channel: str = Field(description="Completion channel"),
         message_broker: MessageBroker = Field(description="Message Broker"),
         feature_service: ModelService[Feature, FeatureCreate] = Field(),
         round_service: RoundService = Field(description="Round Service"),
+        view_service: ViewService = Field(description="View Service"),
         session: Session = Field(description="Session"),
         log: ILogger = Field(description="Log"),
     ):
         """Initialize the setup machine."""
-        self.completion_channel = completion_channel
         self.contest = contest
         self.contest_public = contest.get_public()
         self.contest_round: ContestRound | None = None
         self.feature_service = feature_service
         self.message_broker = message_broker
         self.round_service = round_service
+        self.view_service = view_service
         self.session = session
+        self.completion_channel = f"arena.contest.{contest.id}.setup.complete"
         self.log = log.bind(contest_id=contest.id)
-        self.subscriptions = {}
         stmt = (
             select(ContestRound)
             .where(ContestRound.round_no == 0)
@@ -165,6 +99,7 @@ class SetupMachine(StateMachine):
         )
         round = session.exec(stmt).one_or_none()
         self.contest_round = round
+        self.subscriber = Subscriber()
         super().__init__()
 
     async def generate_arena_description(self):
@@ -200,11 +135,12 @@ class SetupMachine(StateMachine):
             method="POST",
             url=announcer.url("request"),
         )
-        sub = await self.message_broker.client.subscribe(
-            channel, cb=self.handle_arena_description_message
+        await self.subscriber.subscribe(
+            self.message_broker.client,
+            channel,
+            self.log,
+            cb=self.handle_arena_description_message,
         )
-        log.info(f"subscribed to {channel}")
-        self.subscriptions[channel] = sub
         await self.message_broker.send_job(job)
 
     async def generate_random_features(self):
@@ -240,11 +176,12 @@ class SetupMachine(StateMachine):
             method="POST",
             url=arena_agent.url("request"),
         )
-        sub = await self.message_broker.client.subscribe(
-            channel, cb=self.handle_feature_generation_message
+        await self.subscriber.subscribe(
+            self.message_broker.client,
+            channel,
+            self.log,
+            cb=self.handle_feature_generation_message,
         )
-        log.info(f"subscribed to {channel}")
-        self.subscriptions[channel] = sub
         await self.message_broker.send_job(job)
 
     async def handle_arena_description_message(self, msg: Msg):
@@ -252,13 +189,7 @@ class SetupMachine(StateMachine):
         log = self.log.bind(msg=msg.subject)
         log.info("Received arena description message", msg=msg.subject)
         try:
-            job_data = msg.data.decode("utf-8")
-            log.info("job data", job_data=job_data)
-            description = json.loads(job_data)
-            if "data" in description:
-                description = json.loads(description["data"])
-            if "data" in description:
-                description = description["data"]
+            description = extract_text_response(msg.data.decode("utf-8"))
 
             round = self.contest_round
             if not round:
@@ -274,8 +205,7 @@ class SetupMachine(StateMachine):
             log.error("Failed to parse description", error=e)
             self.send("step_failed", "bad description")
 
-        await self.subscriptions[msg.subject].unsubscribe()
-        del self.subscriptions[msg.subject]
+        await self.subscriber.unsubscribe(msg.subject, self.log)
         asyncio.create_task(self.send("cycle"))  # type: ignore
 
     async def handle_feature_generation_message(self, msg: Msg):
@@ -298,15 +228,14 @@ class SetupMachine(StateMachine):
                 log.error("Feature generation job failed", obj=obj)
                 asyncio.create_task(self.send("step_failed", "job failed"))  # type: ignore
                 return
-            features = parse_features_list(obj, log=log)
+            features = parse_list(obj, log=log)
             log.info("Parsed feature generation message", features=features)
         except Exception as e:
             log.error("Failed to parse feature generation message", error=e)
             asyncio.create_task(self.send("step_failed", "bad feature generation message"))  # type: ignore
             return
 
-        await self.subscriptions[msg.subject].unsubscribe()
-        del self.subscriptions[msg.subject]
+        await self.subscriber.unsubscribe(msg.subject, self.log)
         round = self.contest_round
         assert round, "should have a contest round"
         log.info("Copying new random features to round 0")
@@ -415,5 +344,6 @@ class SetupMachine(StateMachine):
         if target.final:
             self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
             await self.message_broker.send_message(self.completion_channel, target.id)
+            await self.subscriber.unsubscribe_all(self.log)
         else:
             self.log.debug(f"{self.name} enter: {target.id} from {event}")

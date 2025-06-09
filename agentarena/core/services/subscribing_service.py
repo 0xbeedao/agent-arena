@@ -2,6 +2,8 @@ from typing import Callable
 from typing import List
 from typing import Tuple
 
+from nats.aio.client import Client as NatsClient
+
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 
@@ -26,3 +28,30 @@ class SubscribingService:
         if self._subscribed:
             for sub in self._subscribed:
                 await sub.unsubscribe()
+
+
+class Subscriber:
+    def __init__(self):
+        self.subscriptions = {}
+
+    async def subscribe(self, nats: NatsClient, channel: str, log: ILogger, **kwargs):
+        if channel in self.subscriptions:
+            log.debug(f"Already subscribed to {channel}, skipping subscription")
+        else:
+            sub = await nats.subscribe(channel, **kwargs)
+            self.subscriptions[channel] = sub
+            log.debug(f"Subscribed to {channel}")
+
+    async def unsubscribe(self, channel: str, log: ILogger):
+        if channel in self.subscriptions:
+            sub = self.subscriptions[channel]
+            await sub.unsubscribe()
+            del self.subscriptions[channel]
+            log.debug(f"Unsubscribed from {channel}")
+
+    async def unsubscribe_all(self, log: ILogger):
+        for channel in self.subscriptions:
+            sub = self.subscriptions[channel]
+            await sub.unsubscribe()
+            log.debug(f"Unsubscribed from {channel}")
+        self.subscriptions.clear()
