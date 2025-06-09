@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 from nats.aio.msg import Msg
@@ -58,6 +59,8 @@ class RoundMachine(StateMachine):
         | presenting_results.to(round_complete)
     )
 
+    received_action = awaiting_actions.to(judging_actions)
+
     step_failed = (
         round_prompting.to(round_fail)
         | awaiting_actions.to(round_fail)
@@ -89,6 +92,7 @@ class RoundMachine(StateMachine):
         self.log = log.bind(contest_round=contest_round.id)
         super().__init__(start_value=contest_round.state.value)
         assert self.message_broker is not None, "Message broker is not set"
+        self.pending_actions = set()
 
     async def on_enter_in_progress(self):
         """Called when entering the InProgress state."""
@@ -106,14 +110,15 @@ class RoundMachine(StateMachine):
         for player in players:
             await self.send_player_prompt(player)
         self.log.info("sent player prompts")
+        await self.cycle("From round_prompting to awaiting_actions")
 
     async def on_enter_awaiting_actions(self):
         """Called when entering the AwaitingActions state."""
-        await self.cycle("awaiting_actions")
+        self.log.info("entering awaiting actions")
 
     async def on_enter_judging_actions(self):
         """Called when entering the JudgingActions state."""
-        await self.cycle("judging_actions")
+        self.log.info("entering judging actions")
 
     async def on_enter_applying_effects(self):
         """Called when entering the ApplyingEffects state."""
@@ -143,12 +148,19 @@ class RoundMachine(StateMachine):
             raw = decode(msg.data, "utf-8", "unicode_escape")
             if not raw:
                 log.error("No data in message")
+                await self.cycle("step_failed")
                 return
             action = extract_obj_from_json(raw)
             if not action:
                 log.error("No action in message")
+                await self.step_failed(player_id)
                 return
             log.info("received action", action=action)
+            valid = "action" in action and action.get("action", "") != ""
+            if not valid:
+                log.error("Invalid action", action=action)
+                await self.step_failed(player_id)
+                return
             pa = PlayerActionCreate(
                 participant_id=player_id,
                 contestround_id=self.contest_round.id,
@@ -161,11 +173,21 @@ class RoundMachine(StateMachine):
             )
             created, result = await self.action_service.create(pa, self.session)
             if not created or not result.success:
-                log.error("Failed to create action", error=result.error)
+                log.error("Failed to create action", error=result)
+                await self.step_failed(player_id)
                 return
             log.info("created action", action=created.id)
+            self.pending_actions.remove(player_id)
+            # transition to judging actions if all actions are received and we are in the awaiting actions state
+            if (
+                self.current_state.id == ContestRoundState.AWAITING_ACTIONS.value
+                and len(self.pending_actions) == 0
+            ):
+                log.info("all actions received, transitioning to judging actions")
+                asyncio.create_task(self.received_action(player_id))
         except Exception as e:
             log.error("Failed to extract text response", error=e)
+            await self.step_failed(player_id)
             return
 
     async def send_player_prompt(self, player: Participant):
@@ -195,6 +217,7 @@ class RoundMachine(StateMachine):
             method="POST",
             url=player.url("request"),
         )
+        self.pending_actions.add(player.id)
         await self.message_broker.send_job(job)
 
     async def on_enter_state(self, target, event):
