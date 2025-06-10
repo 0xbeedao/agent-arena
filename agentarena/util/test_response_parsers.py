@@ -1,5 +1,5 @@
-import pytest
 import json
+
 from agentarena.util import response_parsers
 
 # Dummy extract_fenced_code_block for test context if needed

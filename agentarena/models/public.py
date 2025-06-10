@@ -8,9 +8,10 @@ from typing import Optional
 from pydantic import BaseModel
 from pydantic import Field
 
-from agentarena.models.constants import ContestRoundState, JobState
+from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import ContestState
 from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import JobState
 from agentarena.models.constants import RoleType
 
 

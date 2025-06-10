@@ -22,10 +22,10 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.dbbase import DbBase
-from agentarena.models.validation import ModelResponse, ValidationResponse
+from agentarena.models.validation import ModelResponse
+from agentarena.models.validation import ValidationResponse
 
 from .db_service import DbService
-
 
 T = TypeVar("T", bound=DbBase)  # SQLModel with a table
 MC = TypeVar("MC", bound=SQLModel)  # model create

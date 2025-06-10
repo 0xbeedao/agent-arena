@@ -3,6 +3,7 @@ ContestDTO controller for the Agent Arena application.
 Handles HTTP requests for contest operations.
 """
 
+from codecs import decode
 from datetime import datetime
 from typing import Dict
 from typing import List
@@ -14,17 +15,20 @@ from fastapi import HTTPException
 from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
-from codecs import decode
 
-from agentarena.arena.models import Contest, PlayerAction, PlayerActionCreate
+from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestPublic
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import ContestUpdate
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
+from agentarena.arena.models import JudgeResult
+from agentarena.arena.models import JudgeResultCreate
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
+from agentarena.arena.models import PlayerAction
+from agentarena.arena.models import PlayerActionCreate
 from agentarena.arena.services.round_service import RoundService
 from agentarena.arena.services.view_service import ViewService
 from agentarena.arena.statemachines.contest_machine import ContestMachine
@@ -56,6 +60,9 @@ class ContestController(
         model_service: ModelService[Contest, ContestCreate] = Field(
             description="The contest service"
         ),
+        judge_result_service: ModelService[JudgeResult, JudgeResultCreate] = Field(
+            description="The judge result service"
+        ),
         participant_service: ModelService[Participant, ParticipantCreate] = Field(
             description="The feature service"
         ),
@@ -74,6 +81,7 @@ class ContestController(
         assert message_broker is not None, "Message broker is not set"
         self.message_broker = message_broker
         self.view_service = view_service
+        self.judge_result_service = judge_result_service
         to_subscribe = [
             ("arena.contest.request", self.handle_request),
             ("arena.contest.*.contestflow.*", self.handle_flow),
@@ -256,6 +264,7 @@ class ContestController(
             uuid_service=self.model_service.uuid_service,
             view_service=self.view_service,
             log=log,
+            judge_result_service=self.judge_result_service,
         )
         await machine.activate_initial_state()  # type: ignore
         await machine.start_contest("start_contest")

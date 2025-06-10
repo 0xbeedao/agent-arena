@@ -1,8 +1,9 @@
+from codecs import encode
+
 import nats
 from nats.aio.client import Client as NatsClient
 from nats.aio.msg import Msg
 from sqlmodel import Field
-from codecs import encode, decode
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService

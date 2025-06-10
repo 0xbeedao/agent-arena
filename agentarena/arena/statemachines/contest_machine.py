@@ -4,6 +4,7 @@ The Contest State Machine
 
 import asyncio
 import json
+from codecs import decode
 from datetime import datetime
 from typing import Any
 from typing import Dict
@@ -13,13 +14,16 @@ from nats.aio.msg import Msg
 from statemachine import Event
 from statemachine import State
 from statemachine import StateMachine
-from codecs import decode
 
-from agentarena.arena.models import Contest, PlayerAction, PlayerActionCreate
+from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
+from agentarena.arena.models import JudgeResult
+from agentarena.arena.models import JudgeResultCreate
+from agentarena.arena.models import PlayerAction
+from agentarena.arena.models import PlayerActionCreate
 from agentarena.arena.services.round_service import RoundService
 from agentarena.arena.services.view_service import ViewService
 from agentarena.clients.message_broker import MessageBroker
@@ -78,6 +82,7 @@ class ContestMachine(StateMachine):
         contest_id: str,
         message_broker: MessageBroker,
         feature_service: ModelService[Feature, FeatureCreate],
+        judge_result_service: ModelService[JudgeResult, JudgeResultCreate],
         playeraction_service: ModelService[PlayerAction, PlayerActionCreate],
         round_service: RoundService,
         uuid_service: UUIDService,
@@ -93,6 +98,7 @@ class ContestMachine(StateMachine):
         self.round_service = round_service
         self.uuid_service = uuid_service
         self.view_service = view_service
+        self.judge_result_service = judge_result_service
         self.completion_channel = (
             f"arena.contest.{contest_id}.contestflow.setup.complete"
         )
@@ -260,6 +266,7 @@ class ContestMachine(StateMachine):
             view_service=self.view_service,
             session=self.session,
             log=self.log,
+            judge_result_service=self.judge_result_service,
         )
         channel = self._round_machine.completion_channel
         await self.subscriber.subscribe(

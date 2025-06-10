@@ -24,6 +24,7 @@ class ContestRoundState(str, Enum):
     ROUND_PROMPTING = "round_prompting"
     AWAITING_ACTIONS = "awaiting_actions"
     JUDGING_ACTIONS = "judging_actions"
+    AWAITING_JUDGING_ACTIONS = "awaiting_judging_actions"
     APPLYING_EFFECTS = "applying_effects"
     DESCRIBING_RESULTS = "describing_results"
     PRESENTING_RESULTS = "presenting_results"

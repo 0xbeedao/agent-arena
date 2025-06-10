@@ -2,6 +2,7 @@
 Responder controller for Agent Response endpoints
 """
 
+from codecs import decode
 from typing import Optional
 from typing import Tuple
 
@@ -12,7 +13,6 @@ from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import select
-from codecs import decode
 
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate

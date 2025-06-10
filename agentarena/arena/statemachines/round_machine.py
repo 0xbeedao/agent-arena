@@ -1,4 +1,5 @@
 import asyncio
+from codecs import decode
 from datetime import datetime
 
 from nats.aio.msg import Msg
@@ -6,10 +7,12 @@ from sqlmodel import Field
 from sqlmodel import Session
 from statemachine import State
 from statemachine import StateMachine
-from codecs import decode
 
-from agentarena.arena.models import ContestRound, PlayerAction, PlayerActionCreate
+from agentarena.arena.models import ContestRound
+from agentarena.arena.models import JudgeResultCreate
 from agentarena.arena.models import Participant
+from agentarena.arena.models import PlayerAction
+from agentarena.arena.models import PlayerActionCreate
 from agentarena.arena.services.view_service import ViewService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
@@ -20,10 +23,7 @@ from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
 from agentarena.models.requests import ParticipantRequest
-from agentarena.util.response_parsers import (
-    extract_obj_from_json,
-    extract_text_response,
-)
+from agentarena.util.response_parsers import extract_obj_from_json
 
 
 class RoundMachine(StateMachine):
@@ -43,6 +43,7 @@ class RoundMachine(StateMachine):
     round_prompting = State(ContestRoundState.ROUND_PROMPTING.value)
     awaiting_actions = State(ContestRoundState.AWAITING_ACTIONS.value)
     judging_actions = State(ContestRoundState.JUDGING_ACTIONS.value)
+    awaiting_judging_actions = State(ContestRoundState.AWAITING_JUDGING_ACTIONS.value)
     applying_effects = State(ContestRoundState.APPLYING_EFFECTS.value)
     describing_results = State(ContestRoundState.DESCRIBING_RESULTS.value)
     presenting_results = State(ContestRoundState.PRESENTING_RESULTS.value)
@@ -53,18 +54,19 @@ class RoundMachine(StateMachine):
         in_progress.to(round_prompting)
         | round_prompting.to(awaiting_actions)
         | awaiting_actions.to(judging_actions)
-        | judging_actions.to(applying_effects)
+        | judging_actions.to(awaiting_actions)
+        | judging_actions.to(awaiting_judging_actions)
+        | awaiting_judging_actions.to(applying_effects)
         | applying_effects.to(describing_results)
         | describing_results.to(presenting_results)
         | presenting_results.to(round_complete)
     )
 
-    received_action = awaiting_actions.to(judging_actions)
-
     step_failed = (
         round_prompting.to(round_fail)
         | awaiting_actions.to(round_fail)
         | judging_actions.to(round_fail)
+        | awaiting_judging_actions.to(round_fail)
         | applying_effects.to(round_fail)
         | describing_results.to(round_fail)
         | presenting_results.to(round_fail)
@@ -73,6 +75,7 @@ class RoundMachine(StateMachine):
     def __init__(
         self,
         contest_round: ContestRound,
+        judge_result_service: ModelService,
         playeraction_service: ModelService[PlayerAction, PlayerActionCreate] = Field(
             description="Player Action Service"
         ),
@@ -90,9 +93,11 @@ class RoundMachine(StateMachine):
         self.session = session
         self.subscriber = Subscriber()
         self.log = log.bind(contest_round=contest_round.id)
+        self.judge_result_service = judge_result_service
         super().__init__(start_value=contest_round.state.value)
         assert self.message_broker is not None, "Message broker is not set"
         self.pending_actions = set()
+        self.pending_judging_actions = set()
 
     async def on_enter_in_progress(self):
         """Called when entering the InProgress state."""
@@ -118,7 +123,10 @@ class RoundMachine(StateMachine):
 
     async def on_enter_judging_actions(self):
         """Called when entering the JudgingActions state."""
-        self.log.info("entering judging actions")
+        for action in self.contest_round.player_actions:
+            await self.send_judging_action_prompt(action)
+        self.log.info("sent judging actions prompts")
+        await self.cycle("From judging_actions to applying_effects")
 
     async def on_enter_applying_effects(self):
         """Called when entering the ApplyingEffects state."""
@@ -136,6 +144,48 @@ class RoundMachine(StateMachine):
         """Called when entering the RoundFail state."""
         # TODO: Would be nice to save the message to the round
         self.log.error(f"Round failed: {message}")
+
+    async def handle_judging_action_message(self, msg: Msg):
+        """Handle a judging action message."""
+        msg_parts = msg.subject.split(".")
+        player_id = msg_parts[-2]
+        log = self.log.bind(player_id=player_id)
+        log.info("received judging action message", msg=msg)
+        await self.subscriber.unsubscribe(msg.subject, self.log)
+        try:
+            raw = decode(msg.data, "utf-8", "unicode_escape")
+            if not raw:
+                log.error("No data in message")
+                await self.cycle("step_failed")
+                return
+            result = extract_obj_from_json(raw)
+            if not result:
+                log.error("No result in message")
+                await self.cycle("step_failed")
+                return
+            log.info("received judging action", result=result)
+            jc = JudgeResultCreate(
+                contestround_id=self.contest_round.id,
+                result=result.get("result", ""),
+                reason=result.get("reason", ""),
+            )
+            created, result = await self.judge_result_service.create(jc, self.session)
+            if not created or not result.success:
+                log.error("Failed to create judge result", error=result)
+                await self.cycle("step_failed")
+                return
+            self.pending_judging_actions.remove(player_id)
+            if (
+                self.current_state.id == ContestRoundState.JUDGING_ACTIONS.value
+                and len(self.pending_judging_actions) == 0
+            ):
+                log.info(
+                    "all judging actions received, transitioning to applying effects"
+                )
+                asyncio.create_task(self.cycle("applying_effects"))
+        except Exception as e:
+            log.error("Exception in handle_judging_action_message", error=e)
+            await self.cycle("step_failed")
 
     async def handle_player_prompt_message(self, msg: Msg):
         """Handle a player prompt message."""
@@ -184,11 +234,46 @@ class RoundMachine(StateMachine):
                 and len(self.pending_actions) == 0
             ):
                 log.info("all actions received, transitioning to judging actions")
-                asyncio.create_task(self.received_action(player_id))
+                asyncio.create_task(self.cycle("judging_actions"))
         except Exception as e:
             log.error("Failed to extract text response", error=e)
             await self.step_failed(player_id)
             return
+
+    async def send_judging_action_prompt(self, action: PlayerAction):
+        log = self.log
+        log.info("sending judging action prompt", action=action)
+        job_id = self.message_broker.uuid_service.make_id()
+        channel = f"arena.contest.{self.contest_round.contest.id}.round.{self.contest_round.round_no}.judge_action.{action.participant_id}.prompt"
+        log.info(f"subscribed", job_id=job_id, channel=channel)
+        judges = self.contest_round.contest.get_role(RoleType.JUDGE)
+        if not judges:
+            log.error("No judges found for judging action prompt")
+            return
+        judge = judges[0]
+        await self.subscriber.subscribe(
+            self.message_broker.client,
+            channel,
+            log,
+            cb=self.handle_judging_action_message,
+        )
+        contest = self.contest_round.contest
+        contest_json = contest.model_dump_json()
+        action_json = action.model_dump_json()
+        req = ParticipantRequest(
+            job_id=job_id,
+            command=PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT,
+            data=f'{{"contest":{contest_json},"action":{action_json}}}',
+            message="judging action",
+        )
+        job = CommandJob(
+            channel=channel,
+            data=req.model_dump_json(),
+            method="POST",
+            url=judge.url("request"),
+        )
+        self.pending_judging_actions.add(judge.id)
+        await self.message_broker.send_job(job)
 
     async def send_player_prompt(self, player: Participant):
         """Send a prompt to a player."""

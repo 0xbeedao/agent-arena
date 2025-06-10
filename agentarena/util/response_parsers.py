@@ -1,5 +1,4 @@
 import json
-from codecs import decode, encode
 
 from llm.utils import extract_fenced_code_block
 

@@ -13,8 +13,8 @@ from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import CommandJob
 from agentarena.models.job import CommandJobCreate
-from agentarena.models.public import CommandJobPublic
 from agentarena.models.job import CommandJobUpdate
+from agentarena.models.public import CommandJobPublic
 
 
 @pytest.fixture

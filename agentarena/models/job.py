@@ -15,11 +15,9 @@ from sqlmodel import SQLModel
 
 from agentarena.models.constants import JobState
 from agentarena.models.dbbase import DbBase
-from agentarena.models.public import (
-    CommandJobHistoryPublic,
-    CommandJobPublic,
-    UrlJobRequest,
-)
+from agentarena.models.public import CommandJobHistoryPublic
+from agentarena.models.public import CommandJobPublic
+from agentarena.models.public import UrlJobRequest
 
 
 class CommandJobBase(SQLModel):

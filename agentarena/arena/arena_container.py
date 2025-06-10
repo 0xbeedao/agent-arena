@@ -6,7 +6,7 @@ from dependency_injector import providers
 from agentarena.arena.controllers.arena_controller import ArenaController
 from agentarena.arena.controllers.contest_controller import ContestController
 from agentarena.arena.controllers.debug_controller import DebugController
-from agentarena.arena.models import Arena, PlayerAction, PlayerActionCreate
+from agentarena.arena.models import Arena
 from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
@@ -14,10 +14,14 @@ from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestRoundStats
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
+from agentarena.arena.models import JudgeResult
+from agentarena.arena.models import JudgeResultCreate
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
 from agentarena.arena.models import ParticipantPublic
 from agentarena.arena.models import ParticipantUpdate
+from agentarena.arena.models import PlayerAction
+from agentarena.arena.models import PlayerActionCreate
 from agentarena.arena.models import PlayerState
 from agentarena.arena.models import PlayerStateCreate
 from agentarena.arena.services.round_service import RoundService
@@ -158,6 +162,15 @@ class ArenaContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
+    judge_result_service = providers.Singleton(
+        ModelService[JudgeResult, JudgeResultCreate],
+        model_class=JudgeResult,
+        db_service=db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
     playerstate_service = providers.Singleton(
         ModelService[PlayerState, PlayerStateCreate],
         model_class=PlayerState,
@@ -238,6 +251,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         round_service=round_service,
         view_service=view_service,
         logging=logging,
+        judge_result_service=judge_result_service,
     )
 
     debug_controller = providers.Singleton(

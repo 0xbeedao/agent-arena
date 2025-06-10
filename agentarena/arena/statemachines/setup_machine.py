@@ -1,5 +1,6 @@
 import asyncio
 import json
+from codecs import decode
 from datetime import datetime
 
 from nats.aio.msg import Msg
@@ -8,7 +9,6 @@ from sqlmodel import Session
 from sqlmodel import select
 from statemachine import State
 from statemachine import StateMachine
-from codecs import decode
 
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestRound
@@ -242,21 +242,24 @@ class SetupMachine(StateMachine):
         round = self.contest_round
         assert round, "should have a contest round"
         log.info("Copying new random features to round 0")
-        for f in features:
-            feature = Feature(
-                id="",
-                name=f["name"],
-                description=f["description"] if "description" in f else "",
-                position=f["position"],
-                origin=FeatureOriginType.RANDOM,
-            )
-            # TODO handle end_pos
-            log.debug(f"Adding feature", feature=feature.name)
-            feature, result = await self.feature_service.create(feature, self.session)
-            if feature and result.success:
-                round.features.append(feature)
-            else:
-                log.info("could not create feature", result=result)
+        if features:
+            for f in features:
+                feature = Feature(
+                    id="",
+                    name=f["name"],
+                    description=f["description"] if "description" in f else "",
+                    position=f["position"],
+                    origin=FeatureOriginType.RANDOM,
+                )
+                # TODO handle end_pos
+                log.debug(f"Adding feature", feature=feature.name)
+                feature, result = await self.feature_service.create(
+                    feature, self.session
+                )
+                if feature and result.success:
+                    round.features.append(feature)
+                else:
+                    log.info("could not create feature", result=result)
 
         self.session.commit()
         asyncio.create_task(self.send("cycle"))  # type: ignore
