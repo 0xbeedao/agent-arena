@@ -23,6 +23,9 @@ from agentarena.models.public import ContestRoundPublic
 from agentarena.models.public import FeaturePublic
 from agentarena.models.public import ParticipantPublic
 from agentarena.models.public import PlayerPublic
+from agentarena.models.public import PlayerStatePublic
+from agentarena.models.public import PlayerActionPublic
+from agentarena.models.public import JudgeResultPublic
 
 
 class FeatureOriginType(str, Enum):
@@ -156,6 +159,9 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
             players=players,
             state=self.state,
             narrative=self.narrative,
+            player_states=[ps.get_public() for ps in self.player_states],
+            player_actions=[pa.get_public() for pa in self.player_actions],
+            judge_results=[jr.get_public() for jr in self.judge_results],
         )
 
 
@@ -365,12 +371,22 @@ class JudgeResultBase(SQLModel, table=False):
     contestround_id: str = Field(
         description="Contest Round identifier", foreign_key="contestround.id"
     )
+    narration: str = Field(description="Narration to share with other players")
+    memories: str = Field(description="Private memories not shared with players")
     result: str = Field(description="Result description")
-    reason: Optional[str] = Field(default=None, description="Reason for the result")
+    reason: str = Field(default="", description="Reason for the result")
 
 
 class JudgeResult(JudgeResultBase, DbBase, table=True):
     contestround: ContestRound = Relationship(back_populates="judge_results")
+
+    def get_public(self) -> JudgeResultPublic:
+        return JudgeResultPublic(
+            result=self.result,
+            reason=self.reason,
+            narration=self.narration,
+            memories=self.memories,
+        )
 
 
 class JudgeResultCreate(JudgeResultBase):
@@ -470,6 +486,15 @@ class PlayerState(PlayerStateBase, DbBase, table=True):
     contestround: ContestRound = Relationship(back_populates="player_states")
     participant: Participant = Relationship()
 
+    def get_public(self) -> PlayerStatePublic:
+        return PlayerStatePublic(
+            participant_id=self.participant_id,
+            position=self.position,
+            inventory=self.inventory,
+            health=self.health,
+            score=self.score,
+        )
+
 
 class PlayerStateCreate(PlayerStateBase, table=False):
     pass
@@ -492,11 +517,22 @@ class PlayerActionBase(SQLModel, table=False):
     action: str = Field(description="Action description")
     narration: str = Field(description="Narration to share with other players")
     memories: str = Field(description="Private memories not shared with other players")
-    target: str = Field(description="Target coordinate as 'x,y'")
+    target: str = Field(
+        description="Target coordinate as 'x,y', else name of feature or player"
+    )
 
 
 class PlayerAction(PlayerActionBase, DbBase, table=True):
     contestround: ContestRound = Relationship(back_populates="player_actions")
+
+    def get_public(self) -> PlayerActionPublic:
+        return PlayerActionPublic(
+            participant_id=self.participant_id,
+            action=self.action,
+            narration=self.narration,
+            memories=self.memories,
+            target=self.target,
+        )
 
 
 class PlayerActionCreate(PlayerActionBase, table=False):
