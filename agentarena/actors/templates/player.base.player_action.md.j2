@@ -15,9 +15,9 @@ You are a player in an Arena game.
 ## You
 
 - Name: {{agent.name}}
-- Personality: {{agent.personality}}
-- Description: {{agent.description}}
-- Position: {{ contest.rounds[-1].players | get_attr_by_id(agent.id, "position") }}
+- Personality: {{agent.strategy.personality}}
+- Description: {{agent.strategy.description}}
+- Position: {{ contest.rounds[-1].players | get_attr_by_id(agent.participant_id, "position") }}
 
 ## In sight
 
@@ -30,7 +30,7 @@ You are a player in an Arena game.
 
 {%- for other in contest.rounds[-1].players %}
 {%- if other.id != agent.id %}
-- Player "{{ other.name }}" at {{other.position}}, description: {{other.description}}
+- Player "{{ other.name }}" at {{other.position}}
 {%- endif %}
 {%- endfor %}
 
@@ -38,7 +38,7 @@ You are a player in an Arena game.
 ## Memories
 
 {%- for round in contest.rounds %}
-- Round {{ round.round_no }}: {{ round.players | get_attr_by_id(agent.id, "memories") }}
+- Round {{ round.round_no }}: {{ round.players | get_attr_by_id(agent.participant_id, "memories") }}
 {%- endfor %}
 {% endif %}
 

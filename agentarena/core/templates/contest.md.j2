@@ -1,24 +1,26 @@
 {# Displays a full ContestPublic object #}
 ## Contest {{ contest.id }}
 
-**{{ contest.arena.name}}**
-{{ contest.state.value }} 
-{% if contest.start_time %}
-Started: {{ contest.start_time | datetimeformat }}
-Ended: {{ contest.end_time | datetimeformat }}
-{% endif %}
- 
-{{ contest.arena.description }}
-Dimensions: {{ contest.arena.height }} x {{ contest.arena.width }}
-Max Random Features: {{ contest.arena.max_random_features }}
-Rules: {{ contest.arena.rules }}
-Winning Condition: {{ contest.arena.winning_condition }}
+### {{ contest.arena.name}}
+
+"{{ contest.arena.description }}"
+
+- State: *{{ contest.state.value }}* 
+{%- if contest.start_time %}
+- Started: {{ contest.start_time | datetimeformat }}
+- Ended: {{ contest.end_time | datetimeformat }}
+{%- endif %} 
+- Dimensions: {{ contest.arena.height }} x {{ contest.arena.width }}
+- Max Random Features: {{ contest.arena.max_random_features }}
+- Rules: {{ contest.arena.rules }}
+- Winning Condition: {{ contest.arena.winning_condition }}
+
 
 ### Participants ({{ contest.participants | length }})
 | **Name** | **Role** | **Description** |
 |----------|--------------|-----------------|
 {%- for participant in contest.participants %}
-| {{ participant.name }} | {{ participant.role }} | {{ participant.description }} |
+| {{ participant.name }} | {{ participant.role.value }} | {{ participant.description }} |
 {%- endfor %}
 {% if contest.rounds %}
 ## Rounds
@@ -36,18 +38,27 @@ Winning Condition: {{ contest.arena.winning_condition }}
 {%- endfor %}
 
 ### Players ({{ round.players | length }})
+{%- for player in round.players %}
 | **Name** | **Position** | **Inventory** | **Health** | **Score** |
 |----------|--------------|---------------|------------|-----------|
-{%- for player in round.players %}
-| {{ player.name }} | {{ player.position }} | {{ player.inventory }} | {{ player.health }} | {{ player.score }} |
-{%- endfor %}
-{% endfor %}
+| {{ player.name }} | {{ player.position }} | {{ player.inventory | join(", ") }} | {{ player.health }} | {{ player.score }} |
 
-{%- if round.round_no > 0 %}
-## Memories
-
-{%- for player in round.players %}
-| {{ player.name }} | {{ player.memories }} |
-{%- endfor %}
+{%- if player.action %}
+### Action
+- Action: {{ player.action.action }}
+- Target: {{ player.action.target }} 
+- Memories: {{ player.action.memories }}
+- Narration: "{{ player.action.narration }}"
 {%- endif %}
+
+{%- if player.result %}
+### Result
+- Result: {{ player.result.result }}
+- Reason: {{ player.result.reason }}
+- Narration: "{{ player.result.narration }}"
+- Memories: {{ player.result.memories }}
+{%- endif %}
+
+{% endfor %}
+{% endfor%}
 {% endif %}

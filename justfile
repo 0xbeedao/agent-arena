@@ -21,8 +21,7 @@ actor:
     PYTHONPATH=. python scripts/agentarena.actor
 
 control:
-    just roll-log control.log logs
-    PYTHONPATH=. python scripts/agentarena.controlpanel
+    PYTHONPATH=. python scripts/agentarena.control
 
 arena:
     just roll-log arena.log logs

@@ -39,10 +39,10 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
-from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import JobResponseState, PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.public import JobResponse
-from agentarena.models.requests import ControllerRequest
+from agentarena.models.requests import ControllerRequest, ParticipantRequest
 
 
 class ContestController(
@@ -253,6 +253,55 @@ class ContestController(
                 log.error("Failed to start contest", error=str(e))
                 return False, e.detail
 
+    async def prompt(
+        self, contest_id: str, target_id: str, prompt_type: PromptType, session: Session
+    ) -> ParticipantRequest:
+        """
+        Get the prompt the contest will use with a given prompt type.
+        """
+        contest, response = await self.model_service.get(contest_id, session)
+        if not contest or not response.success:
+            raise HTTPException(status_code=404, detail=response.model_dump())
+        if prompt_type == PromptType.PLAYER_PLAYER_ACTION:
+            players = contest.participants_by_role()[RoleType.PLAYER]
+            player = next((p for p in players if p.id == target_id), None)
+            if not player:
+                raise HTTPException(
+                    status_code=404, detail=f"Player {target_id} not found"
+                )
+            view = self.view_service.get_contest_view(contest, player)
+            view_json = view.model_dump_json()
+            req = ParticipantRequest(
+                job_id=self.model_service.uuid_service.make_id(),
+                command=prompt_type,
+                data='{"contest":' + view_json + "}",
+                message=f"prompt for {player.name}",
+            )
+            return req
+        elif prompt_type == PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT:
+            judges = contest.get_role(RoleType.JUDGE)
+            if not judges:
+                raise HTTPException(status_code=404, detail="No judges found")
+            judge = judges[0]
+
+            action, response = await self.playeraction_service.get(target_id, session)
+            if not action or not response.success:
+                raise HTTPException(
+                    status_code=404, detail=f"No action found for {target_id}"
+                )
+            contest_json = contest.get_public().model_dump_json()
+            action_json = action.get_public().model_dump_json()
+            req = ParticipantRequest(
+                job_id=self.model_service.uuid_service.make_id(),
+                command=prompt_type,
+                data=f'{{"contest":{contest_json},"action":{action_json}}}',
+                message=f"prompt for {judge.name}",
+            )
+            return req
+        raise HTTPException(
+            status_code=404, detail=f"Prompt type {prompt_type} not found"
+        )
+
     async def run_contest_machine(self, contest_id: str, log: ILogger):
         """Run the contest machine in the current event loop context"""
         machine = ContestMachine(
@@ -345,6 +394,14 @@ class ContestController(
                 rv = await self.create_contest(req, session)
                 self.log.info("created contest", contest_id=rv.id, state=rv.state)
                 return rv
+
+        @router.post(
+            "/{contest_id}/prompt/{prompt_type}/{target_id}",
+            response_model=ParticipantRequest,
+        )
+        async def prompt(contest_id: str, prompt_type: PromptType, target_id: str):
+            with self.model_service.get_session() as session:
+                return await self.prompt(contest_id, target_id, prompt_type, session)
 
         @router.post("/{contest_id}/start", response_model=ContestPublic)
         async def start(contest_id: str):

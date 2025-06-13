@@ -15,6 +15,17 @@ from agentarena.models.constants import JobState
 from agentarena.models.constants import RoleType
 
 
+class AgentPublic(BaseModel):
+    """
+    Public representation of an Agent.
+    """
+
+    id: str = Field(description="Unique identifier for the Agent")
+    name: str = Field(description="Agent name")
+    strategy: Optional["StrategyPublic"] = Field(default=None)
+    participant_id: str = Field(description="Participant ID")
+
+
 class ArenaPublic(BaseModel):
     id: str = Field(default="", description="ID")
     name: str = Field(description="Arena name")
@@ -69,15 +80,6 @@ class ContestRoundPublic(BaseModel):
     players: List["PlayerPublic"] = Field(default=[])
     round_no: int = Field(description="Round number", ge=0)
     state: ContestRoundState = Field(description="Round state")
-    player_states: List["PlayerStatePublic"] = Field(
-        default=[], description="Player states for this round"
-    )
-    player_actions: List["PlayerActionPublic"] = Field(
-        default=[], description="Player actions for this round"
-    )
-    judge_results: List["JudgeResultPublic"] = Field(
-        default=[], description="Judge results for this round"
-    )
 
 
 class FeaturePublic(BaseModel):
@@ -117,6 +119,13 @@ class JobResponse(UrlJobRequest):
         description="child job responses",
     )
     url: Optional[str] = Field(default="")
+
+
+class JudgeResultPublic(BaseModel):
+    result: str = Field(description="Result description")
+    reason: str = Field(default="", description="Reason for the result")
+    memories: str = Field(description="Private memories not shared with players")
+    narration: str = Field(description="Narration to share with other players")
 
 
 class ModelChangeMessage(BaseModel):
@@ -159,10 +168,13 @@ class PlayerPublic(BaseModel):
     memories: Optional[str] = Field(
         default="", description="Player memories for this round"
     )
+    action: Optional["PlayerActionPublic"] = Field(default=None)
+    result: Optional["JudgeResultPublic"] = Field(default=None)
 
 
 class PlayerStatePublic(BaseModel):
-    participant_id: str = Field(description="Reference to Participant")
+    participant_id: str = Field(description="Participant ID")
+    name: str = Field(description="Player name")
     position: str = Field(description="Grid coordinate as 'x,y'")
     inventory: List[str] = Field(default=[], description="Player inventory")
     health: str = Field(default="Fresh", description="Health state")
@@ -170,15 +182,16 @@ class PlayerStatePublic(BaseModel):
 
 
 class PlayerActionPublic(BaseModel):
-    participant_id: str = Field(description="Participant identifier")
+    participant_id: str = Field(description="Participant ID")
     action: str = Field(description="Action description")
     narration: str = Field(description="Narration to share with other players")
     memories: str = Field(description="Private memories not shared with other players")
     target: str = Field(description="Target coordinate as 'x,y'")
 
 
-class JudgeResultPublic(BaseModel):
-    result: str = Field(description="Result description")
-    reason: str = Field(default="", description="Reason for the result")
-    memories: str = Field(description="Private memories not shared with players")
-    narration: str = Field(description="Narration to share with other players")
+class StrategyPublic(BaseModel):
+    id: str = Field(description="Strategy ID")
+    name: str = Field(description="Strategy name")
+    personality: str = Field(description="Personality description")
+    description: str = Field(description="Detailed description of the strategy")
+    role: RoleType = Field(description="Type of strategy")

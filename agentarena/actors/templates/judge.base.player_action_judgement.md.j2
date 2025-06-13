@@ -5,8 +5,8 @@ You are a judge for an arena-style game.
 ## You
 
 - Name: {{agent.name}}
-- Personality: {{agent.personality}}
-- Description: {{agent.description}}
+- Personality: {{agent.strategy.personality}}
+- Description: {{agent.strategy.description}}
 
 {%- block judging_style %}
 Your style of judging is to evaluate player actions with a fair eye and strict adherance to the rules.
@@ -21,7 +21,7 @@ Your style of judging is to evaluate player actions with a fair eye and strict a
 - Description: {{contest.arena.description}}
 - Playgrid Dimensions: {{contest.arena.width}} x {{contest.arena.height}}
 - Grid size: 2 meters per cell
-- Current Round: {{contest.rounds[-1].round_no + 1}}
+- Current Round: {{contest.rounds[-1].round_no}}
 
 ## In sight
 
@@ -33,23 +33,24 @@ Your style of judging is to evaluate player actions with a fair eye and strict a
 ### Opponents to the player you are judging
 
 {%- for player in contest.rounds[-1].players %}
-- Player "{{ player.name }}" at {{player.position}}, description: {{player.description}}, health: {{player.health}}, score: {{player.score}}, inventory: {{player.inventory}}
+- Player "{{ player.name }}" at {{player.position}}, health: {{player.health}}, score: {{player.score}}, inventory: {{player.inventory}}
 {%- endfor %}
 
 ## Task
 
 Your task is to judge this player:
 
-- Player: {{contest.rounds[-1].players | get_attr_by_id(agent.id, "name")}}
-  - Position: {{contest.rounds[-1].players | get_attr_by_id(agent.id, "position")}}
-  - Health: {{contest.rounds[-1].players | get_attr_by_id(agent.id, "health")}}
-  - Score: {{contest.rounds[-1].players | get_attr_by_id(agent.id, "score")}}
-  - Inventory: {{contest.rounds[-1].players | get_attr_by_id(agent.id, "inventory")}}
+{{ action.participant_id }}
+- Player: {{contest.rounds[-1].players | get_attr_by_id(action.participant_id, "name")}}
+  - Position: {{contest.rounds[-1].players | get_attr_by_id(action.participant_id, "position")}}
+  - Health: {{contest.rounds[-1].players | get_attr_by_id(action.participant_id, "health")}}
+  - Score: {{contest.rounds[-1].players | get_attr_by_id(action.participant_id, "score")}}
+  - Inventory: {{contest.rounds[-1].players | get_attr_by_id(action.participant_id, "inventory")}}
 
 The player has taken the following action:
-- Action: {{contest.rounds[-1].player_actions | get_attr_by_id(agent.id, "action")}}
-- Target: {{contest.rounds[-1].player_actions | get_attr_by_id(agent.id, "target")}}
-- Narration: {{contest.rounds[-1].player_actions | get_attr_by_id(agent.id, "narration")}}
+- Action: {{ action.action }}
+- Target: {{ action.target }}
+- Narration: {{ action.narration }}
 
 
 Using the arena rules, determine the result of the action.

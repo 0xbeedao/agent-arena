@@ -293,3 +293,13 @@ It is working! Just need to save this data to the actions
                              "job_id":"best-blow-Cause-dance-RETIRE","message":"","state":"complete","child_data":[]
                              }
 ```
+
+## 2025-06-10
+
+Almost have the judge_results working - also need to debug the position and such in the player prompts
+
+Need a way to repeat those template requests for testing.
+
+Also would love a way to restart a round, or restart at an error even better
+
+## 2025-06-11

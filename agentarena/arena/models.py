@@ -143,6 +143,14 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
     def get_public(self) -> ContestRoundPublic:
         players = []
         for p in self.player_states:
+            possibles = [
+                x for x in self.player_actions if x.participant_id == p.participant_id
+            ]
+            pa = possibles[0] if possibles else None
+            possibles = [
+                x for x in self.judge_results if x.participant_id == p.participant_id
+            ]
+            jr = possibles[0] if possibles else None
             players.append(
                 PlayerPublic(
                     id=p.participant_id,
@@ -151,6 +159,8 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
                     inventory=p.inventory,
                     health=p.health,
                     score=p.score,
+                    action=pa.get_public() if pa else None,
+                    result=jr.get_public() if jr else None,
                 )
             )
         return ContestRoundPublic(
@@ -159,9 +169,6 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
             players=players,
             state=self.state,
             narrative=self.narrative,
-            player_states=[ps.get_public() for ps in self.player_states],
-            player_actions=[pa.get_public() for pa in self.player_actions],
-            judge_results=[jr.get_public() for jr in self.judge_results],
         )
 
 
@@ -371,6 +378,9 @@ class JudgeResultBase(SQLModel, table=False):
     contestround_id: str = Field(
         description="Contest Round identifier", foreign_key="contestround.id"
     )
+    participant_id: str = Field(
+        description="Participant identifier", foreign_key="participant.id"
+    )
     narration: str = Field(description="Narration to share with other players")
     memories: str = Field(description="Private memories not shared with players")
     result: str = Field(description="Result description")
@@ -488,6 +498,7 @@ class PlayerState(PlayerStateBase, DbBase, table=True):
 
     def get_public(self) -> PlayerStatePublic:
         return PlayerStatePublic(
+            name=self.participant.name,
             participant_id=self.participant_id,
             position=self.position,
             inventory=self.inventory,
@@ -524,6 +535,7 @@ class PlayerActionBase(SQLModel, table=False):
 
 class PlayerAction(PlayerActionBase, DbBase, table=True):
     contestround: ContestRound = Relationship(back_populates="player_actions")
+    player: Participant = Relationship()
 
     def get_public(self) -> PlayerActionPublic:
         return PlayerActionPublic(

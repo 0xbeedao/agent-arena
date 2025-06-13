@@ -55,16 +55,17 @@ class TemplateService(JinjaRenderer):
         if prompt.startswith("#jinja:"):
             key = prompt.replace("#jinja:", "")
             data = json.loads(req.data)
-            data["agent"] = agent
-            log.info("Rendering template for prompt", template=key)
+            data["agent"] = agent.get_public().model_dump()
+            log = log.bind(template=key)
+            log.info("Rendering template for prompt")
             try:
                 return self.render_template(key, data)
             except Exception as e:
-                log.error("Error rendering template", error=e)
+                log.error("Error rendering template", error=e, data=data)
                 with open("req.json", "w") as f:
                     json.dump(req.model_dump(), f)
-                with open("error.json", "w") as f:
-                    json.dump(req.data, f)
+                with open("error_data.json", "w") as f:
+                    json.dump(data, f)
                 raise e
         else:
             log.info("Returning raw prompt")

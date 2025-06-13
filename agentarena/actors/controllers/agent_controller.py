@@ -6,7 +6,7 @@ from codecs import decode
 from typing import Optional
 from typing import Tuple
 
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, Response
 from fastapi import Body
 from fastapi import HTTPException
 from nats.aio.msg import Msg
@@ -128,6 +128,16 @@ class AgentController(
         )
         return response
 
+    async def agent_prompt(
+        self, agent_id: str, req: ParticipantRequest, session: Session
+    ) -> Response:
+        stmt = select(Agent).where(Agent.participant_id == agent_id)
+        agent = session.exec(stmt).one_or_none()
+        if not agent:
+            raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
+        raw = await self.template_service.expand_prompt(agent, req, session)
+        return Response(content=raw, media_type="text/markdown")
+
     async def agent_request(
         self,
         participant_id: str,
@@ -248,5 +258,13 @@ class AgentController(
                     return job
 
             raise HTTPException(status_code=404, detail=result.model_dump())
+
+        @router.post("/{agent_id}/prompt", response_model=str)
+        async def prompt(
+            agent_id: str,
+            req: ParticipantRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.agent_prompt(agent_id, req, session)
 
         return router

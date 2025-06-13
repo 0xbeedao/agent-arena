@@ -221,6 +221,11 @@ class ModelController(Generic[T, MC, MU, MP]):
         create_endpoint()
         update_endpoint()
 
+        @router.get("/{obj_id}.{format}", response_model=str)
+        async def get_md(obj_id: str, format: str = "md"):
+            with self.model_service.get_session() as session:
+                return await self.get_model_with_format(obj_id, session, format=format)
+
         @router.get("/{obj_id}", response_model=MP)
         async def get(obj_id: str):
             with self.model_service.get_session() as session:

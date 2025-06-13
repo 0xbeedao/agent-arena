@@ -9,6 +9,7 @@ from agentarena.models import constants
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.dbbase import DbBase
+from agentarena.models.public import AgentPublic, StrategyPublic
 
 # ---- Agent Model
 
@@ -38,6 +39,14 @@ class Agent(AgentBase, DbBase, table=True):
     # relationships
     strategy: "Strategy" = Relationship(back_populates="agents")
 
+    def get_public(self):
+        return AgentPublic(
+            id=self.id,
+            name=self.name,
+            strategy=self.strategy.get_public() if self.strategy else None,
+            participant_id=self.participant_id,
+        )
+
 
 class AgentCreate(AgentBase, table=False):
     pass
@@ -53,14 +62,6 @@ class AgentUpdate(SQLModel, table=False):
         default=None,
         foreign_key="strategy.id",
     )
-
-
-class AgentPublic(AgentBase, table=False):
-    """
-    Public representation of an Agent.
-    """
-
-    id: str = Field(default=None, description="Unique identifier for the Agent")
 
 
 # ---- Strategy models
@@ -89,6 +90,15 @@ class Strategy(StrategyBase, DbBase, table=True):
     agents: List["Agent"] = Relationship(back_populates="strategy")
     prompts: List["StrategyPrompt"] = Relationship(back_populates="strategy")
 
+    def get_public(self):
+        return StrategyPublic(
+            id=self.id,
+            name=self.name,
+            personality=self.personality,
+            description=self.description,
+            role=self.role,
+        )
+
 
 class StrategyUpdate(SQLModel, table=False):
     """
@@ -114,10 +124,6 @@ class StrategyCreate(StrategyBase):
     prompts: List["StrategyPromptCreate"] = Field(description="List of prompts by key")
 
 
-class StrategyPublic(StrategyBase):
-    id: str
-
-
 class StrategyPromptBase(SQLModel, table=False):
     strategy_id: str = Field(foreign_key="strategy.id")
     prompt: str = Field(description="Prompt text")
@@ -131,7 +137,3 @@ class StrategyPrompt(StrategyPromptBase, DbBase, table=True):
 class StrategyPromptCreate(SQLModel, table=False):
     prompt: str = Field()
     key: PromptType = Field()
-
-
-class StrategyPromptPublic(StrategyPromptBase, table=False):
-    id: str = Field()

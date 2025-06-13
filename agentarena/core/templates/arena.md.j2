@@ -1,5 +1,10 @@
-## Arena
+## Arena {{ arena.id }}
+### {{ arena.name }}
 
-| **Name** | **ID** | **Description** | **Height** | **Width** | **Max Random Features** | **Rules** | **Winning Condition** |
-|----------|--------|----------------|------------|-----------|------------------------|-----------|----------------------|
-| {{ arena.name }} | {{ arena.id }} | {{ arena.description }} | {{ arena.height }} | {{ arena.width }} | {{ arena.max_random_features }} | {{ arena.rules }} | {{ arena.winning_condition }} |
+"{{ arena.description }}"
+
+- Height: {{ arena.height }}
+- Width: {{ arena.width }}
+- Max Random Features: {{ arena.max_random_features }}
+- Rules: {{ arena.rules }}
+- Winning Condition: {{ arena.winning_condition }}

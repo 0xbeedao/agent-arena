@@ -166,6 +166,9 @@ class RoundMachine(StateMachine):
             log.info("received judging action", result=result)
             jc = JudgeResultCreate(
                 contestround_id=self.contest_round.id,
+                participant_id=player_id,
+                narration=result.get("narration", ""),
+                memories=result.get("memories", ""),
                 result=result.get("result", ""),
                 reason=result.get("reason", ""),
             )
@@ -258,12 +261,13 @@ class RoundMachine(StateMachine):
             cb=self.handle_judging_action_message,
         )
         contest = self.contest_round.contest
-        contest_json = contest.model_dump_json()
-        action_json = action.model_dump_json()
+        contest_json = contest.get_public().model_dump_json()
+        action_json = action.get_public().model_dump_json()
+        player_json = action.player.get_public().model_dump_json()
         req = ParticipantRequest(
             job_id=job_id,
             command=PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT,
-            data=f'{{"contest":{contest_json},"action":{action_json}}}',
+            data=f'{{"contest":{contest_json},"action":{action_json},"player":{player_json}}}',
             message="judging action",
         )
         job = CommandJob(

@@ -1,6 +1,8 @@
 from typing import Any
 from typing import Sequence
 
+from agentarena.actors.models import Agent
+
 
 def datetimeformat_filter(value, format="%Y-%m-%d %H:%M:%S"):
     """
@@ -33,6 +35,8 @@ def get_attr_by_id(obj_list: Sequence[Any], id: str, attr: str):
     if not obj_list:
         return None
     for obj in obj_list:
-        if getattr(obj, "id", None) == id:
+        if isinstance(obj, dict) and "id" in obj and obj["id"] == id:
+            return obj.get(attr, None)
+        elif getattr(obj, "id", None) == id:
             return getattr(obj, attr, None)
     return None

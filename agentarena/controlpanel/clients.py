@@ -15,33 +15,33 @@ class BaseClient:
         self.base_url = config["url"]
         self.config = config
 
-    async def get(self, endpoint: str) -> Dict[str, Any]:
+    async def get(self, endpoint: str) -> httpx.Response:
         """GET request to API endpoint."""
         async with httpx.AsyncClient(base_url=self.base_url) as client:
             response = await client.get(endpoint)
             response.raise_for_status()
-            return response.json()
+            return response
 
-    async def post(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def post(self, endpoint: str, data: Dict[str, Any]) -> httpx.Response:
         """POST request to API endpoint."""
         async with httpx.AsyncClient(base_url=self.base_url) as client:
             response = await client.post(endpoint, json=data)
             response.raise_for_status()
-            return response.json()
+            return response
 
-    async def put(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def put(self, endpoint: str, data: Dict[str, Any]) -> httpx.Response:
         """PUT request to API endpoint."""
         async with httpx.AsyncClient(base_url=self.base_url) as client:
             response = await client.put(endpoint, json=data)
             response.raise_for_status()
-            return response.json()
+            return response
 
-    async def delete(self, endpoint: str) -> Dict[str, Any]:
+    async def delete(self, endpoint: str) -> httpx.Response:
         """DELETE request to API endpoint."""
         async with httpx.AsyncClient(base_url=self.base_url) as client:
             response = await client.delete(endpoint)
             response.raise_for_status()
-            return response.json()
+            return response
 
 
 class ArenaClient(BaseClient):
