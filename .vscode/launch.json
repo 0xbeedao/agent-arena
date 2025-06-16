@@ -33,6 +33,16 @@
         "env": {"PYTHONPATH": "/home/bruce/work/agent-arena"},
         "justMyCode": true,
         "console": "integratedTerminal"
+        },
+        {
+        "name": "Debug Control",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "agentarena.controlpanel.cli",
+        "python": "/home/bruce/work/agent-arena/.venv/bin/python",
+        "env": {"PYTHONPATH": "/home/bruce/work/agent-arena"},
+        "justMyCode": true,
+        "console": "integratedTerminal"
         }
     ]
 }
