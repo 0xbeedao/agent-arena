@@ -55,24 +55,7 @@ BASE_COMMANDS = {
                     },
                 },
             },
-            "start": {
-                "description": "start an arena",
-                "commands": {
-                    "$arena_ids": {
-                        "description": "Arena IDs",
-                        "commands": {},
-                    },
-                },
-            },
-            "stop": {
-                "description": "stop an arena",
-                "commands": {
-                    "$arena_ids": {
-                        "description": "Arena IDs",
-                        "commands": {},
-                    },
-                },
-            },
+            "create": {"description": "create an arena", "commands": {}},
         },
     },
     "help": {
@@ -94,6 +77,10 @@ BASE_COMMANDS = {
     "contest": {
         "description": "load a contest",
         "commands": {
+            "create": {
+                "description": "create a contest",
+                "commands": {},
+            },
             "load": {
                 "description": "load a contest",
                 "commands": {
@@ -105,15 +92,6 @@ BASE_COMMANDS = {
             },
             "start": {
                 "description": "start a contest",
-                "commands": {
-                    "$contest_ids": {
-                        "description": "Contest IDs",
-                        "commands": {},
-                    },
-                },
-            },
-            "stop": {
-                "description": "stop a contest",
                 "commands": {
                     "$contest_ids": {
                         "description": "Contest IDs",
@@ -251,12 +229,57 @@ class ArenaCommander:
         self.loaded = {}
 
     async def cmd_arena(self, args: list[str]):
+        arena_id = None
+        if len(args) == 0:
+            arena = self.loaded.get("arena", None)
+            arena_id = arena["id"] if arena else None
+            if not arena_id:
+                print(HTML("<bold><ansired>No arena id provided</ansired></bold>"))
+                return True
+            args = ["load", arena_id]
+
+        cmd = args.pop(0)
+
+        if cmd == "load":
+            arena_id = await self.cmd_arena_load(args)
+        elif cmd == "create":
+            arena_id = await self.cmd_arena_create(args)
+        else:
+            arena_id = cmd
+        if arena_id:
+            body = await self.arena_client.get(f"/api/arena/{arena_id}.md")
+            print(render_markdown(body.content.decode("utf-8")))
+
+        return True
+
+    async def cmd_arena_create(self, args: list[str]):
+        r = await self.arena_client.post("/api/arena", {})
+        r.raise_for_status()
+        self.loaded["arena"] = r.json()
+        return r.json()["id"]
+
+    async def cmd_arena_load(self, args: list[str]):
         if not args:
             print(HTML("<bold><ansired>No arena id provided</ansired></bold>"))
-            return True
+            return None
         r = await self.arena_client.get(f"/api/arena/{args[0]}")
+        r.raise_for_status()
         self.loaded["arena"] = r.json()
-        return True
+        return args[0]
+
+    async def cmd_arena_start(self, args: list[str]):
+        arena_id = None
+        if len(args) > 0:
+            arena_id = args[0]
+        else:
+            arena = self.loaded.get("arena", None)
+            arena_id = arena["id"] if arena else None
+        if not arena_id:
+            print(HTML("<bold><ansired>No arena id provided</ansired></bold>"))
+            return True
+        r = await self.arena_client.post(f"/api/arena/{arena_id}/start", {})
+        r.raise_for_status()
+        return arena_id
 
     async def cmd_arenas(self, args: list[str]):
         r = await self.arena_client.get("/api/arena")
@@ -272,12 +295,52 @@ class ArenaCommander:
         return True
 
     async def cmd_contest(self, args: list[str]):
+        contest_id = None
+        if len(args) == 0:
+            contest = self.loaded.get("contest", None)
+            contest_id = contest["id"] if contest else None
+            if not contest_id:
+                print(HTML("<bold><ansired>No contest id provided</ansired></bold>"))
+                return True
+            args = ["load", contest_id]
+
+        cmd = args.pop(0)
+
+        if cmd == "load":
+            contest_id = await self.cmd_contest_load(args)
+        elif cmd == "start":
+            contest_id = await self.cmd_contest_start(args)
+        else:
+            contest_id = cmd
+        if contest_id:
+            body = await self.arena_client.get(f"/api/contest/{contest_id}.md")
+            print(render_markdown(body.content.decode("utf-8")))
+
+        return True
+
+    async def cmd_contest_load(self, args: list[str]):
         if not args:
             print(HTML("<bold><ansired>No contest id provided</ansired></bold>"))
-            return True
+            return None
         r = await self.arena_client.get(f"/api/contest/{args[0]}")
+        r.raise_for_status()
         self.loaded["contest"] = r.json()
-        return True
+
+        return args[0]
+
+    async def cmd_contest_start(self, args: list[str]):
+        contest_id = None
+        if len(args) > 0:
+            contest_id = args[0]
+        else:
+            contest = self.loaded.get("contest", None)
+            contest_id = contest["id"] if contest else None
+        if not contest_id:
+            print(HTML("<bold><ansired>No contest id provided</ansired></bold>"))
+            return True
+        r = await self.arena_client.post(f"/api/contest/{contest_id}/start", {})
+        r.raise_for_status()
+        return contest_id
 
     async def cmd_contests(self, args: list[str]):
         r = await self.arena_client.get("/api/contest")
