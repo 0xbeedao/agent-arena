@@ -21,11 +21,11 @@ from agentarena.models.public import ArenaPublic
 from agentarena.models.public import ContestPublic
 from agentarena.models.public import ContestRoundPublic
 from agentarena.models.public import FeaturePublic
+from agentarena.models.public import JudgeResultPublic
 from agentarena.models.public import ParticipantPublic
+from agentarena.models.public import PlayerActionPublic
 from agentarena.models.public import PlayerPublic
 from agentarena.models.public import PlayerStatePublic
-from agentarena.models.public import PlayerActionPublic
-from agentarena.models.public import JudgeResultPublic
 
 
 class FeatureOriginType(str, Enum):

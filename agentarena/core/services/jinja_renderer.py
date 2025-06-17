@@ -21,6 +21,11 @@ class JinjaRenderer:
 
     def get_template(self, key: str):
         possibles = [key, f"{key}.md", f"{key}.md.j2"]
+        if key.lower() != key:
+            possibles.append(key.lower())
+            possibles.append(f"{key.lower()}.md")
+            possibles.append(f"{key.lower()}.md.j2")
+
         try:
             return self.env.select_template(possibles)
         except TemplateNotFound as te:
@@ -28,6 +33,11 @@ class JinjaRenderer:
 
     def render_template(self, key: str, data: dict) -> str:
         possibles = [key, f"{key}.j2", f"{key}.md", f"{key}.md.j2"]
+        if key.lower() != key:
+            possibles.append(key.lower())
+            possibles.append(f"{key.lower()}.md")
+            possibles.append(f"{key.lower()}.md.j2")
+
         try:
             template = self.env.select_template(possibles)
         except InvalidTemplateException as te:

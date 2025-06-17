@@ -39,10 +39,12 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
-from agentarena.models.constants import JobResponseState, PromptType
+from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.public import JobResponse
-from agentarena.models.requests import ControllerRequest, ParticipantRequest
+from agentarena.models.requests import ControllerRequest
+from agentarena.models.requests import ParticipantRequest
 
 
 class ContestController(

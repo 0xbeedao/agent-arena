@@ -50,4 +50,4 @@ prod:
   better_exceptions: False
 
 dev:
-  better_exceptions: True
+  better_exceptions: False

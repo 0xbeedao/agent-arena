@@ -1,35 +1,129 @@
-import os
 import asyncio
-from typing import Any, Dict, Sequence
-from prompt_toolkit import PromptSession
-from prompt_toolkit.history import FileHistory
-from prompt_toolkit.completion import Completer, WordCompleter, Completion
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit import print_formatted_text as print
-from pydantic import BaseModel
-from traitlets import List
-from .markdown_renderer import render_markdown
+import os
+from datetime import datetime
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+
 import yaml
+from prompt_toolkit import PromptSession
+from prompt_toolkit import print_formatted_text as print
+from prompt_toolkit.completion import Completer
+from prompt_toolkit.completion import Completion
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.shortcuts import print_container, input_dialog
+from prompt_toolkit.widgets import Frame
+from prompt_toolkit.widgets import TextArea
 
 from agentarena.util.files import find_file_upwards
 
+from .clients import ParticipantClient
 from .clients import ArenaClient
+from .clients import SchedulerClient
+from .markdown_renderer import render_markdown
+
+VERSION = "0.0.1"
 
 prod = getattr(os.environ, "ARENA_ENV", "dev") == "prod"
 
+CAPTURE_THE_FLAG_RULES = "Capture the flag. No fighting. Players move up to 2 spaces, if running, but may trip or be vulnerable when doing so. Players may only grab the flag or place it on the base from one space away."
+
+
+async def prompt_int(
+    prompt: str,
+    min_value: int = 0,
+    max_value: int = 1000,
+    default: int = 5,
+    words: List[str] = [],
+) -> int:
+    parsed_val = None
+    if len(words) == 0:
+        words.append(str(default))
+        words.append(str(min_value))
+        if default != 0:
+            for ix in range(1, 10):
+                words.append(str(ix * default))
+    session = PromptSession(completer=WordCompleter(words))
+    while parsed_val is None:
+        raw = await session.prompt_async(f"{prompt}: ")
+        if raw == "":
+            return default
+        try:
+            parsed_val = int(raw)
+        except ValueError:
+            print(HTML(f"<ansired>Invalid {prompt.lower()}</ansired>"))
+        if parsed_val is not None and parsed_val < 1:
+            print(HTML(f"<ansired>{prompt.lower()} must be greater than 0</ansired>"))
+        if parsed_val is not None and parsed_val > max_value:
+            print(
+                HTML(
+                    f"<ansired>{prompt.lower()} must be less than {max_value}</ansired>"
+                )
+            )
+    return parsed_val
+
+
+async def prompt_str(
+    prompt: str, default: Optional[str] = None, words: List[str] = []
+) -> Optional[str]:
+    if len(words) == 0 and default:
+        words.append(default)
+    session = PromptSession(completer=WordCompleter(words))
+    raw = await session.prompt_async(f"{prompt}: ")
+    if raw == "":
+        return default
+    return raw
+
+
+def print_title(title, error=False, success=False, info=False):
+    if error:
+        print(HTML(f"<bold><ansired>{title}</ansired></bold>"))
+    elif success:
+        print(HTML(f"<ansigreen>{title}</ansigreen>"))
+    elif info:
+        print(HTML(f"<bold><ansiblue><u>{title}</u></ansiblue></bold>"))
+    else:
+        print(HTML(f"<bold>{title}</bold>"))
+
 
 def print_arena_list(arenas):
-    print(HTML("<bold><ansiblue><u>Arenas</u></ansiblue></bold>"))
+    print_title("Arenas", info=True)
     for arena in arenas:
         print(HTML(f"  {arena['id']} - {arena['name']}"))
 
 
 def print_contest_list(contests):
-    print(HTML("<bold><ansiblue><u>Contests</u></ansiblue></bold>"))
+    print_title("Contests", info=True)
     for contest in contests:
         print(
             HTML(
                 f"  {contest['id']} - <ansiblue>{contest['arena']['name']}</ansiblue> - {contest['state']}"
+            )
+        )
+
+
+def print_participant_list(participants):
+    print_title("participants", info=True)
+    for participant in participants:
+        strat = participant.get("strategy")
+        strat_str = f" (strategy: {strat['name']})" if strat else ""
+        print(
+            HTML(
+                f"  {participant['id']} - {participant['name']}{strat_str} (participant: {participant['participant_id']})"
+            )
+        )
+
+
+def print_strategy_list(strategies):
+    print_title("Strategies", info=True)
+    for strat in strategies:
+        prompt_count = len(strat.get("prompts", []))
+        print(
+            HTML(
+                f"  {strat['id']} - {strat['name']} ({strat['role']}) | {strat['personality']} | {strat['description']} | prompts: {prompt_count}"
             )
         )
 
@@ -49,6 +143,10 @@ BASE_COMMANDS = {
             "load": {
                 "description": "load an arena",
                 "commands": {
+                    "latest": {
+                        "description": "load the latest arena",
+                        "commands": {},
+                    },
                     "$arena_ids": {
                         "description": "Arena IDs",
                         "commands": {},
@@ -75,7 +173,7 @@ BASE_COMMANDS = {
         "commands": {},
     },
     "contest": {
-        "description": "load a contest",
+        "description": "Contest Control",
         "commands": {
             "create": {
                 "description": "create a contest",
@@ -84,6 +182,10 @@ BASE_COMMANDS = {
             "load": {
                 "description": "load a contest",
                 "commands": {
+                    "latest": {
+                        "description": "load the latest contest",
+                        "commands": {},
+                    },
                     "$contest_ids": {
                         "description": "Contest IDs",
                         "commands": {},
@@ -93,6 +195,10 @@ BASE_COMMANDS = {
             "start": {
                 "description": "start a contest",
                 "commands": {
+                    "latest": {
+                        "description": "Start the latest contest",
+                        "commands": {},
+                    },
                     "$contest_ids": {
                         "description": "Contest IDs",
                         "commands": {},
@@ -105,20 +211,40 @@ BASE_COMMANDS = {
         "description": "list all contests",
         "commands": {},
     },
-}
-
-BASE_WORDS = [
-    "help",
-    "exit",
-    "clear",
-    "arenas",
-    "contests",
-]
-
-BASE_META = {
-    "exit": "exit the program",
-    "help": "show this help",
-    "contests": "Load contests",
+    "participant": {
+        "description": "Participant Control",
+        "commands": {
+            "create": {
+                "description": "create a participant",
+                "commands": {},
+            },
+            "load": {
+                "description": "load a participant by id",
+                "commands": {},
+            },
+        },
+    },
+    "participants": {
+        "description": "list all participants",
+        "commands": {},
+    },
+    "strategy": {
+        "description": "Strategy Control",
+        "commands": {
+            "create": {
+                "description": "create a strategy",
+                "commands": {},
+            },
+            "load": {
+                "description": "load a strategy by id",
+                "commands": {},
+            },
+        },
+    },
+    "strategies": {
+        "description": "list all strategies",
+        "commands": {},
+    },
 }
 
 
@@ -218,8 +344,11 @@ class CommandCompleter(Completer):
 
 
 class ArenaCommander:
-    def __init__(self, arena_client: ArenaClient):
-        self.arena_client = arena_client
+    def __init__(self, config: Dict[str, Any]):
+        self.arena_client = ArenaClient(config["arena"])
+        self.participant_client = ParticipantClient(config["actor"])
+        self.scheduler_client = SchedulerClient(config["scheduler"])
+        self.config = config
         self.loaded: Dict[str, Dict[str, Any]] = {}
         self.command_completer = CommandCompleter()
         self.session = PromptSession(
@@ -228,13 +357,29 @@ class ArenaCommander:
         )
         self.loaded = {}
 
+    def add_loaded(self, key: str, value: Any):
+        self.loaded[key] = value
+        self.command_completer.add_loaded(key, value)
+
+    def clean_id(self, id: str, key: str) -> str:
+        id = id.strip() if id else ""
+        if id == "latest":
+            possibles = self.loaded.get(key, [])
+            assert isinstance(possibles, list), f"{key} must be a list"
+            if len(possibles) == 0:
+                print_title(f"No {key} loaded", error=True)
+                return ""
+            sorted_possibles = sorted(possibles, key=lambda x: x.get("created_at", 0))
+            id = sorted_possibles[-1]["id"]
+        return id
+
     async def cmd_arena(self, args: list[str]):
         arena_id = None
         if len(args) == 0:
             arena = self.loaded.get("arena", None)
             arena_id = arena["id"] if arena else None
             if not arena_id:
-                print(HTML("<bold><ansired>No arena id provided</ansired></bold>"))
+                print_title("No arena id provided", error=True)
                 return True
             args = ["load", arena_id]
 
@@ -246,26 +391,84 @@ class ArenaCommander:
             arena_id = await self.cmd_arena_create(args)
         else:
             arena_id = cmd
+
         if arena_id:
+            arena_id = self.clean_id(arena_id, "arenas")
+
+        if arena_id and arena_id != "":
             body = await self.arena_client.get(f"/api/arena/{arena_id}.md")
             print(render_markdown(body.content.decode("utf-8")))
 
         return True
 
     async def cmd_arena_create(self, args: list[str]):
-        r = await self.arena_client.post("/api/arena", {})
+        data = {}
+        print_title("Create Arena", info=True)
+        data["name"] = await prompt_str("Name")
+        if not data["name"]:
+            return False
+        data["description"] = await prompt_str(
+            "Description", default=f"A new arena named {data['name']}"
+        )
+        data["height"] = await prompt_int(
+            "Height", min_value=1, max_value=1000, default=10
+        )
+        data["width"] = await prompt_int(
+            "Width", min_value=1, max_value=1000, default=10
+        )
+
+        data["rules"] = await self.session.prompt_async(
+            "Rules",
+            default=CAPTURE_THE_FLAG_RULES,
+        )
+        winning_condition = await prompt_str(
+            "Winning Condition",
+            default="First player to bring the flag to the base wins",
+        )
+        data["winning_condition"] = winning_condition
+        data["max_random_features"] = await prompt_int(
+            "Max Random Features", min_value=0, max_value=20, default=5
+        )
+        data["features"] = []
+        num_features = await prompt_int(
+            "Number of features", min_value=0, max_value=20, default=0
+        )
+        for i in range(num_features):
+            feature = {}
+            feature["name"] = await prompt_str(
+                f"Feature {i+1} name", default="base", words=["base", "flag"]
+            )
+            feature["description"] = await prompt_str(
+                f"Feature {i+1} description",
+                default=f"The flag the players are seeking to capture",
+                words=[
+                    "The flag the players are seeking to capture",
+                    "The Scoring Base",
+                ],
+            )
+            feature["position"] = await prompt_str(
+                f"Feature {i+1} position",
+                default=f"5,5",
+                words=["5,5", "1,5"],
+            )
+            feature["origin"] = "required"
+            data["features"].append(feature)
+        r = await self.arena_client.post("/api/arena", data)
         r.raise_for_status()
-        self.loaded["arena"] = r.json()
-        return r.json()["id"]
+        data = r.json()
+        self.loaded["arena"] = data
+        print_title(f"Arena {data['name']} created", success=True)
+        return data["id"]
 
     async def cmd_arena_load(self, args: list[str]):
         if not args:
-            print(HTML("<bold><ansired>No arena id provided</ansired></bold>"))
+            print_title("No arena id provided", error=True)
             return None
-        r = await self.arena_client.get(f"/api/arena/{args[0]}")
+        arena_id = self.clean_id(args[0], "arenas")
+        r = await self.arena_client.get(f"/api/arena/{arena_id}")
         r.raise_for_status()
         self.loaded["arena"] = r.json()
-        return args[0]
+        return arena_id
 
     async def cmd_arena_start(self, args: list[str]):
         arena_id = None
@@ -275,7 +478,7 @@ class ArenaCommander:
             arena = self.loaded.get("arena", None)
             arena_id = arena["id"] if arena else None
         if not arena_id:
-            print(HTML("<bold><ansired>No arena id provided</ansired></bold>"))
+            print_title("No arena id provided", error=True)
             return True
         r = await self.arena_client.post(f"/api/arena/{arena_id}/start", {})
         r.raise_for_status()
@@ -285,12 +488,12 @@ class ArenaCommander:
         r = await self.arena_client.get("/api/arena")
         arenas = r.json()
         # self.command_completer.update([a["id"] for a in arenas], "arena", False)
-        self.command_completer.add_loaded("arenas", arenas)
+        self.add_loaded("arenas", arenas)
         print_arena_list(arenas)
         return True
 
     async def cmd_clear(self, args: list[str]):
-        print(HTML("<bold><ansiblue><u>Cleared all loaded data</u></ansiblue></bold>"))
+        print_title("Cleared all loaded data", info=True)
         self.loaded = {}
         return True
 
@@ -300,7 +503,7 @@ class ArenaCommander:
             contest = self.loaded.get("contest", None)
             contest_id = contest["id"] if contest else None
             if not contest_id:
-                print(HTML("<bold><ansired>No contest id provided</ansired></bold>"))
+                print_title("No contest id provided", error=True)
                 return True
             args = ["load", contest_id]
 
@@ -312,7 +515,11 @@ class ArenaCommander:
             contest_id = await self.cmd_contest_start(args)
         else:
             contest_id = cmd
-        if contest_id:
+
+        if contest_id and isinstance(contest_id, str):
+            contest_id = self.clean_id(contest_id, "contests")
+
+        if contest_id and contest_id != "":
             body = await self.arena_client.get(f"/api/contest/{contest_id}.md")
             print(render_markdown(body.content.decode("utf-8")))
 
@@ -320,13 +527,14 @@ class ArenaCommander:
 
     async def cmd_contest_load(self, args: list[str]):
         if not args:
-            print(HTML("<bold><ansired>No contest id provided</ansired></bold>"))
+            print_title("No contest id provided", error=True)
             return None
-        r = await self.arena_client.get(f"/api/contest/{args[0]}")
+        contest_id = self.clean_id(args[0], "contests")
+        r = await self.arena_client.get(f"/api/contest/{contest_id}")
         r.raise_for_status()
         self.loaded["contest"] = r.json()
 
-        return args[0]
+        return contest_id
 
     async def cmd_contest_start(self, args: list[str]):
         contest_id = None
@@ -336,7 +544,7 @@ class ArenaCommander:
             contest = self.loaded.get("contest", None)
             contest_id = contest["id"] if contest else None
         if not contest_id:
-            print(HTML("<bold><ansired>No contest id provided</ansired></bold>"))
+            print_title("No contest id provided", error=True)
             return True
         r = await self.arena_client.post(f"/api/contest/{contest_id}/start", {})
         r.raise_for_status()
@@ -346,16 +554,157 @@ class ArenaCommander:
         r = await self.arena_client.get("/api/contest")
         contests = r.json()
         # self.command_completer.update([c["id"] for c in contests], "contest", False)
-        self.command_completer.add_loaded("contests", contests)
+        self.add_loaded("contests", contests)
         print_contest_list(contests)
         return True
 
     async def cmd_exit(self, args: list[str]):
-        print(HTML("<bold><ansiblue><u>Exiting...</u></ansiblue></bold>"))
+        print_title("Exiting...", info=True)
         return False
 
     async def cmd_help(self, args: list[str]):
-        print(HTML("<bold><ansiblue><u>Help</u></ansiblue></bold>"))
+        print_title("Help", info=True)
+        return True
+
+    async def cmd_participant(self, args: list[str]):
+        participant_id = None
+        if len(args) == 0:
+            participant = self.loaded.get("participant", None)
+            participant_id = participant["id"] if participant else None
+            if not participant_id:
+                print_title("No participant id provided", error=True)
+                return True
+            args = ["load", participant_id]
+        cmd = args.pop(0)
+        if cmd == "load":
+            participant_id = await self.cmd_participant_load(args)
+        elif cmd == "create":
+            participant_id = await self.cmd_participant_create(args)
+        else:
+            participant_id = cmd
+        if participant_id:
+            r = await self.participant_client.get(f"/api/agent/{participant_id}")
+            r.raise_for_status()
+            data = r.json()
+            self.loaded["participant"] = data
+            print_title(f"Loaded participant {data['name']}", success=True)
+            print_participant_list([data])
+        return True
+
+    async def cmd_participant_create(self, args: list[str]):
+        data = {}
+        print_title("Create participant", info=True)
+        data["name"] = await prompt_str("Name")
+        if not data["name"]:
+            return False
+        data["participant_id"] = await prompt_str("Participant ID")
+        data["model"] = await prompt_str("Model", default="gpt-3.5-turbo")
+        # Fetch strategies for selection
+        strat_resp = await self.participant_client.get("/api/strategy")
+        strategies = strat_resp.json()
+        print_title("Available Strategies", info=True)
+        for s in strategies:
+            print(HTML(f"  {s['id']} - {s['name']} ({s['role']})"))
+        strat_ids = [s["id"] for s in strategies]
+        data["strategy_id"] = await prompt_str("Strategy ID", words=strat_ids)
+        if data["strategy_id"] not in strat_ids:
+            print_title("Invalid strategy id", error=True)
+            return False
+        r = await self.participant_client.post("/api/agent", data)
+        r.raise_for_status()
+        data = r.json()
+        self.loaded["participant"] = data
+        print_title(f"participant {data['name']} created", success=True)
+        return data["id"]
+
+    async def cmd_participant_load(self, args: list[str]):
+        if not args:
+            print_title("No participant id provided", error=True)
+            return None
+        r = await self.participant_client.get(f"/api/agent/{args[0]}")
+        r.raise_for_status()
+        self.loaded["participant"] = r.json()
+        return args[0]
+
+    async def cmd_participants(self, args: list[str]):
+        r = await self.participant_client.get("/api/agent")
+        participants = r.json()
+        self.add_loaded("participants", participants)
+        print_participant_list(participants)
+        return True
+
+    async def cmd_strategy(self, args: list[str]):
+        strategy_id = None
+        if len(args) == 0:
+            strategy = self.loaded.get("strategy", None)
+            strategy_id = strategy["id"] if strategy else None
+            if not strategy_id:
+                print_title("No strategy id provided", error=True)
+                return True
+            args = ["load", strategy_id]
+        cmd = args.pop(0)
+        if cmd == "load":
+            strategy_id = await self.cmd_strategy_load(args)
+        elif cmd == "create":
+            strategy_id = await self.cmd_strategy_create(args)
+        else:
+            strategy_id = cmd
+        if strategy_id:
+            r = await self.participant_client.get(f"/api/strategy/{strategy_id}")
+            r.raise_for_status()
+            data = r.json()
+            self.loaded["strategy"] = data
+            print_title(f"Loaded strategy {data['name']}", success=True)
+            print_strategy_list([data])
+        return True
+
+    async def cmd_strategy_create(self, args: list[str]):
+        data = {}
+        print_title("Create Strategy", info=True)
+        data["name"] = await prompt_str("Name")
+        if not data["name"]:
+            return False
+        data["personality"] = await prompt_str("Personality")
+        data["description"] = await prompt_str("Description")
+        # Role selection
+        role_types = ["PLAYER", "ARENA", "JUDGE", "ANNOUNCER"]
+        data["role"] = await prompt_str("Role", default="PLAYER", words=role_types)
+        if data["role"] not in role_types:
+            print_title("Invalid role type", error=True)
+            return False
+        # Prompts
+        data["prompts"] = []
+        add_more = True
+        while add_more:
+            prompt_key = await prompt_str("Prompt Key (e.g. ARENA_GENERATE_FEATURES)")
+            prompt_text = await prompt_str("Prompt Text (jinja template or text)")
+            if prompt_key and prompt_text:
+                data["prompts"].append({"key": prompt_key, "prompt": prompt_text})
+            more = await prompt_str(
+                "Add another prompt? (y/n)", default="n", words=["y", "n"]
+            )
+            add_more = more and more.lower().startswith("y")
+        r = await self.participant_client.post("/api/strategy", data)
+        r.raise_for_status()
+        data = r.json()
+        self.loaded["strategy"] = data
+        print_title(f"Strategy {data['name']} created", success=True)
+        return data["id"]
+
+    async def cmd_strategy_load(self, args: list[str]):
+        if not args:
+            print_title("No strategy id provided", error=True)
+            return None
+        r = await self.participant_client.get(f"/api/strategy/{args[0]}")
+        r.raise_for_status()
+        self.loaded["strategy"] = r.json()
+        return args[0]
+
+    async def cmd_strategies(self, args: list[str]):
+        r = await self.participant_client.get("/api/strategy")
+        strategies = r.json()
+        self.add_loaded("strategies", strategies)
+        print_strategy_list(strategies)
         return True
 
     async def process_command(self, text: str):
@@ -370,6 +719,14 @@ class ArenaCommander:
             await self.cmd_arena(args)
         elif cmd == "arenas":
             await self.cmd_arenas(args)
+        elif cmd == "participant":
+            await self.cmd_participant(args)
+        elif cmd == "participants":
+            await self.cmd_participants(args)
+        elif cmd == "strategy":
+            await self.cmd_strategy(args)
+        elif cmd == "strategies":
+            await self.cmd_strategies(args)
         elif cmd == "clear":
             await self.cmd_clear(args)
         elif cmd == "contests":
@@ -379,22 +736,19 @@ class ArenaCommander:
         elif cmd == "exit":
             await self.cmd_exit(args)
         else:
-            print(HTML(f"<ansired>Unknown command: {cmd}</ansired>"))
+            print_title(f"Unknown command: {cmd}", error=True)
 
-    async def prompt(self, text: str) -> str:
-        prefix = []
-        if "arena" in self.loaded:
-            arena = self.loaded["arena"]
-            prefix.append(f"arena:{arena['id']}")
-        if "contest" in self.loaded:
-            contest = self.loaded["contest"]
-            prefix.append(f"contest:{contest['id']}")
-        if text:
-            prefix.append(f"{text}>")
-        else:
-            prefix.append("> ")
+    async def prompt(self, text: str = "> ") -> str:
+        keys = self.loaded.keys()
+        sorted_keys = sorted(keys)
+        for key in sorted_keys:
+            value = self.loaded[key]
+            if isinstance(value, list):
+                print(HTML(f"<ansiblue>{key}:</ansiblue> {len(value)}"))
+            else:
+                print(HTML(f"<ansiblue>{key}:</ansiblue> {value['id']}"))
         return await self.session.prompt_async(
-            "\n".join(prefix),
+            text,
             completer=self.command_completer,
             complete_while_typing=True,
         )
@@ -402,22 +756,29 @@ class ArenaCommander:
     async def start(self):
         while True:
             try:
-                text = await self.prompt("")
+                text = await self.prompt()
             except KeyboardInterrupt:
                 continue
             except EOFError:
                 break
             except Exception as e:
-                print(HTML(f"<ansired>{e}</ansired>"))
+                print_title(f"{e}", error=True)
                 continue
             await self.process_command(text)
 
 
 async def main():
     config = read_config()
-    arena_client = ArenaClient(config["arena"])
-    commander = ArenaCommander(arena_client)
-    print(HTML("<bold><ansiblue><u>Mister Agent Arena CLI</u></ansiblue></bold>"))
+    commander = ArenaCommander(config)
+    print_container(
+        Frame(
+            TextArea(
+                text=f"Version: {VERSION} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            ),
+            title="Mister Agent Control",
+        )
+    )
+
     await commander.start()
     print("GoodBye!")
 

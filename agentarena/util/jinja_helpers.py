@@ -1,8 +1,6 @@
 from typing import Any
 from typing import Sequence
 
-from agentarena.actors.models import Agent
-
 
 def datetimeformat_filter(value, format="%Y-%m-%d %H:%M:%S"):
     """

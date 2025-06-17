@@ -9,7 +9,8 @@ from agentarena.models import constants
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.dbbase import DbBase
-from agentarena.models.public import AgentPublic, StrategyPublic
+from agentarena.models.public import AgentPublic
+from agentarena.models.public import StrategyPublic
 
 # ---- Agent Model
 

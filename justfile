@@ -1,5 +1,5 @@
 all: checkvenv roll-logs
-    just server & just poller & just actor & wait
+    just actor & just arena & just scheduler & wait
 
 roll-log FILE ARCHIVE_DIR:
     if [ -f "{{FILE}}" ]; then \

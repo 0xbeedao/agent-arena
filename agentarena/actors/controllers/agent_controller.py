@@ -6,9 +6,10 @@ from codecs import decode
 from typing import Optional
 from typing import Tuple
 
-from fastapi import BackgroundTasks, Response
+from fastapi import BackgroundTasks
 from fastapi import Body
 from fastapi import HTTPException
+from fastapi import Response
 from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
@@ -232,6 +233,13 @@ class AgentController(
 
     def get_router(self):
         router = super().get_router()
+
+        @router.get("/{agent_id}.{format}", response_model=str)
+        async def get_md(agent_id: str, format: str = "md"):
+            with self.model_service.get_session() as session:
+                return await self.get_model_with_format(
+                    agent_id, session, format=format
+                )
 
         @router.get("/{agent_id}/health", response_model=JobResponse)
         async def health(agent_id: str):

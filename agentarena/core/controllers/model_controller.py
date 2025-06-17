@@ -122,13 +122,14 @@ class ModelController(Generic[T, MC, MU, MP]):
         if not response.success or not obj:
             raise HTTPException(status_code=404, detail=response.model_dump())
         pub = self.convert_to_public(obj)
+        key = self.model_name.lower()
         if format == "md":
             try:
                 self.log.info(
                     "rendering template", model=self.model_name, format=format, obj=pub
                 )
                 rendered = self.template_service.render_template(
-                    f"{self.model_name}.{format}", {self.model_name: pub}
+                    f"{key}.{format}", {key: pub}
                 )
                 return Response(content=rendered, media_type="text/markdown")
             except Exception as e:

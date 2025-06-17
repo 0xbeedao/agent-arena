@@ -61,8 +61,12 @@ class SchedulerClient(BaseClient):
     # Scheduler-specific methods will be added here
 
 
-class ActorClient(BaseClient):
-    """Client for Actor API."""
+class ParticipantClient(BaseClient):
+    """Client for Participant API."""
+
+
+class StrategyClient(BaseClient):
+    """Client for Strategy API."""
 
 
 class MessageBrokerClient:
