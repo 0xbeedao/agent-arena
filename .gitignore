@@ -113,3 +113,4 @@ storybook-static
 
 # tests
 /coverage/
+.arena-control.history
