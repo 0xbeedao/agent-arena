@@ -4,6 +4,7 @@ from dependency_injector import containers
 from dependency_injector import providers
 
 from agentarena.actors.controllers.agent_controller import AgentController
+from agentarena.actors.controllers.generatejob_controller import GenerateJobController
 from agentarena.actors.controllers.strategy_controller import StrategyController
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
@@ -144,6 +145,13 @@ class ActorContainer(containers.DeclarativeContainer):
         message_broker=message_broker,
         template_service=template_service,
         uuid_service=uuid_service,
+        logging=logging,
+    )
+
+    generatejob_controller = providers.Singleton(
+        GenerateJobController,
+        model_service=generatejob_service,
+        template_service=template_service,
         logging=logging,
     )
 

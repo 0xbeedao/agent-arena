@@ -1,0 +1,16 @@
+## Generate Job {{ generatejob.id }}
+- Job ID: {{ generatejob.job_id }}
+- Model: {{ generatejob.model }}
+- State: {{ generatejob.state }}
+- Started At: {{ generatejob.started_at | datetimeformat }}
+- Finished At: {{ generatejob.finished_at | datetimeformat }}
+
+### Prompt
+
+{{ generatejob.prompt }}
+
+{%- if generatejob.generated %}
+### Generated
+
+{{ generatejob.generated }}
+{%- endif %}

@@ -111,6 +111,14 @@ def print_job_list(jobs):
         print(HTML(f"  {job['id']} - {job['channel']} - {job['state']}"))
 
 
+def print_generate_job_list(jobs):
+    print_title("Generate Jobs", info=True)
+    for job in jobs:
+        print(
+            HTML(f"  {job['id']} - {job['job_id']} - {job['model']} - {job['state']}")
+        )
+
+
 def print_participant_list(participants):
     print_title("participants", info=True)
     for participant in participants:
@@ -243,6 +251,28 @@ BASE_COMMANDS = {
             },
         },
     },
+    "generatejobs": {
+        "description": "list all generate jobs",
+        "commands": {},
+    },
+    "generatejob": {
+        "description": "Generate Job Control",
+        "commands": {
+            "load": {
+                "description": "load a generate job by id",
+                "commands": {
+                    "latest": {
+                        "description": "load the latest generate job",
+                        "commands": {},
+                    },
+                    "$generatejob_ids": {
+                        "description": "Generate Job IDs",
+                        "commands": {},
+                    },
+                },
+            },
+        },
+    },
     "participant": {
         "description": "Participant Control",
         "commands": {
@@ -287,13 +317,14 @@ class CommandCompleter(Completer):
 
     def get_completions(self, document, complete_event):
         text = document.text_before_cursor.strip()
+        char_count = len(text)
         user_input = text.split()
         if len(user_input) == 0:
             yield from [
                 Completion(
                     text=word,
                     display_meta=self.commands[word]["description"],
-                    start_position=-1,
+                    start_position=-char_count,
                 )
                 for word in self.commands
             ]
@@ -309,7 +340,7 @@ class CommandCompleter(Completer):
                         Completion(
                             text=word,
                             display_meta=command_choices[word]["description"],
-                            start_position=-1,
+                            start_position=-char_count,
                         )
                         for word in command_choices
                     ]
@@ -325,7 +356,7 @@ class CommandCompleter(Completer):
                             Completion(
                                 text=word,
                                 display_meta=command_choices[subcommand]["description"],
-                                start_position=-1,
+                                start_position=-char_count,
                             )
                             for word in subcommands
                         ]
@@ -335,7 +366,7 @@ class CommandCompleter(Completer):
                             Completion(
                                 text=word,
                                 display_meta=command_choices[word]["description"],
-                                start_position=-1,
+                                start_position=-char_count,
                             )
                             for word in command_choices
                             if word.startswith(subcommand)
@@ -346,7 +377,7 @@ class CommandCompleter(Completer):
                     Completion(
                         text=key,
                         display_meta=self.commands[key]["description"],
-                        start_position=-1,
+                        start_position=-char_count,
                     )
                     for key in self.commands
                     if key.startswith(first_word)
@@ -371,6 +402,12 @@ class CommandCompleter(Completer):
                 for j in self.loaded["jobs"]:
                     rv[j["id"]] = {
                         "description": f"Job {j['channel']} {j['url']}",
+                        "commands": {},
+                    }
+            elif key == "$generatejob_ids" and "generatejobs" in self.loaded:
+                for j in self.loaded["generatejobs"]:
+                    rv[j["id"]] = {
+                        "description": f"Generate Job {j['job_id']} {j['model']}",
                         "commands": {},
                     }
             else:
@@ -594,7 +631,57 @@ class ArenaCommander:
         # self.command_completer.update([c["id"] for c in contests], "contest", False)
         self.add_loaded("contests", contests)
         print_contest_list(contests)
-        print_job_list(contests)
+        return True
+
+    async def cmd_exit(self, args: list[str]):
+        print_title("Exiting...", info=True)
+        return False
+
+    async def cmd_generatejob(self, args: list[str]):
+        job_id = None
+        if len(args) == 0:
+            job = self.loaded.get("generatejob", None)
+            job_id = job["id"] if job else None
+            if not job_id:
+                print_title("No generate job id provided", error=True)
+                return True
+            args = ["load", job_id]
+
+        cmd = args.pop(0)
+
+        if cmd == "load":
+            job_id = await self.cmd_generatejob_load(args)
+        else:
+            job_id = cmd
+
+        if job_id:
+            job_id = self.clean_id(job_id, "generatejobs")
+
+        if job_id and job_id != "":
+            body = await self.participant_client.get(f"/api/generatejob/{job_id}.md")
+            print(render_markdown(body.content.decode("utf-8")))
+
+        return True
+
+    async def cmd_generatejob_load(self, args: list[str]):
+        if not args:
+            print_title("No generate job id provided", error=True)
+            return None
+        job_id = self.clean_id(args[0], "generatejobs")
+        r = await self.participant_client.get(f"/api/generatejob/{job_id}")
+        r.raise_for_status()
+        self.loaded["generatejob"] = r.json()
+        return job_id
+
+    async def cmd_generatejobs(self, args: list[str]):
+        r = await self.participant_client.get("/api/generatejob")
+        jobs = r.json()
+        self.add_loaded("generatejobs", jobs)
+        print_generate_job_list(jobs)
+        return True
+
+    async def cmd_help(self, args: list[str]):
+        print_title("Help", info=True)
         return True
 
     async def cmd_job(self, args: list[str]):
@@ -660,14 +747,6 @@ class ArenaCommander:
         jobs = r.json()
         self.add_loaded("jobs", jobs)
         print_job_list(jobs)
-        return True
-
-    async def cmd_exit(self, args: list[str]):
-        print_title("Exiting...", info=True)
-        return False
-
-    async def cmd_help(self, args: list[str]):
-        print_title("Help", info=True)
         return True
 
     async def cmd_participant(self, args: list[str]):
@@ -841,6 +920,10 @@ class ArenaCommander:
             await self.cmd_jobs(args)
         elif cmd == "job":
             await self.cmd_job(args)
+        elif cmd == "generatejobs":
+            await self.cmd_generatejobs(args)
+        elif cmd == "generatejob":
+            await self.cmd_generatejob(args)
         elif cmd == "exit":
             await self.cmd_exit(args)
         else:

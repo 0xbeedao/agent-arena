@@ -65,6 +65,7 @@ class AgentController(
             model_update=AgentUpdate,
             model_public=AgentPublic,
             model_service=agent_service,
+            template_service=template_service,
             logging=logging,
         )
         to_subscribe = [
@@ -257,21 +258,6 @@ class AgentController(
                 return await self.agent_request(
                     agent_id, req, session, background_tasks
                 )
-
-        @router.get("/request", response_model=List[GenerateJobPublic])
-        async def list_requests():
-            with self.model_service.get_session() as session:
-                return await self.job_service.list(session)
-
-        @router.get("/request/{job_id}", response_model=GenerateJob)
-        async def get_job(job_id: str):
-            with self.model_service.get_session() as session:
-                job, result = await self.job_service.get(job_id, session)
-
-                if job and result.success:
-                    return job
-
-            raise HTTPException(status_code=404, detail=result.model_dump())
 
         @router.post("/{agent_id}/prompt", response_model=str)
         async def prompt(
