@@ -316,72 +316,52 @@ class CommandCompleter(Completer):
         self.loaded = {}
 
     def get_completions(self, document, complete_event):
-        text = document.text_before_cursor.strip()
-        char_count = len(text)
-        user_input = text.split()
-        if len(user_input) == 0:
-            yield from [
-                Completion(
-                    text=word,
-                    display_meta=self.commands[word]["description"],
-                    start_position=-char_count,
-                )
-                for word in self.commands
-            ]
-        else:
-            first_word = user_input[0]
-            if first_word in self.commands:
-                command_choices = self.expand_commands(
-                    self.commands[first_word]["commands"]
-                )
-                if len(user_input) == 1:
-                    # first word matches, no more input, so show the subcommands
-                    yield from [
-                        Completion(
-                            text=word,
-                            display_meta=command_choices[word]["description"],
-                            start_position=-char_count,
-                        )
-                        for word in command_choices
-                    ]
-                else:
-                    # first word matches, we have more input, does it match a subcommand?
-                    subcommand = user_input[1]
-                    if subcommand in command_choices:
-                        subcommands = self.expand_commands(
-                            command_choices[subcommand]["commands"]
-                        )
+        text_before_cursor = document.text_before_cursor
+        words = text_before_cursor.lstrip().split()
+        word_before_cursor = document.get_word_before_cursor()
 
-                        yield from [
-                            Completion(
-                                text=word,
-                                display_meta=command_choices[subcommand]["description"],
-                                start_position=-char_count,
-                            )
-                            for word in subcommands
-                        ]
-                    else:
-                        # first word matches, no match on next, show matching
-                        yield from [
-                            Completion(
-                                text=word,
-                                display_meta=command_choices[word]["description"],
-                                start_position=-char_count,
-                            )
-                            for word in command_choices
-                            if word.startswith(subcommand)
-                        ]
-            else:
-                # first word doesn't match, try to find a match in the commands
-                yield from [
-                    Completion(
-                        text=key,
-                        display_meta=self.commands[key]["description"],
-                        start_position=-char_count,
+        if not words or (len(words) == 1 and not text_before_cursor.endswith(" ")):
+            # First word completion
+            for word in self.commands:
+                if word.startswith(word_before_cursor):
+                    yield Completion(
+                        text=word,
+                        display_meta=self.commands[word]["description"],
+                        start_position=-len(word_before_cursor),
                     )
-                    for key in self.commands
-                    if key.startswith(first_word)
-                ]
+            return
+
+        if text_before_cursor.endswith(" "):
+            # Start suggesting next command part
+            path = words
+            word_to_complete = ""
+        else:
+            # Complete current command part
+            path = words[:-1]
+            word_to_complete = words[-1]
+
+        current_level_commands = self.commands
+        for part in path:
+            expanded_commands = self.expand_commands(current_level_commands)
+            # Find a match for the path part in the expanded commands
+            match_found = False
+            for cmd_key, cmd_val in expanded_commands.items():
+                if cmd_key == part:
+                    current_level_commands = cmd_val.get("commands", {})
+                    match_found = True
+                    break
+            if not match_found:
+                return  # Invalid command path
+
+        command_choices = self.expand_commands(current_level_commands)
+
+        for word, details in command_choices.items():
+            if word.startswith(word_to_complete):
+                yield Completion(
+                    text=word,
+                    display_meta=details.get("description", ""),
+                    start_position=-len(word_to_complete),
+                )
 
     def expand_commands(self, commands: Dict) -> Dict:
         rv = {}
