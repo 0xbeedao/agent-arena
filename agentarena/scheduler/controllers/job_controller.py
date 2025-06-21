@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 from fastapi import APIRouter
 from fastapi import Body
@@ -57,6 +58,7 @@ class JobController(
             template_service=template_service,
             logging=logging,
         )
+        self.log.info(f"Templates: {template_service.env.list_templates()}")
 
     async def redo(self, job_id: str, session: Session, rekey: bool = False):
         """Clones a job to pending to run it again"""
@@ -102,6 +104,16 @@ class JobController(
         async def create(req: CommandJobCreate = Body(...)):
             with self.model_service.get_session() as session:
                 return await self.create_model(req, session)
+
+        @router.get("", response_model=List[CommandJobPublic])
+        async def list_all():
+            with self.model_service.get_session() as session:
+                return await self.get_model_list(session)
+
+        @router.get("/{obj_id}.{format}", response_model=str)
+        async def get_md(obj_id: str, format: str = "md"):
+            with self.model_service.get_session() as session:
+                return await self.get_model_with_format(obj_id, session, format=format)
 
         @router.get("/{obj_id}", response_model=CommandJobPublic)
         async def get(obj_id: str):

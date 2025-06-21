@@ -1,0 +1,27 @@
+## Command Job {{ commandjob.id }}
+
+{%- if commandjob.parent_id %}
+- Parent: {{ commandjob.parent_id }}
+{%- endif %}
+- Channel: {{ commandjob.channel }}
+- Method: {{ commandjob.method }}
+- URL: {{ commandjob.url }}
+- Priority: {{ commandjob.priority }}
+- State: {{ commandjob.state }}
+- Started At: {{ commandjob.started_at | datetimeformat }}
+- Finished At: {{ commandjob.finished_at | datetimeformat }}
+
+{%- if commandjob.data %}
+- Data: {{ commandjob.data }}
+{%- endif %}
+
+### History
+{% if commandjob.history %}
+{% for h in commandjob.history %}
+- State: {{ h.to_state }} at {{ h.started_at | datetimeformat }}
+- Message: {{ h.message }}
+- Data: {{ h.data }}
+{% endfor %}
+{% else %}
+- No history
+{% endif %}

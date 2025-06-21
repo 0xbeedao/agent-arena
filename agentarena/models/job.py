@@ -15,7 +15,7 @@ from sqlmodel import SQLModel
 
 from agentarena.models.constants import JobState
 from agentarena.models.dbbase import DbBase
-from agentarena.models.public import CommandJobHistoryPublic
+from agentarena.models.public import CommandJobHistoryPublic, GenerateJobPublic
 from agentarena.models.public import CommandJobPublic
 from agentarena.models.public import UrlJobRequest
 
@@ -181,7 +181,6 @@ class GenerateJobBase(SQLModel):
     )
     model: str = Field(description="model name")
     prompt: str = Field(description="Prompt to send")
-    text: Optional[str] = Field(description="Generated text")
     state: JobState = Field(
         default=JobState.IDLE, description="Job state, see JobState states"
     )
@@ -196,7 +195,18 @@ class GenerateJobBase(SQLModel):
 
 
 class GenerateJob(GenerateJobBase, DbBase, table=True):
-    pass
+
+    def get_public(self) -> GenerateJobPublic:
+        return GenerateJobPublic(
+            id=self.id,
+            job_id=self.job_id,
+            generated=self.generated,
+            model=self.model,
+            prompt=self.prompt,
+            state=self.state,
+            started_at=self.started_at,
+            finished_at=self.finished_at,
+        )
 
 
 class GenerateJobCreate(GenerateJobBase, table=False):

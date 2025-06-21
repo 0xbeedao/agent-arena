@@ -90,6 +90,17 @@ class FeaturePublic(BaseModel):
     )
 
 
+class GenerateJobPublic(BaseModel):
+    id: str = Field(default="", description="ID")
+    job_id: str = Field(description="Job ID")
+    generated: Optional[str] = Field(default=None, description="Generated")
+    model: str = Field(description="Model")
+    prompt: str = Field(description="Prompt")
+    state: JobState = Field(description="Job state")
+    started_at: int = Field(description="Timestamp")
+    finished_at: Optional[int] = Field(default=None, description="Timestamp")
+
+
 class UrlJobRequest(BaseModel):
     channel: str = Field(
         default="job.url.request",

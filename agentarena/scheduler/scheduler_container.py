@@ -95,6 +95,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
 
     template_service = providers.Singleton(
         JinjaRenderer,
+        base_path="agentarena.scheduler",
     )
 
     # model services

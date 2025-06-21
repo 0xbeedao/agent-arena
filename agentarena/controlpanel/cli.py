@@ -105,6 +105,12 @@ def print_contest_list(contests):
         )
 
 
+def print_job_list(jobs):
+    print_title("Jobs", info=True)
+    for job in jobs:
+        print(HTML(f"  {job['id']} - {job['channel']} - {job['state']}"))
+
+
 def print_participant_list(participants):
     print_title("participants", info=True)
     for participant in participants:
@@ -210,6 +216,32 @@ BASE_COMMANDS = {
     "contests": {
         "description": "list all contests",
         "commands": {},
+    },
+    "jobs": {
+        "description": "list all jobs",
+        "commands": {},
+    },
+    "job": {
+        "description": "Job Control",
+        "commands": {
+            "create": {
+                "description": "create a job",
+                "commands": {},
+            },
+            "load": {
+                "description": "load a job by id",
+                "commands": {
+                    "latest": {
+                        "description": "load the latest job",
+                        "commands": {},
+                    },
+                    "$job_ids": {
+                        "description": "Job IDs",
+                        "commands": {},
+                    },
+                },
+            },
+        },
     },
     "participant": {
         "description": "Participant Control",
@@ -333,6 +365,12 @@ class CommandCompleter(Completer):
                 for c in self.loaded["contests"]:
                     rv[c["id"]] = {
                         "description": f"Contest {c['arena']['name']}",
+                        "commands": {},
+                    }
+            elif key == "$job_ids" and "jobs" in self.loaded:
+                for j in self.loaded["jobs"]:
+                    rv[j["id"]] = {
+                        "description": f"Job {j['channel']} {j['url']}",
                         "commands": {},
                     }
             else:
@@ -556,6 +594,72 @@ class ArenaCommander:
         # self.command_completer.update([c["id"] for c in contests], "contest", False)
         self.add_loaded("contests", contests)
         print_contest_list(contests)
+        print_job_list(contests)
+        return True
+
+    async def cmd_job(self, args: list[str]):
+        job_id = None
+        if len(args) == 0:
+            job = self.loaded.get("job", None)
+            job_id = job["id"] if job else None
+            if not job_id:
+                print_title("No job id provided", error=True)
+                return True
+            args = ["load", job_id]
+
+        cmd = args.pop(0)
+
+        if cmd == "load":
+            job_id = await self.cmd_job_load(args)
+        elif cmd == "create":
+            job_id = await self.cmd_job_create(args)
+        else:
+            job_id = cmd
+
+        if job_id:
+            job_id = self.clean_id(job_id, "jobs")
+
+        if job_id and job_id != "":
+            body = await self.scheduler_client.get(f"/api/job/{job_id}.md")
+            print(render_markdown(body.content.decode("utf-8")))
+
+        return True
+
+    async def cmd_job_load(self, args: list[str]):
+        if not args:
+            print_title("No job id provided", error=True)
+            return None
+        job_id = self.clean_id(args[0], "jobs")
+        r = await self.scheduler_client.get(f"/api/job/{job_id}")
+        r.raise_for_status()
+        self.loaded["job"] = r.json()
+        return job_id
+
+    async def cmd_job_create(self, args: list[str]):
+        data = {}
+        print_title("Create Job", info=True)
+        data["channel"] = await prompt_str("Channel", default="default")
+        data["method"] = await prompt_str(
+            "Method", default="POST", words=["POST", "GET", "PUT", "DELETE"]
+        )
+        data["url"] = await prompt_str(
+            "URL", default="http://localhost:8000/api/debug/health"
+        )
+        data["priority"] = await prompt_int("Priority", default=50)
+        data["data"] = await prompt_str("Data (json)", default="{}")
+
+        r = await self.scheduler_client.post("/api/job", data)
+        r.raise_for_status()
+        data = r.json()
+        self.loaded["job"] = data
+        print_title(f"Job {data['id']} created", success=True)
+        return data["id"]
+
+    async def cmd_jobs(self, args: list[str]):
+        r = await self.scheduler_client.get("/api/job")
+        jobs = r.json()
+        self.add_loaded("jobs", jobs)
+        print_job_list(jobs)
         return True
 
     async def cmd_exit(self, args: list[str]):
@@ -733,6 +837,10 @@ class ArenaCommander:
             await self.cmd_contests(args)
         elif cmd == "contest":
             await self.cmd_contest(args)
+        elif cmd == "jobs":
+            await self.cmd_jobs(args)
+        elif cmd == "job":
+            await self.cmd_job(args)
         elif cmd == "exit":
             await self.cmd_exit(args)
         else:

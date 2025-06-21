@@ -14,6 +14,7 @@ from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 from sqlmodel import select
+from traitlets import List
 
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
@@ -33,7 +34,7 @@ from agentarena.models.constants import JobState
 from agentarena.models.constants import PromptType
 from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
-from agentarena.models.public import JobResponse
+from agentarena.models.public import GenerateJobPublic, JobResponse
 from agentarena.models.requests import HealthStatus
 from agentarena.models.requests import ParticipantRequest
 
@@ -256,6 +257,11 @@ class AgentController(
                 return await self.agent_request(
                     agent_id, req, session, background_tasks
                 )
+
+        @router.get("/request", response_model=List[GenerateJobPublic])
+        async def list_requests():
+            with self.model_service.get_session() as session:
+                return await self.job_service.list(session)
 
         @router.get("/request/{job_id}", response_model=GenerateJob)
         async def get_job(job_id: str):
