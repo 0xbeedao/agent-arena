@@ -49,7 +49,6 @@ class LLMService:
             prompt=prompt,
             state=JobState.IDLE,
             started_at=0,
-            text=None,
         )
         return job
 

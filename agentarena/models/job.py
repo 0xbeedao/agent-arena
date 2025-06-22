@@ -209,5 +209,13 @@ class GenerateJob(GenerateJobBase, DbBase, table=True):
         )
 
 
+class GenerateJobRepeat(SQLModel, table=False):
+    """Used to repeat a generate job"""
+
+    original_id: str = Field(description="The original job ID")
+    prompt: Optional[str] = Field(default=None, description="The prompt to send")
+    model: Optional[str] = Field(default=None, description="The model to use")
+
+
 class GenerateJobCreate(GenerateJobBase, table=False):
     pass

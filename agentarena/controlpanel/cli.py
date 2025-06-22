@@ -6,6 +6,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
+import llm
 import yaml
 from prompt_toolkit import PromptSession
 from prompt_toolkit import print_formatted_text as print
@@ -142,6 +143,19 @@ def print_strategy_list(strategies):
         )
 
 
+LLM_LIST = []
+
+
+def get_llm_words() -> List[str]:
+    global LLM_LIST
+    if len(LLM_LIST) == 0:
+        try:
+            LLM_LIST = [m.model_id for m in llm.get_models()]
+        except Exception:
+            LLM_LIST = []
+    return LLM_LIST
+
+
 def read_config():
     yamlfile = find_file_upwards("agent-arena-config.yaml")
     assert yamlfile, "Where is my config file?"
@@ -266,6 +280,19 @@ BASE_COMMANDS = {
                         "commands": {},
                     },
                     "$generatejob_ids": {
+                        "description": "Generate Job IDs",
+                        "commands": {},
+                    },
+                },
+            },
+            "repeat": {
+                "description": "repeat a generate job",
+                "commands": {
+                    "latest": {
+                        "description": "repeat the latest job",
+                        "commands": {},
+                    },
+                    "$job_ids": {
                         "description": "Generate Job IDs",
                         "commands": {},
                     },
@@ -631,6 +658,8 @@ class ArenaCommander:
 
         if cmd == "load":
             job_id = await self.cmd_generatejob_load(args)
+        elif cmd == "repeat":
+            job_id = await self.cmd_generatejob_repeat(args)
         else:
             job_id = cmd
 
@@ -652,6 +681,27 @@ class ArenaCommander:
         r.raise_for_status()
         self.loaded["generatejob"] = r.json()
         return job_id
+
+    async def cmd_generatejob_repeat(self, args: list[str]):
+        if not args:
+            print_title("No generate job id provided", error=True)
+            return None
+        job_id = self.clean_id(args[0], "generatejobs")
+        r = await self.participant_client.get(f"/api/generatejob/{job_id}")
+        r.raise_for_status()
+        self.loaded["generatejob"] = r.json()
+        words = get_llm_words()
+        model = await prompt_str(
+            "Model", default=self.loaded["generatejob"]["model"], words=words
+        )
+        r = await self.participant_client.post(
+            f"/api/generatejob/repeat", {"original_id": job_id, "model": model}
+        )
+        r.raise_for_status()
+        data = r.json()
+        self.loaded["generatejob"] = data
+        print_title(f"Generate job cloned, new ID is: {data['id']}", success=True)
+        return data["id"]
 
     async def cmd_generatejobs(self, args: list[str]):
         r = await self.participant_client.get("/api/generatejob")

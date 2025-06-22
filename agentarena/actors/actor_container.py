@@ -150,8 +150,10 @@ class ActorContainer(containers.DeclarativeContainer):
 
     generatejob_controller = providers.Singleton(
         GenerateJobController,
+        llm_service=llm_service,
         model_service=generatejob_service,
         template_service=template_service,
+        uuid_service=uuid_service,
         logging=logging,
     )
 

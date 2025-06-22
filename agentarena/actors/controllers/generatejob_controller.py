@@ -1,10 +1,15 @@
 from typing import List
-from sqlmodel import Field
+from fastapi import Body, HTTPException
+from fastapi import BackgroundTasks
+
+from sqlmodel import Field, Session
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
+from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.job import GenerateJob
+from agentarena.models.constants import JobState
+from agentarena.models.job import GenerateJob, GenerateJobRepeat
 from agentarena.models.job import GenerateJobCreate
 from agentarena.models.public import GenerateJobPublic
 from agentarena.core.services.model_service import ModelService
@@ -17,8 +22,10 @@ class GenerateJobController(
 ):
     def __init__(
         self,
+        llm_service: LLMService = Field(),
         model_service: ModelService[GenerateJob, GenerateJobCreate] = Field(),
         template_service: TemplateService = Field(),
+        uuid_service: UUIDService = Field(),
         logging: LoggingService = Field(description="Logger factory"),
     ):
         super().__init__(
@@ -31,9 +38,45 @@ class GenerateJobController(
             template_service=template_service,
             logging=logging,
         )
+        self.llm_service = llm_service
+        self.uuid_service = uuid_service
+
+    async def repeat_job(
+        self,
+        req: GenerateJobRepeat,
+        session: Session,
+        background_tasks: BackgroundTasks,
+    ) -> GenerateJobPublic:
+        job, result = await self.model_service.get(req.original_id, session)
+        if not job or not result.success:
+            raise HTTPException(status_code=404, detail=result.model_dump())
+
+        generate_job = GenerateJobCreate(
+            job_id=self.uuid_service.make_id(),
+            model=req.model or job.model,
+            prompt=req.prompt or job.prompt,
+            state=JobState.IDLE,
+        )
+        cloned, result = await self.model_service.create(generate_job, session)
+        if not cloned or not result.success:
+            self.log.error("error", result=result)
+            raise HTTPException(status_code=404, detail=result.model_dump())
+        self.log.info("cloned job", cloned=cloned.id, model=cloned.model)
+        session.commit()
+
+        background_tasks.add_task(self.llm_service.execute_job, cloned.id)
+
+        return cloned.get_public()
 
     def get_router(self):
         router = super().get_router()
+
+        @router.post("/repeat", response_model=GenerateJobPublic)
+        async def repeat_job(
+            background_tasks: BackgroundTasks, req: GenerateJobRepeat = Body(...)
+        ):
+            with self.model_service.get_session() as session:
+                return await self.repeat_job(req, session, background_tasks)
 
         # @router.get("", response_model=List[GenerateJobPublic])
         # async def list_requests():
