@@ -1,9 +1,8 @@
 import asyncio
-from datetime import datetime
-import llm  # Import llm at the top
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import llm  # Import llm at the top
 import pytest
 from sqlmodel import Session
 
@@ -120,7 +119,9 @@ async def test_execute_job_failure_invalid_model(
     mock_db_service.get_session.return_value.__enter__.return_value = mock_session
 
     # Mock LLM generate method to raise UnknownModelError
-    with patch.object(llm_service, "generate", side_effect=llm.UnknownModelError("Model not found")):
+    with patch.object(
+        llm_service, "generate", side_effect=llm.UnknownModelError("Model not found")
+    ):
         result_job = await asyncio.to_thread(llm_service.execute_job, gen_id)
 
     # Assertions

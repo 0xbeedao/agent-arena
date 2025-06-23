@@ -8,6 +8,7 @@ from typing import Optional
 
 import llm
 import yaml
+from nats.aio.msg import Msg
 from prompt_toolkit import PromptSession
 from prompt_toolkit import print_formatted_text as print
 from prompt_toolkit.completion import Completer
@@ -15,14 +16,16 @@ from prompt_toolkit.completion import Completion
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.shortcuts import print_container, input_dialog
+from prompt_toolkit.shortcuts import input_dialog
+from prompt_toolkit.shortcuts import print_container
 from prompt_toolkit.widgets import Frame
 from prompt_toolkit.widgets import TextArea
 
 from agentarena.util.files import find_file_upwards
 
-from .clients import ParticipantClient
 from .clients import ArenaClient
+from .clients import MessageBrokerClient
+from .clients import ParticipantClient
 from .clients import SchedulerClient
 from .markdown_renderer import render_markdown
 
@@ -428,6 +431,7 @@ class CommandCompleter(Completer):
 class ArenaCommander:
     def __init__(self, config: Dict[str, Any]):
         self.arena_client = ArenaClient(config["arena"])
+        self.message_broker = MessageBrokerClient(config["messagebroker"])
         self.participant_client = ParticipantClient(config["actor"])
         self.scheduler_client = SchedulerClient(config["scheduler"])
         self.config = config
@@ -438,6 +442,42 @@ class ArenaCommander:
             completer=self.command_completer,
         )
         self.loaded = {}
+        self.subscriptions = {}
+
+    async def subscribe(self, channel: str):
+        if channel not in self.subscriptions:
+            self.subscriptions[channel] = await self.message_broker.subscribe(
+                channel, self.on_message
+            )
+        return self.subscriptions[channel]
+
+    async def unsubscribe(self, channel: str):
+        if channel in self.subscriptions:
+            await self.subscriptions[channel].unsubscribe()
+            del self.subscriptions[channel]
+
+    async def on_message(self, msg: Msg):
+        # actor.llm.id.job_id.state
+        parts = msg.subject.split(".")
+        if parts[1] == "llm" and len(parts) == 5:
+            id = parts[2]
+            job_id = parts[3]
+            job_state = parts[4]
+            if job_state == "start":
+                print_title(f"Generation job {job_id} started", success=True)
+            elif job_state == "complete":
+                print_title(f"Generation job {job_id} completed", success=True)
+                await self.unsubscribe(f"actor.llm.{id}.*.*")
+                r = await self.participant_client.get(f"/api/generatejob/{id}")
+                data = r.json()
+                self.add_loaded("generatejob", data)
+                r = await self.participant_client.get(f"/api/generatejob/{id}.md")
+                print(render_markdown(r.content.decode("utf-8")))
+            elif job_state == "fail":
+                print_title(f"Generation job {job_id} failed", error=True)
+                await self.unsubscribe(f"actor.llm.{id}.>")
+        else:
+            print_title(f"Unknown message: {msg.subject}", error=True)
 
     def add_loaded(self, key: str, value: Any):
         self.loaded[key] = value
@@ -655,27 +695,37 @@ class ArenaCommander:
             args = ["load", job_id]
 
         cmd = args.pop(0)
+        show_md = True
 
         if cmd == "load":
             job_id = await self.cmd_generatejob_load(args)
         elif cmd == "repeat":
             job_id = await self.cmd_generatejob_repeat(args)
+            show_md = False
         else:
             job_id = cmd
 
-        if job_id:
-            job_id = self.clean_id(job_id, "generatejobs")
+        if show_md:
+            if job_id:
+                job_id = self.clean_id(job_id, "generatejobs")
 
-        if job_id and job_id != "":
-            body = await self.participant_client.get(f"/api/generatejob/{job_id}.md")
-            print(render_markdown(body.content.decode("utf-8")))
+            if job_id and job_id != "":
+                body = await self.participant_client.get(
+                    f"/api/generatejob/{job_id}.md"
+                )
+                print(render_markdown(body.content.decode("utf-8")))
 
         return True
 
     async def cmd_generatejob_load(self, args: list[str]):
         if not args:
-            print_title("No generate job id provided", error=True)
-            return None
+            job = self.loaded.get("generatejob", None)
+            if not job:
+                print_title("No generate job id provided", error=True)
+                return None
+            job_id = job["id"]
+            args = [job_id]
+
         job_id = self.clean_id(args[0], "generatejobs")
         r = await self.participant_client.get(f"/api/generatejob/{job_id}")
         r.raise_for_status()
@@ -684,8 +734,13 @@ class ArenaCommander:
 
     async def cmd_generatejob_repeat(self, args: list[str]):
         if not args:
-            print_title("No generate job id provided", error=True)
-            return None
+            job = self.loaded.get("generatejob", None)
+            if not job:
+                print_title("No generate job id provided", error=True)
+                return None
+            job_id = job["id"]
+            args = [job_id]
+
         job_id = self.clean_id(args[0], "generatejobs")
         r = await self.participant_client.get(f"/api/generatejob/{job_id}")
         r.raise_for_status()
@@ -701,7 +756,12 @@ class ArenaCommander:
         data = r.json()
         self.loaded["generatejob"] = data
         print_title(f"Generate job cloned, new ID is: {data['id']}", success=True)
-        return data["id"]
+        gen_id = data["id"]
+        channel = f"actor.llm.{gen_id}.>"
+        await self.subscribe(channel)
+        print(f"Waiting for job to complete... {channel}")
+
+        return gen_id
 
     async def cmd_generatejobs(self, args: list[str]):
         r = await self.participant_client.get("/api/generatejob")

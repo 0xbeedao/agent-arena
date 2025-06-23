@@ -52,7 +52,7 @@ class LLMService:
         )
         return job
 
-    def execute_job(self, gen_id: str):
+    async def execute_job(self, gen_id: str):
         log = self.log.bind(gen_id=gen_id)
         job = None
         generated = ""
@@ -71,8 +71,8 @@ class LLMService:
             prompt = job.prompt
             session.commit()
             # Send message that job has started
-            self.message_broker.publish_model_change(
-                channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.REQUEST}",
+            await self.message_broker.publish_model_change(
+                channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.REQUEST.value}",
                 obj_id=job.job_id,
                 detail="Generation job started",
             )
@@ -89,8 +89,8 @@ class LLMService:
                     job.finished_at = int(datetime.now().timestamp())
                     session.commit()
                     # Send message that job has failed
-                    self.message_broker.publish_model_change(
-                        channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.FAIL}",
+                    await self.message_broker.publish_model_change(
+                        channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.FAIL.value}",
                         obj_id=job.job_id,
                         detail="Generation job failed due to invalid model",
                     )
@@ -108,8 +108,8 @@ class LLMService:
             job.finished_at = int(datetime.now().timestamp())
             session.commit()
             # Send message that job has completed
-            self.message_broker.publish_model_change(
-                channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.COMPLETE}",
+            await self.message_broker.publish_model_change(
+                channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.COMPLETE.value}",
                 obj_id=job.job_id,
                 detail="Generation job completed successfully",
             )

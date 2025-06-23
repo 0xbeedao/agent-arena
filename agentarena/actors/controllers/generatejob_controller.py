@@ -1,18 +1,20 @@
-from typing import List
-from fastapi import Body, HTTPException
 from fastapi import BackgroundTasks
+from fastapi import Body
+from fastapi import HTTPException
+from sqlmodel import Field
+from sqlmodel import Session
 
-from sqlmodel import Field, Session
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.llm_service import LLMService
+from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobState
-from agentarena.models.job import GenerateJob, GenerateJobRepeat
+from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
+from agentarena.models.job import GenerateJobRepeat
 from agentarena.models.public import GenerateJobPublic
-from agentarena.core.services.model_service import ModelService
 
 
 class GenerateJobController(
