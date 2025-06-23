@@ -10,7 +10,7 @@
         "request": "launch",
         "module": "agentarena.actors.app",
         "python": "/home/bruce/work/agent-arena/.venv/bin/python",
-        "env": {"PYTHONPATH": "/home/bruce/work/agent-arena"},
+        "env": {"PYTHONPATH": "/home/bruce/work/agent-arena", "OLLAMA_HOST": "http://shore.local:11434", "LLM_OLLAMA_URL": "http://shore.local:11434"},
         "justMyCode": true,
         "console": "integratedTerminal"
         },

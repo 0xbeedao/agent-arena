@@ -51,3 +51,157 @@ prod:
 
 dev:
   better_exceptions: False
+
+llm:
+  - name: aion
+    key: openrouter/aion-labs/aion-1.0
+  - name: aion-mini
+    key: openrouter/aion-labs/aion-1.0-mini
+  - name: aion-rp
+    key: openrouter/aion-labs/aion-rp-llama-3.1-8b
+  - name: anubis
+    key: openrouter/thedrummer/anubis-pro-105b-v1
+  - name: celeste
+    key: openrouter/nothingiisreal/mn-celeste-12b
+  - name: chatgpt
+    key: gpt-3.5-turbo
+  - name: chatgpt-16k
+    key: 3.5-16k,gpt-3.5-turbo-16k
+  - name: chatgpt-4o
+    key: chatgpt-4o-latest
+  - name: claude-3.5
+    key: openrouter/anthropic/claude-3.7-sonnet
+  - name: claude-sonnet-4
+    key: openrouter/anthropic/claude-sonnet-4
+  - name: clauee-opus-4
+    key: openrouter/anthropic/claude-opus-4
+  - name: command-a
+    key: openrouter/cohere/command-a
+  - name: deepcoder
+    key: openrouter/agentica-org/deepcoder-14b-preview:free
+  - name: deepseek
+    key: openrouter/deepseek/deepseek-chat-v3-0324
+  - name: deepseek-free
+    key: openrouter/deepseek/deepseek-chat-v3-0324:free
+  - name: deepseek-r1
+    key: deepseek-r1:8b
+  - name: dobby
+    key: openrouter/sentientagi/dobby-mini-unhinged-plus-llama-3.1-8b
+  - name: dolphin3
+    key: dolphin3:latest
+  - name: dolphin-24
+    key: openrouter/cognitivecomputations/dolphin3.0-r1-mistral-24b:free
+  - name: drummer
+    key: openrouter/thedrummer/valkyrie-49b-v1
+  - name: euryale
+    key: openrouter/sao10k/l3.3-euryale-70b
+  - name: euryale-3.1
+    key: openrouter/sao10k/l3.1-euryale-70b
+  - name: eva
+    key: openrouter/eva-unit-01/eva-llama-3.33-70b
+  - name: eva-qwen
+    key: openrouter/eva-unit-01/eva-qwen-2.5-32b
+  - name: fimbulvetr
+    key: openrouter/sao10k/fimbulvetr-11b-v2
+  - name: gemini-2.5-flash
+    key: openrouter/google/gemini-2.5-flash
+  - name: gemini-2.5-pro
+    key: openrouter/google/gemini-2.5-pro
+  - name: gemini2-5-thinking
+    key: openrouter/google/gemini-2.5-flash-preview:thinking
+  - name: glm-32b
+    key: openrouter/thudm/glm-z1-32b:free
+  - name: gpt-4.5
+    key: gpt-4.5-preview
+  - name: gpt4
+    key: gpt-4
+  - name: gpt4.1
+    key: openrouter/openai/gpt-4.1
+  - name: gpt4.1-mini
+    key: openrouter/openai/gpt-4.1-mini
+  - name: gpt4.1-nano
+    key: openrouter/openai/gpt-4.1-nano
+  - name: gpt4o
+    key: gpt-4o
+  - name: gpt4o-mini
+    key: gpt-4o-mini
+  - name: grok3
+    key: openrouter/x-ai/grok-3
+  - name: grok3-mini
+    key: openrouter/x-ai/grok-3-mini
+  - name: haiku
+    key: openrouter/anthropic/claude-3.5-haiku
+  - name: hermes
+    key: openrouter/nousresearch/deephermes-3-llama-3-8b-preview:free
+  - name: infermatic
+    key: openrouter/infermatic/mn-inferor-12b
+  - name: inflection
+    key: openrouter/inflection/inflection-3-pi
+  - name: inflection-productivity
+    key: openrouter/inflection/inflection-3-productivity
+  - name: kimi
+    key: openrouter/moonshotai/kimi-dev-72b:free
+  - name: kimi-thinking
+    key: openrouter/moonshotai/kimi-vl-a3b-thinking:free
+  - name: liquid
+    key: openrouter/liquid/lfm-40b
+  - name: ll4-maverick
+    key: openrouter/meta-llama/llama-4-maverick
+  - name: ll4-scout
+    key: openrouter/meta-llama/llama-4-scout
+  - name: llama-3.3
+    key: openrouter/nvidia/llama-3.3-nemotron-super-49b-v1:free
+  - name: llama-4-maverick
+    key: openrouter/meta-llama/llama-4-maverick:free
+  - name: llama-4-scout
+    key: openrouter/meta-llama/llama-4-scout:free
+  - name: magistral-medium
+    key: openrouter/mistralai/magistral-medium-2506
+  - name: magistral-small
+    key: openrouter/mistralai/magistral-small-2506
+  - name: magnum
+    key: openrouter/anthracite-org/magnum-v4-72b
+  - name: midnight-rose
+    key: openrouter/sophosympatheia/midnight-rose-70b
+  - name: minimax
+    key: openrouter/minimax/minimax-m1
+  - name: mistral-small
+    key: openrouter/mistralai/mistral-small-3.1-24b-instruct:free
+  - name: o3
+    key: openrouter/openai/o3
+  - name: o3-hi
+    key: openrouter/openai/o3-mini-high
+  - name: o4-hi
+    key: openrouter/openai/o4-mini-high
+  - name: o4-mini
+    key: openrouter/openai/o4-mini
+  - name: open-4o-mini
+    key: openrouter/openai/gpt-4o-mini
+  - name: qwen
+    key: openrouter/qwen/qwen-max
+  - name: qwen3
+    key: qwen3:8b
+  - name: qwen3-14b
+    key: openrouter/qwen/qwen3-14b:free
+  - name: qwen3-30b
+    key: openrouter/qwen/qwen3-30b-a3b:free
+  - name: qwen3-32b
+    key: openrouter/qwen/qwen3-32b:free
+  - name: qwerky
+    key: openrouter/featherless/qwerky-72b:free
+  - name: qwq
+    key: openrouter/arliai/qwq-32b-arliai-rpr-v1:free
+  - name: reka
+    key: openrouter/rekaai/reka-flash-3:free
+  - name: rocinante
+    key: openrouter/thedrummer/rocinante-12b
+  - name: shisa
+    key: openrouter/shisa-ai/shisa-v2-llama3.3-70b:free
+  - name: skyfall
+    key: openrouter/thedrummer/skyfall-36b-v2
+  - name: sorcerer
+    key: openrouter/raifle/sorcererlm-8x22b
+  - name: starcannon
+    key: openrouter/aetherwiing/mn-starcannon-12b
+  - name: unslop-nemo
+    key: openrouter/thedrummer/unslopnemo-12b

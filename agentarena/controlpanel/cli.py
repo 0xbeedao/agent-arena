@@ -146,19 +146,6 @@ def print_strategy_list(strategies):
         )
 
 
-LLM_LIST = []
-
-
-def get_llm_words() -> List[str]:
-    global LLM_LIST
-    if len(LLM_LIST) == 0:
-        try:
-            LLM_LIST = [m.model_id for m in llm.get_models()]
-        except Exception:
-            LLM_LIST = []
-    return LLM_LIST
-
-
 def read_config():
     yamlfile = find_file_upwards("agent-arena-config.yaml")
     assert yamlfile, "Where is my config file?"
@@ -745,12 +732,24 @@ class ArenaCommander:
         r = await self.participant_client.get(f"/api/generatejob/{job_id}")
         r.raise_for_status()
         self.loaded["generatejob"] = r.json()
-        words = get_llm_words()
+        words = []
+        meta = {}
+        for m in self.config["llm"]:
+            words.append(m["name"])
+            meta[m["name"]] = m["key"]
+        words = sorted(words)
         model = await prompt_str(
-            "Model", default=self.loaded["generatejob"]["model"], words=words
+            "Model",
+            default=self.loaded["generatejob"]["model"],
+            words=words,
         )
+        model_id = meta.get(model, None)
+        if not model_id:
+            print_title(f"Invalid model: {model}", error=True)
+            return None
+
         r = await self.participant_client.post(
-            f"/api/generatejob/repeat", {"original_id": job_id, "model": model}
+            f"/api/generatejob/repeat", {"original_id": job_id, "model": model_id}
         )
         r.raise_for_status()
         data = r.json()
