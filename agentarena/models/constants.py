@@ -74,6 +74,7 @@ class PromptType(str, Enum):
 
     ANNOUNCER_DESCRIBE_ARENA = "announcer_describe_arena"
     ARENA_GENERATE_FEATURES = "arena_generate_features"
+    JUDGE_APPLY_EFFECTS = "judge_apply_effects"
     JUDGE_PLAYER_ACTION_JUDGEMENT = "judge_player_action_judgement"
     PLAYER_PLAYER_ACTION = "player_player_action"
 

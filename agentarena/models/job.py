@@ -14,6 +14,7 @@ from sqlmodel import Relationship
 from sqlmodel import SQLModel
 
 from agentarena.models.constants import JobState
+from agentarena.models.constants import PromptType
 from agentarena.models.dbbase import DbBase
 from agentarena.models.public import CommandJobHistoryPublic
 from agentarena.models.public import CommandJobPublic
@@ -176,6 +177,7 @@ class CommandJobBatchRequest(SQLModel, table=False):
 
 class GenerateJobBase(SQLModel):
     job_id: str = Field(description="external job ID foreign key")
+    prompt_type: PromptType = Field(description="Prompt type")
     generated: Optional[str] = Field(
         default=None,
         description="The response data",
@@ -204,6 +206,7 @@ class GenerateJob(GenerateJobBase, DbBase, table=True):
             generated=self.generated,
             model=self.model,
             prompt=self.prompt,
+            prompt_type=self.prompt_type.value,
             state=self.state,
             started_at=self.started_at,
             finished_at=self.finished_at,

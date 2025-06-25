@@ -1,0 +1,229 @@
+{% extends "judge.base.md.j2" %}
+{%- block feature_details %}
+{%- for feature in contest.rounds[-1].features %}
+- {{feature.name}} at "{{feature.position}}", "{{feature.description}}"
+{%- endfor %}
+{%- endblock %}
+
+
+{%- block task_body %}
+## Task
+
+The players have made moves, and you have judged them. Now you need to apply the effects of the moves to the arena.
+Resolve the effects of the moves, and provide updates to the player states and the features.
+
+### Player actions and judgements
+{%- for player in contest.rounds[-1].players %}
+Player: {{player.name}}
+- ID: {{player.id}}
+- Position: {{player.position}}
+- Action: {{player.action.action}}
+- Target: {{player.action.target}}
+- Narration: {{player.action.narration}}
+- Health: {{player.health}}
+- Score: {{player.score}}
+- Inventory: {{player.inventory}}
+- Judgement: {{player.result.result}}
+- Reason: {{player.result.reason}}
+- Narration: {{player.result.narration}}
+{%- endfor %}
+
+#### Example 1
+Feature: "tree"
+- ID: "id-for-tree"
+- Position: "1,3"
+- Description: "A tree with a fruit"
+
+Player: "Dude"
+- ID: "id-for-dude"
+- Position: "1,1"
+- Action: "move"
+- Target: "1,2"
+- Narration: "I move to the right, hiding behind the tree"
+- Health: "Fresh"
+- Score: 0
+- Inventory: []
+- Judgement: "success"
+- Reason: "The player moved to the right"
+- Narration: "Dude cautiously moves to the right"
+- Memories: "Dude is a bit of a daredevil"
+
+Player: "Wombat"
+- ID: "id-for-wombat"
+- Position: "5,5"
+- Action: "move"
+- Target: "4,4"
+- Narration: "I move toward the tree"
+- Health: "Fresh"
+- Score: 0
+- Inventory: []
+- Judgement: "success"
+- Reason: "The player moved successfully"
+- Narration: "Wombat moves toward the tree"
+- Memories: "Wombat is a wimp"
+
+Result:
+[{
+    "id": "id-for-dude",
+    "position": "1,2",
+    "health": "Fresh",
+    "score": 0,
+    "inventory": []
+    "narration": "Dude cautiously moves to the right"
+},
+{
+    "id": "id-for-wombat",
+    "position": "4,4",
+    "health": "Fresh",
+    "score": 0,
+    "inventory": []
+    "narration": "Wombat moves toward the tree"
+}
+]
+
+Note that since no features were changed, the result does not include any features.
+
+#### Example 2
+Feature: "flag"
+- ID: "id-for-flag"
+- Position: "3,3"
+- Description: "A flag"
+
+Player: "Dude"
+- ID: "id-for-dude"
+- Position: "2,2"
+- Action: "pick up flag"
+- Target: "3,3"
+- Narration: "I grab the flag"
+- Health: "Fresh"
+- Score: 0
+- Inventory: []
+- Judgement: "success, score: +25"
+- Reason: "The player picked up the flag"
+- Narration: "Dude grabs the flag"
+- Memories: "Dude is a bit of a daredevil"
+
+Player: "Wombat"
+- ID: "id-for-wombat"
+- Position: "4,4"
+- Action: "move"
+- Target: "2,2"
+- Narration: "I push Dude out of the way"
+- Health: "Fresh"
+- Score: 0
+- Inventory: []
+- Judgement: "mixed success, score: +5"
+- Reason: "The player pushed Dude, but is unbalanced"
+- Narration: "With an awkward movement, Wombat pushes Dude out of the way"
+- Memories: "Wombat is quite aggressive"
+
+Result:
+[{
+    "id": "id-for-dude",
+    "position": "2,2",
+    "health": "prone",
+    "score": 25,
+    "inventory": ["flag:id-for-flag"]
+    "narration": "Dude grabs the flag, but is shoved from the side and falls to the ground"
+},
+{
+    "id": "id-for-wombat",
+    "position": "2,2",
+    "health": "winded, unbalanced",
+    "score": 5,
+    "inventory": []
+    "narration": "Wombat pushes Dude out of the way, but is panting and unbalanced"
+},
+{
+    "id": "id-for-flag",
+    "position": "player:id-for-dude",
+    "description": "A flag"
+}
+]
+
+Note that the flag is now in the plater's inventory, and the player is now in the flag's position.
+
+#### Example 3
+Feature: "water trap"
+- ID: "id-for-water-trap"
+- Position: "2,3"
+- Description: "A water trap that will damage the player if they step on it"
+
+Feature: "base"
+- ID: "id-for-base"
+- Position: "4,5"
+- Description: "The scoring base of the arena, adds 100 points to the player's score when a flag is placed on it"
+
+Feature: "flag"
+- ID: "id-for-flag"
+- Position: "player:id-for-wombat"
+- Description: "A flag"
+
+Player: "Dude"
+- ID: "id-for-dude"
+- Position: "2,2"
+- Action: "move"
+- Target: "2,3"
+- Narration: "I move to the right"
+- Health: "blinded"
+- Score: 0
+- Inventory: []
+- Judgement: "success, score: -10"
+- Reason: "The player moved to the right"
+- Narration: "Dude moves to the right, but falls into the water trap"
+- Memories: "Dude cannot see the water trap"
+
+Player: "Wombat"
+- ID: "id-for-wombat"
+- Position: "4,4"
+- Action: "move"
+- Target: "4,5"
+- Narration: "I put the flag on the base"
+- Health: "Winded"
+- Score: 40
+- Inventory: ["flag:id-for-flag"]
+- Judgement: "success"
+- Reason: "The player put the flag on the base"
+- Narration: "Wombat puts the flag on the base"
+- Memories: "Wombat is quite aggressive"
+
+Result:
+
+[{
+    "id": "id-for-dude",
+    "position": "2,2",
+    "health": "blinded, wet, exhausted",
+    "score": -10,
+    "inventory": []
+    "narration": "Dude moves to the right, but falls into the water trap, and is now blind, wet, and exhausted"
+},
+{
+    "id": "id-for-wombat",
+    "position": "4,5",
+    "health": "winded",
+    "score": 140,
+    "inventory": []
+    "narration": "Wombat puts the flag on the base"
+},
+{
+    "id": "id-for-flag",
+    "position": "4,5",
+    "description": "A flag"
+}
+]
+
+Note that the flag is now on the base, and the base is now in the flag's position, the score is updated to reflect the base's score
+and the flag is no longer in the player's inventory.
+
+## Output
+{%- block judging_output %}
+Return only valid JSON in the following format and nothing else:
+
+{
+"result": <result>,
+"reason": <reason>,
+"narration": <in-personality narrative to share with the audience>,
+"memories": <private memories you will be given next round, up to 1000 characters, no scripts.>
+}
+{%- endblock %}
+{%- endblock %}

@@ -87,7 +87,7 @@ class StrategyController(
         session.commit()
 
         log.info("created")
-        return StrategyPublic.model_validate(strategy)
+        return strategy.get_public()
 
     def get_router(self):
         prefix = self.base_path

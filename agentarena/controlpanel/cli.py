@@ -6,7 +6,6 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-import llm
 import yaml
 from nats.aio.msg import Msg
 from prompt_toolkit import PromptSession
@@ -16,7 +15,6 @@ from prompt_toolkit.completion import Completion
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.shortcuts import input_dialog
 from prompt_toolkit.shortcuts import print_container
 from prompt_toolkit.widgets import Frame
 from prompt_toolkit.widgets import TextArea
@@ -119,7 +117,9 @@ def print_generate_job_list(jobs):
     print_title("Generate Jobs", info=True)
     for job in jobs:
         print(
-            HTML(f"  {job['id']} - {job['job_id']} - {job['model']} - {job['state']}")
+            HTML(
+                f"  {job['id']} - {job['job_id']} - {job['model']} - {job['prompt_type']} - {job['state']}"
+            )
         )
 
 

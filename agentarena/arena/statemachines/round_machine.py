@@ -54,7 +54,6 @@ class RoundMachine(StateMachine):
         in_progress.to(round_prompting)
         | round_prompting.to(awaiting_actions)
         | awaiting_actions.to(judging_actions)
-        | judging_actions.to(awaiting_actions)
         | judging_actions.to(awaiting_judging_actions)
         | awaiting_judging_actions.to(applying_effects)
         | applying_effects.to(describing_results)
@@ -126,10 +125,12 @@ class RoundMachine(StateMachine):
         for action in self.contest_round.player_actions:
             await self.send_judging_action_prompt(action)
         self.log.info("sent judging actions prompts")
-        await self.cycle("From judging_actions to applying_effects")
+        await self.cycle("judging_actions")
 
     async def on_enter_applying_effects(self):
         """Called when entering the ApplyingEffects state."""
+        await self.send_apply_effects_prompt()
+        self.log.info("sent applying effects prompt")
         await self.cycle("applying_effects")
 
     async def on_enter_describing_results(self):
@@ -138,12 +139,37 @@ class RoundMachine(StateMachine):
 
     async def on_enter_presenting_results(self):
         """Called when entering the PresentingResults state."""
-        await self.cycle("presenting_results")
+        await self.cycle("presenting_results")  # to describing_results
 
     async def on_enter_round_fail(self, message: str):
         """Called when entering the RoundFail state."""
         # TODO: Would be nice to save the message to the round
         self.log.error(f"Round failed: {message}")
+
+    async def handle_apply_effects_message(self, msg: Msg):
+        """Handle a apply effects message."""
+        msg_parts = msg.subject.split(".")
+        contest_id = msg_parts[2]
+        round_no = msg_parts[4]
+        log = self.log.bind(contest_id=contest_id, round_no=round_no)
+        log.info("received apply effects message", msg=msg)
+        await self.subscriber.unsubscribe(msg.subject, self.log)
+        try:
+            raw = decode(msg.data, "utf-8", "unicode_escape")
+            if not raw:
+                log.error("No data in message")
+                await self.cycle("step_failed")
+                return
+            result = extract_obj_from_json(raw)
+            if not result:
+                log.error("No result in message")
+                await self.cycle("step_failed")
+                return
+            log.info("received apply effects message", result=result)
+            asyncio.create_task(self.cycle("describing_results"))
+        except Exception as e:
+            log.error("Exception in handle_apply_effects_message", error=e)
+            await self.cycle("step_failed")
 
     async def handle_judging_action_message(self, msg: Msg):
         """Handle a judging action message."""
@@ -178,14 +204,17 @@ class RoundMachine(StateMachine):
                 await self.cycle("step_failed")
                 return
             self.pending_judging_actions.remove(player_id)
-            if (
-                self.current_state.id == ContestRoundState.JUDGING_ACTIONS.value
-                and len(self.pending_judging_actions) == 0
-            ):
+            if not self.pending_judging_actions:
                 log.info(
                     "all judging actions received, transitioning to applying effects"
                 )
                 asyncio.create_task(self.cycle("applying_effects"))
+            else:
+                log.info(
+                    "not all judging actions received, staying in awaiting judging actions",
+                    state=self.current_state.id,
+                    pending_judging_actions=self.pending_judging_actions,
+                )
         except Exception as e:
             log.error("Exception in handle_judging_action_message", error=e)
             await self.cycle("step_failed")
@@ -243,17 +272,51 @@ class RoundMachine(StateMachine):
             await self.step_failed(player_id)
             return
 
+    async def send_apply_effects_prompt(self):
+        """Send a prompt to apply effects."""
+        job_id = self.message_broker.uuid_service.make_id()
+        log = self.log.bind(job_id=job_id)
+        judges = self.contest_round.contest.get_role(RoleType.JUDGE)
+        if not judges:
+            log.error("No judges found for apply effects prompt")
+            return
+        judge = judges[0]
+        log.info("sending apply effects prompt")
+        channel = f"arena.contest.{self.contest_round.contest.id}.round.{self.contest_round.round_no}.apply_effects.prompt"
+        await self.subscriber.subscribe(
+            self.message_broker.client,
+            channel,
+            log,
+            cb=self.handle_apply_effects_message,
+        )
+        log.info(f"subscribed", channel=channel)
+        contest = self.contest_round.contest
+        contest_json = contest.get_public().model_dump_json()
+        req = ParticipantRequest(
+            job_id=job_id,
+            command=PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT,
+            data=f'{{"contest":{contest_json}}}',
+            message="judging action",
+        )
+        job = CommandJob(
+            channel=channel,
+            data=req.model_dump_json(),
+            method="POST",
+            url=judge.url("request"),
+        )
+        await self.message_broker.send_job(job)
+
     async def send_judging_action_prompt(self, action: PlayerAction):
         log = self.log
         log.info("sending judging action prompt", action=action)
         job_id = self.message_broker.uuid_service.make_id()
         channel = f"arena.contest.{self.contest_round.contest.id}.round.{self.contest_round.round_no}.judge_action.{action.participant_id}.prompt"
-        log.info(f"subscribed", job_id=job_id, channel=channel)
         judges = self.contest_round.contest.get_role(RoleType.JUDGE)
         if not judges:
             log.error("No judges found for judging action prompt")
             return
         judge = judges[0]
+        log.info(f"subscribed", job_id=job_id, channel=channel)
         await self.subscriber.subscribe(
             self.message_broker.client,
             channel,
@@ -276,7 +339,7 @@ class RoundMachine(StateMachine):
             method="POST",
             url=judge.url("request"),
         )
-        self.pending_judging_actions.add(judge.id)
+        self.pending_judging_actions.add(action.participant_id)
         await self.message_broker.send_job(job)
 
     async def send_player_prompt(self, player: Participant):

@@ -96,6 +96,7 @@ class GenerateJobPublic(BaseModel):
     generated: Optional[str] = Field(default=None, description="Generated")
     model: str = Field(description="Model")
     prompt: str = Field(description="Prompt")
+    prompt_type: str = Field(description="Prompt type")
     state: JobState = Field(description="Job state")
     started_at: int = Field(description="Timestamp")
     finished_at: Optional[int] = Field(default=None, description="Timestamp")

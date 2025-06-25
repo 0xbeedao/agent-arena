@@ -5,6 +5,10 @@
     {
       "key": "judge_player_action_judgement",
       "prompt": "#jinja:judge.creative.player_action_judgement"
+    },
+    {
+      "key": "judge_apply_effects",
+      "prompt": "#jinja:judge.creative.apply_effects"
     }
   ],
   "description": "A fun judge",

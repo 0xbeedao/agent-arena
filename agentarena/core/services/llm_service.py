@@ -8,6 +8,7 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobState
+from agentarena.models.constants import PromptType
 from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
 
@@ -38,7 +39,7 @@ class LLMService:
             raise ue
 
     def make_generate_job(
-        self, job_id: str, model: str, prompt: str
+        self, job_id: str, model: str, prompt: str, prompt_type: PromptType
     ) -> GenerateJobCreate:
         """
         Make a job for the generation, and save its output to db.
@@ -47,6 +48,7 @@ class LLMService:
             job_id=job_id,
             model=model,
             prompt=prompt,
+            prompt_type=prompt_type,
             state=JobState.IDLE,
             started_at=0,
         )

@@ -53,7 +53,11 @@ class RequestMachine(StateMachine):
     malformed_response = response.to(fail)
     state_failure = response.to(fail)
     state_complete = response.to(complete)
-    state_pending = response.to(waiting)
+    state_pending = (
+        request.to(waiting, unless="too_many_attempts")
+        | request.to(fail, cond="too_many_attempts")
+        | response.to(waiting)
+    )
 
     def __init__(
         self,
@@ -74,6 +78,7 @@ class RequestMachine(StateMachine):
         self.response_object: JobResponse | None = None
         self.log = logging.get_logger("machine", job=job.id)
         self.message_broker = message_broker
+        self.job_retries = 0
         super().__init__()
 
     async def on_enter_request(self):
@@ -84,6 +89,10 @@ class RequestMachine(StateMachine):
         elif method == "final":
             return await self.sent_message("final")
         return await self.send_request()
+
+    def too_many_attempts(self):
+        """Check if the request has been retried too many times"""
+        return self.job_retries > 5
 
     async def send_message(self):
         job = self.job
@@ -120,11 +129,17 @@ class RequestMachine(StateMachine):
             self.log.info("requesting", url=url, data=data, obj=obj)
 
             if method == "get":
-                response = httpx.Client().request(method, url, data=obj)
+                response = httpx.Client().request(method, url, data=obj, timeout=10)
             else:
-                response = httpx.Client().request(method, url, json=obj)
+                response = httpx.Client().request(method, url, json=obj, timeout=10)
 
             await self.receive_response(response)
+        except httpx.TimeoutException as te:
+            self.log.error(
+                f"timeout", retry=self.job_retries, max_retries=5, url=self.job.url
+            )
+            self.job_retries += 1
+            await self.state_pending("timeout")
         except Exception as e:
             self.log.error(
                 f"Error while fetching",

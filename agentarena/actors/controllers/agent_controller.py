@@ -209,8 +209,11 @@ class AgentController(
         self, agent: Agent, req: ParticipantRequest, session: Session, log: ILogger
     ) -> Tuple[Optional[GenerateJob], JobResponse]:
         prompt = await self.template_service.expand_prompt(agent, req, session)
-        self.log.debug(f"prompt:\n{prompt}", command=req.command.value)
-        gc = self.llm_service.make_generate_job(req.job_id, agent.model, prompt)
+        prompt_type = req.command
+        self.log.debug(f"prompt:\n{prompt}", command=prompt_type.value)
+        gc = self.llm_service.make_generate_job(
+            req.job_id, agent.model, prompt, prompt_type
+        )
         job, response = await self.job_service.create(gc, session)
         if not response.success or not job:
             self.log.error("error", response=response)

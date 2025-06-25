@@ -300,6 +300,20 @@ class ContestController(
                 message=f"prompt for {judge.name}",
             )
             return req
+        elif prompt_type == PromptType.JUDGE_APPLY_EFFECTS:
+            judges = contest.get_role(RoleType.JUDGE)
+            if not judges:
+                raise HTTPException(status_code=404, detail="No judges found")
+            judge = judges[0]
+            contest_json = contest.get_public().model_dump_json()
+            req = ParticipantRequest(
+                job_id=self.model_service.uuid_service.make_id(),
+                command=prompt_type,
+                data=f'{{"contest":{contest_json}}}',
+                message=f"prompt for {judge.name}",
+            )
+            return req
+
         raise HTTPException(
             status_code=404, detail=f"Prompt type {prompt_type} not found"
         )

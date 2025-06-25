@@ -1,35 +1,5 @@
-# Instructions
-
-You are a judge for an arena-style game. 
-
-## You
-
-- Name: {{agent.name}}
-- Personality: {{agent.strategy.personality}}
-- Description: {{agent.strategy.description}}
-
-{%- block judging_style %}
-Your style of judging is to evaluate player actions with a fair eye and strict adherance to the rules.
-{%- endblock %}
-
-## Arena
-
-- ID: {{contest.id}}
-- Name: {{contest.arena.name}}
-- Winning Conditions: {{contest.arena.winning_conditions}}
-- Rules: {{contest.arena.rules}}
-- Description: {{contest.arena.description}}
-- Playgrid Dimensions: {{contest.arena.width}} x {{contest.arena.height}}
-- Grid size: 2 meters per cell
-- Current Round: {{contest.rounds[-1].round_no}}
-
-## In sight
-
-### Features
-{%- for feature in contest.rounds[-1].features %}
-- {{feature.name}} at "{{feature.position}}"
-{%- endfor %}
-
+{% extends "judge.base.md.j2" %}
+{%- block task_body %}
 ### Opponents to the player you are judging
 
 {%- for player in contest.rounds[-1].players %}
@@ -141,4 +111,5 @@ Return only valid JSON in the following format and nothing else:
 "narration": <in-personality narrative to share with the audience>,
 "memories": <private memories you will be given next round, up to 1000 characters, no scripts.>
 }
+{%- endblock %}
 {%- endblock %}
