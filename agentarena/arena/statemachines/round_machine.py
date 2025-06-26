@@ -8,7 +8,13 @@ from sqlmodel import Session
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import ContestRound
+from agentarena.arena.models import (
+    ContestRound,
+    Feature,
+    FeatureCreate,
+    PlayerState,
+    PlayerStateCreate,
+)
 from agentarena.arena.models import JudgeResultCreate
 from agentarena.arena.models import Participant
 from agentarena.arena.models import PlayerAction
@@ -45,6 +51,7 @@ class RoundMachine(StateMachine):
     judging_actions = State(ContestRoundState.JUDGING_ACTIONS.value)
     awaiting_judging_actions = State(ContestRoundState.AWAITING_JUDGING_ACTIONS.value)
     applying_effects = State(ContestRoundState.APPLYING_EFFECTS.value)
+    awaiting_applying_effects = State(ContestRoundState.AWAITING_APPLYING_EFFECTS.value)
     describing_results = State(ContestRoundState.DESCRIBING_RESULTS.value)
     presenting_results = State(ContestRoundState.PRESENTING_RESULTS.value)
     round_complete = State(ContestRoundState.ROUND_COMPLETE.value, final=True)
@@ -56,7 +63,8 @@ class RoundMachine(StateMachine):
         | awaiting_actions.to(judging_actions)
         | judging_actions.to(awaiting_judging_actions)
         | awaiting_judging_actions.to(applying_effects)
-        | applying_effects.to(describing_results)
+        | applying_effects.to(awaiting_applying_effects)
+        | awaiting_applying_effects.to(describing_results)
         | describing_results.to(presenting_results)
         | presenting_results.to(round_complete)
     )
@@ -67,6 +75,7 @@ class RoundMachine(StateMachine):
         | judging_actions.to(round_fail)
         | awaiting_judging_actions.to(round_fail)
         | applying_effects.to(round_fail)
+        | awaiting_applying_effects.to(round_fail)
         | describing_results.to(round_fail)
         | presenting_results.to(round_fail)
     )
@@ -74,27 +83,30 @@ class RoundMachine(StateMachine):
     def __init__(
         self,
         contest_round: ContestRound,
+        feature_service: ModelService[Feature, FeatureCreate],
         judge_result_service: ModelService,
-        playeraction_service: ModelService[PlayerAction, PlayerActionCreate] = Field(
-            description="Player Action Service"
-        ),
-        message_broker: MessageBroker = Field(description="Message Broker"),
-        view_service: ViewService = Field(description="View Service"),
-        session: Session = Field(description="Session"),
-        log: ILogger = Field(description="Logger"),
+        message_broker: MessageBroker,
+        session: Session,
+        player_action_service: ModelService[PlayerAction, PlayerActionCreate],
+        player_state_service: ModelService[PlayerState, PlayerStateCreate],
+        view_service: ViewService,
+        log: ILogger,
     ):
         """Initialize the round machine."""
-        self.action_service = playeraction_service
+        assert isinstance(contest_round, ContestRound)
+        assert message_broker is not None, "Message broker is not set"
+        self.action_service = player_action_service
         self.completion_channel = f"arena.contest.{contest_round.contest.id}.round.{contest_round.round_no}.complete"
         self.contest_round = contest_round
+        self.feature_service = feature_service
         self.message_broker = message_broker
+        self.player_state_service = player_state_service
         self.view_service = view_service
         self.session = session
         self.subscriber = Subscriber()
         self.log = log.bind(contest_round=contest_round.id)
         self.judge_result_service = judge_result_service
         super().__init__(start_value=contest_round.state.value)
-        assert self.message_broker is not None, "Message broker is not set"
         self.pending_actions = set()
         self.pending_judging_actions = set()
 
@@ -127,11 +139,28 @@ class RoundMachine(StateMachine):
         self.log.info("sent judging actions prompts")
         await self.cycle("judging_actions")
 
+    async def on_enter_awaiting_judging_actions(self):
+        """Called when entering the AwaitingJudgingActions state."""
+        # a holding state - waiting until the message is received
+        # the message handler will transition to the next state
+        # Maybe we could check which judge results are
+        # missing and set up subscriptions for them, for
+        # contest resuming.
+        pass
+
     async def on_enter_applying_effects(self):
         """Called when entering the ApplyingEffects state."""
         await self.send_apply_effects_prompt()
         self.log.info("sent applying effects prompt")
-        await self.cycle("applying_effects")
+        await self.cycle("awaiting_applying_effects")  # to awaiting_applying_effects
+
+    async def on_enter_awaiting_applying_effects(self):
+        """Called when entering the AwaitingApplyingEffects state."""
+        # a holding state - waiting until the message is received
+        # it should be idempotent though and there's just the one
+        # message, so let's make sure we are subscribed to it.
+        # the message handler will transition to the next state
+        await self.subscribe_to_apply_effects_message(self.log)
 
     async def on_enter_describing_results(self):
         """Called when entering the DescribingResults state."""
@@ -165,7 +194,49 @@ class RoundMachine(StateMachine):
                 log.error("No result in message")
                 await self.cycle("step_failed")
                 return
-            log.info("received apply effects message", result=result)
+            log.info("parsed apply effects message", result=result)
+            player_state_map = {}
+            for player_state in self.contest_round.player_states:
+                player_state_map[player_state.participant_id] = player_state
+
+            for updated_player in result.get("players", []):
+                player_id = updated_player.get("id")
+                current_player = player_state_map.get(player_id)
+                if not current_player:
+                    log.error(
+                        "Player in updates from judge not found", player_id=player_id
+                    )
+                    continue
+                if "position" in updated_player:
+                    current_player.position = updated_player.get("position")
+                if "health" in updated_player:
+                    current_player.health = updated_player.get("health")
+                if "score" in updated_player:
+                    current_player.score = updated_player.get("score")
+                if "inventory" in updated_player:
+                    current_player.inventory = updated_player.get("inventory")
+                self.session.add(current_player)
+
+            feature_map = {}
+            for feature in self.contest_round.features:
+                feature_map[feature.id] = feature
+            for updated_feature in result.get("features", []):
+                feature_id = updated_feature.get("id")
+                current_feature = feature_map.get(feature_id)
+                if not current_feature:
+                    log.error(
+                        "Feature in updates from judge not found", feature_id=feature_id
+                    )
+                    continue
+                if "description" in updated_feature:
+                    current_feature.description = updated_feature.get("description")
+                if "position" in updated_feature:
+                    current_feature.position = updated_feature.get("position")
+                self.session.add(current_feature)
+
+            self.session.commit()
+            log.info("updated player states and features")
+
             asyncio.create_task(self.cycle("describing_results"))
         except Exception as e:
             log.error("Exception in handle_apply_effects_message", error=e)
@@ -281,22 +352,15 @@ class RoundMachine(StateMachine):
             log.error("No judges found for apply effects prompt")
             return
         judge = judges[0]
+        channel, _ = await self.subscribe_to_apply_effects_message(log)
         log.info("sending apply effects prompt")
-        channel = f"arena.contest.{self.contest_round.contest.id}.round.{self.contest_round.round_no}.apply_effects.prompt"
-        await self.subscriber.subscribe(
-            self.message_broker.client,
-            channel,
-            log,
-            cb=self.handle_apply_effects_message,
-        )
-        log.info(f"subscribed", channel=channel)
         contest = self.contest_round.contest
         contest_json = contest.get_public().model_dump_json()
         req = ParticipantRequest(
             job_id=job_id,
-            command=PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT,
+            command=PromptType.JUDGE_APPLY_EFFECTS,
             data=f'{{"contest":{contest_json}}}',
-            message="judging action",
+            message="judge apply effects of actions",
         )
         job = CommandJob(
             channel=channel,
@@ -331,7 +395,7 @@ class RoundMachine(StateMachine):
             job_id=job_id,
             command=PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT,
             data=f'{{"contest":{contest_json},"action":{action_json},"player":{player_json}}}',
-            message="judging action",
+            message="judge player action",
         )
         job = CommandJob(
             channel=channel,
@@ -371,6 +435,17 @@ class RoundMachine(StateMachine):
         )
         self.pending_actions.add(player.id)
         await self.message_broker.send_job(job)
+
+    async def subscribe_to_apply_effects_message(self, log: ILogger):
+        channel = f"arena.contest.{self.contest_round.contest.id}.round.{self.contest_round.round_no}.apply_effects.prompt"
+        sub = await self.subscriber.subscribe(
+            self.message_broker.client,
+            channel,
+            log,
+            cb=self.handle_apply_effects_message,
+        )
+        log.info(f"subscribed", channel=channel)
+        return channel, sub
 
     async def on_enter_state(self, target, event):
         # update the round state

@@ -105,6 +105,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         model_class=CommandJob,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.scheduler",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -114,6 +115,7 @@ class SchedulerContainer(containers.DeclarativeContainer):
         model_class=CommandJobHistory,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.scheduler",
         uuid_service=uuid_service,
         logging=logging,
     )

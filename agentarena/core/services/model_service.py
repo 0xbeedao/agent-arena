@@ -46,6 +46,7 @@ class ModelService(Generic[T, MC]):
         message_broker: MessageBroker,
         uuid_service: UUIDService = Field(description="UUID Service"),
         logging: LoggingService = Field(description="Logger factory"),
+        message_prefix: str = "sys.arena",
     ):
         """
         Initialize the model service.
@@ -67,6 +68,7 @@ class ModelService(Generic[T, MC]):
         self.message_broker = message_broker
         self.model_name = model_class.__name__.lower()
         self.uuid_service = uuid_service
+        self.message_prefix = message_prefix
         self.log = logging.get_logger(
             "service",
             model=self.model_name,
@@ -149,7 +151,7 @@ class ModelService(Generic[T, MC]):
 
         self.log.info(f"Added {self.model_name} {created.id}")
         await self.message_broker.publish_model_change(
-            f"sys.arena.{self.model_name}.{created.id}.create", created.id
+            f"{self.message_prefix}.{self.model_name}.{created.id}.create", created.id
         )
         self.db_service.add_audit_log(f"Added {self.model_name}: {created.id}", session)
         return created, ModelResponse(
@@ -237,7 +239,7 @@ class ModelService(Generic[T, MC]):
         session.commit()
         session.refresh(db_obj)
         await self.message_broker.publish_model_change(
-            f"arena.{self.model_name}.{obj_id}.update",
+            f"{self.message_prefix}.{self.model_name}.{obj_id}.update",
             obj_id,
             detail=json.dumps(obj_data),
         )
@@ -275,7 +277,7 @@ class ModelService(Generic[T, MC]):
         self.log.info(f"Deleted {obj_id}")
         self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}", session)
         await self.message_broker.publish_model_change(
-            f"sys.arena.{self.model_name}.{obj_id}.delete", obj_id
+            f"{self.message_prefix}.{self.model_name}.{obj_id}.delete", obj_id
         )
         return ModelResponse(success=True, id=obj_id)
 

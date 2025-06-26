@@ -24,6 +24,8 @@ from agentarena.arena.models import JudgeResult
 from agentarena.arena.models import JudgeResultCreate
 from agentarena.arena.models import PlayerAction
 from agentarena.arena.models import PlayerActionCreate
+from agentarena.arena.models import PlayerState
+from agentarena.arena.models import PlayerStateCreate
 from agentarena.arena.services.round_service import RoundService
 from agentarena.arena.services.view_service import ViewService
 from agentarena.clients.message_broker import MessageBroker
@@ -84,6 +86,7 @@ class ContestMachine(StateMachine):
         feature_service: ModelService[Feature, FeatureCreate],
         judge_result_service: ModelService[JudgeResult, JudgeResultCreate],
         playeraction_service: ModelService[PlayerAction, PlayerActionCreate],
+        player_state_service: ModelService[PlayerState, PlayerStateCreate],
         round_service: RoundService,
         uuid_service: UUIDService,
         view_service: ViewService,
@@ -95,6 +98,7 @@ class ContestMachine(StateMachine):
         self.feature_service = feature_service
         self.message_broker = message_broker
         self.playeraction_service = playeraction_service
+        self.player_state_service = player_state_service
         self.round_service = round_service
         self.uuid_service = uuid_service
         self.view_service = view_service
@@ -261,12 +265,14 @@ class ContestMachine(StateMachine):
         self.session.commit()
         self._round_machine = RoundMachine(
             round,
-            message_broker=self.message_broker,
-            playeraction_service=self.playeraction_service,
-            view_service=self.view_service,
-            session=self.session,
-            log=self.log,
+            feature_service=self.feature_service,
             judge_result_service=self.judge_result_service,
+            message_broker=self.message_broker,
+            player_action_service=self.playeraction_service,
+            player_state_service=self.player_state_service,
+            session=self.session,
+            view_service=self.view_service,
+            log=self.log,
         )
         channel = self._round_machine.completion_channel
         await self.subscriber.subscribe(

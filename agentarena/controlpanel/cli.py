@@ -229,6 +229,32 @@ BASE_COMMANDS = {
         "description": "list all contests",
         "commands": {},
     },
+    "listen": {
+        "description": "listen to a channel",
+        "commands": {
+            "all": {
+                "description": "listen to all channels",
+            },
+            "most": {
+                "description": "listen to all non-system messages",
+            },
+            "none": {
+                "description": "listen to no channels",
+            },
+            "arena": {
+                "description": "listen to the arena channel",
+                "commands": {},
+            },
+            "actor": {
+                "description": "listen to the actor channel",
+                "commands": {},
+            },
+            "scheduler": {
+                "description": "listen to the scheduler channel",
+                "commands": {},
+            },
+        },
+    },
     "jobs": {
         "description": "list all jobs",
         "commands": {},
@@ -254,10 +280,6 @@ BASE_COMMANDS = {
                 },
             },
         },
-    },
-    "generatejobs": {
-        "description": "list all generate jobs",
-        "commands": {},
     },
     "generatejob": {
         "description": "Generate Job Control",
@@ -289,6 +311,10 @@ BASE_COMMANDS = {
                 },
             },
         },
+    },
+    "generatejobs": {
+        "description": "list all generate jobs",
+        "commands": {},
     },
     "participant": {
         "description": "Participant Control",
@@ -464,7 +490,7 @@ class ArenaCommander:
                 print_title(f"Generation job {job_id} failed", error=True)
                 await self.unsubscribe(f"actor.llm.{id}.>")
         else:
-            print_title(f"Unknown message: {msg.subject}", error=True)
+            print_title(f"Message: {msg.subject}", info=True)
 
     def add_loaded(self, key: str, value: Any):
         self.loaded[key] = value
@@ -838,6 +864,38 @@ class ArenaCommander:
         print_job_list(jobs)
         return True
 
+    async def cmd_listen(self, args: list[str]):
+        if not args:
+            print_title("No channel provided", error=True)
+            return True
+        if len(args) == 0:
+            print_title("No channel provided", error=True)
+            return True
+        channel = args[0]
+        if channel == "":
+            print_title("No channel provided", error=True)
+            return True
+        if channel == "all":
+            await self.subscribe("arena.>")
+            await self.subscribe("actor.>")
+            await self.subscribe("scheduler.>")
+        elif channel == "most":
+            await self.subscribe("arena.>")
+            await self.subscribe("actor.>")
+        elif channel == "none":
+            await self.unsubscribe("arena.>")
+            await self.unsubscribe("actor.>")
+            await self.unsubscribe("scheduler.>")
+        elif channel == "arena":
+            await self.subscribe("arena.>")
+        elif channel == "actor":
+            await self.subscribe("actor.>")
+        elif channel == "scheduler":
+            await self.subscribe("scheduler.>")
+        else:
+            await self.subscribe(channel)
+        return True
+
     async def cmd_participant(self, args: list[str]):
         participant_id = None
         if len(args) == 0:
@@ -1005,6 +1063,8 @@ class ArenaCommander:
             await self.cmd_contests(args)
         elif cmd == "contest":
             await self.cmd_contest(args)
+        elif cmd == "listen":
+            await self.cmd_listen(args)
         elif cmd == "jobs":
             await self.cmd_jobs(args)
         elif cmd == "job":

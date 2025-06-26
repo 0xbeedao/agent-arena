@@ -26,6 +26,7 @@ class ContestRoundState(str, Enum):
     JUDGING_ACTIONS = "judging_actions"
     AWAITING_JUDGING_ACTIONS = "awaiting_judging_actions"
     APPLYING_EFFECTS = "applying_effects"
+    AWAITING_APPLYING_EFFECTS = "awaiting_applying_effects"
     DESCRIBING_RESULTS = "describing_results"
     PRESENTING_RESULTS = "presenting_results"
     ROUND_COMPLETE = "round_complete"

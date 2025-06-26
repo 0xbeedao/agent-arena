@@ -42,6 +42,7 @@ class RoundService(ModelService[ContestRound, ContestRoundCreate]):
             uuid_service=uuid_service,
             message_broker=message_broker,
             logging=logging,
+            message_prefix="sys.arena",
         )
 
     async def create_round(

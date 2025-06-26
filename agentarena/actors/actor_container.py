@@ -88,6 +88,7 @@ class ActorContainer(containers.DeclarativeContainer):
         model_class=Agent,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.actor",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -97,6 +98,7 @@ class ActorContainer(containers.DeclarativeContainer):
         model_class=Strategy,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.actor",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -106,6 +108,7 @@ class ActorContainer(containers.DeclarativeContainer):
         model_class=StrategyPrompt,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.actor",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -115,6 +118,7 @@ class ActorContainer(containers.DeclarativeContainer):
         model_class=GenerateJob,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.actor",
         uuid_service=uuid_service,
         logging=logging,
     )

@@ -41,6 +41,7 @@ class Subscriber:
             sub = await nats.subscribe(channel, **kwargs)
             self.subscriptions[channel] = sub
             log.debug(f"Subscribed to {channel}")
+        return self.subscriptions[channel]
 
     async def unsubscribe(self, channel: str, log: ILogger):
         if channel in self.subscriptions:

@@ -122,6 +122,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_class=Arena,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -131,6 +132,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_class=Participant,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -140,6 +142,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_class=ContestRound,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -149,6 +152,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_class=Contest,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -158,6 +162,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_class=PlayerAction,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -167,6 +172,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_class=JudgeResult,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -176,6 +182,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_class=PlayerState,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -185,6 +192,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         db_service=db_service,
         playerstate_service=playerstate_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -194,6 +202,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_class=Feature,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -203,6 +212,7 @@ class ArenaContainer(containers.DeclarativeContainer):
         model_class=ContestRoundStats,
         db_service=db_service,
         message_broker=message_broker,
+        message_prefix="sys.arena",
         uuid_service=uuid_service,
         logging=logging,
     )
@@ -243,6 +253,7 @@ class ArenaContainer(containers.DeclarativeContainer):
     contest_controller = providers.Singleton(
         ContestController,
         playeraction_service=playeraction_service,
+        player_state_service=playerstate_service,
         feature_service=feature_service,
         template_service=template_service,
         message_broker=message_broker,

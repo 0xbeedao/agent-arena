@@ -63,23 +63,25 @@ Player: "Wombat"
 - Memories: "Wombat is a wimp"
 
 Result:
-[{
-    "id": "id-for-dude",
-    "position": "1,2",
-    "health": "Fresh",
-    "score": 0,
-    "inventory": []
-    "narration": "Dude cautiously moves to the right"
-},
 {
-    "id": "id-for-wombat",
-    "position": "4,4",
-    "health": "Fresh",
-    "score": 0,
-    "inventory": []
-    "narration": "Wombat moves toward the tree"
+    "players": [
+        {
+            "id": "id-for-dude",
+            "position": "1,2",
+            "health": "Warmed up",
+            "score": 0,
+            "inventory": []
+        },
+        {
+            "id": "id-for-wombat",
+            "position": "4,4",
+            "health": "Warmed up",
+            "score": 0,
+            "inventory": []
+        }
+    ],
+    "features": []
 }
-]
 
 Note that since no features were changed, the result does not include any features.
 
@@ -118,28 +120,30 @@ Player: "Wombat"
 - Memories: "Wombat is quite aggressive"
 
 Result:
-[{
-    "id": "id-for-dude",
-    "position": "2,2",
-    "health": "prone",
-    "score": 25,
-    "inventory": ["flag:id-for-flag"]
-    "narration": "Dude grabs the flag, but is shoved from the side and falls to the ground"
-},
 {
-    "id": "id-for-wombat",
-    "position": "2,2",
-    "health": "winded, unbalanced",
-    "score": 5,
-    "inventory": []
-    "narration": "Wombat pushes Dude out of the way, but is panting and unbalanced"
-},
-{
-    "id": "id-for-flag",
-    "position": "player:id-for-dude",
-    "description": "A flag"
+    "players": [
+        {
+            "id": "id-for-dude",
+            "position": "2,2",
+            "health": "prone",
+            "score": 25,
+            "inventory": ["flag:id-for-flag"]
+        },
+        {
+            "id": "id-for-wombat",
+            "position": "2,2",
+            "health": "winded, unbalanced",
+            "score": 5,
+            "inventory": []
+        }
+    ],
+    "features": [
+        {
+            "id": "id-for-flag",
+            "position": "player:id-for-dude",
+        }
+    ]
 }
-]
 
 Note that the flag is now in the plater's inventory, and the player is now in the flag's position.
 
@@ -189,28 +193,31 @@ Player: "Wombat"
 
 Result:
 
-[{
-    "id": "id-for-dude",
-    "position": "2,2",
-    "health": "blinded, wet, exhausted",
-    "score": -10,
-    "inventory": []
-    "narration": "Dude moves to the right, but falls into the water trap, and is now blind, wet, and exhausted"
-},
 {
-    "id": "id-for-wombat",
-    "position": "4,5",
-    "health": "winded",
-    "score": 140,
-    "inventory": []
-    "narration": "Wombat puts the flag on the base"
-},
-{
-    "id": "id-for-flag",
-    "position": "4,5",
-    "description": "A flag"
+    "players": [
+        {
+            "id": "id-for-dude",
+            "position": "2,2",
+            "health": "blinded, wet, exhausted",
+            "score": -10,
+            "inventory": []
+        },
+        {
+            "id": "id-for-wombat",
+            "position": "4,5",
+            "health": "winded",
+            "score": 140,
+            "inventory": []
+        }
+    ],
+    "features": [
+        {
+        "id": "id-for-flag",
+        "position": "4,5",
+        "description": "A flag, placed by Wombat on the base"
+        }
+    ]
 }
-]
 
 Note that the flag is now on the base, and the base is now in the flag's position, the score is updated to reflect the base's score
 and the flag is no longer in the player's inventory.
@@ -220,10 +227,24 @@ and the flag is no longer in the player's inventory.
 Return only valid JSON in the following format and nothing else:
 
 {
-"result": <result>,
-"reason": <reason>,
-"narration": <in-personality narrative to share with the audience>,
-"memories": <private memories you will be given next round, up to 1000 characters, no scripts.>
+    "players": [
+        {
+            "id": <id of the player>,
+            "position": <position of the player>,
+            "health": <health of the player>,
+            "score": <score of the player>,
+            "inventory": <inventory of the player>,
+        },
+        ...
+    ],
+    "features": [
+        {
+            "id": <id of the feature>,
+            "position": <position of the feature>,
+            "description": <description of the feature, if changed, omitted if not>,
+        },
+        ...
+    ]
 }
 {%- endblock %}
 {%- endblock %}

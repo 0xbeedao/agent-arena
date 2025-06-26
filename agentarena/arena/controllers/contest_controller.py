@@ -29,6 +29,8 @@ from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
 from agentarena.arena.models import PlayerAction
 from agentarena.arena.models import PlayerActionCreate
+from agentarena.arena.models import PlayerState
+from agentarena.arena.models import PlayerStateCreate
 from agentarena.arena.services.round_service import RoundService
 from agentarena.arena.services.view_service import ViewService
 from agentarena.arena.statemachines.contest_machine import ContestMachine
@@ -71,6 +73,9 @@ class ContestController(
         playeraction_service: ModelService[PlayerAction, PlayerActionCreate] = Field(
             description="The player action service"
         ),
+        player_state_service: ModelService[PlayerState, PlayerStateCreate] = Field(
+            description="The player state service"
+        ),
         round_service: RoundService = Field(description="The round service"),
         template_service: JinjaRenderer = Field(description="The template service"),
         view_service: ViewService = Field(description="The view service"),
@@ -79,6 +84,7 @@ class ContestController(
         self.feature_service = feature_service
         self.participant_service = participant_service
         self.playeraction_service = playeraction_service
+        self.player_state_service = player_state_service
         self.round_service = round_service
         assert message_broker is not None, "Message broker is not set"
         self.message_broker = message_broker
@@ -325,6 +331,7 @@ class ContestController(
             message_broker=self.message_broker,
             feature_service=self.feature_service,
             playeraction_service=self.playeraction_service,
+            player_state_service=self.player_state_service,
             round_service=self.round_service,
             uuid_service=self.model_service.uuid_service,
             view_service=self.view_service,
