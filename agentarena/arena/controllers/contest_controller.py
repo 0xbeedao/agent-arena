@@ -105,6 +105,30 @@ class ContestController(
         SubscribingService.__init__(self, to_subscribe, self.log)
         self.log.info(f"Templates: {template_service.env.list_templates()}")
 
+    async def clone_contest(self, contest_id: str, session: Session) -> ContestPublic:
+        """
+        Clone a contest.
+        """
+        contest, response = await self.model_service.get(contest_id, session)
+        if not contest or not response.success:
+            raise HTTPException(status_code=404, detail=response.model_dump())
+
+        clone = Contest(
+            id=self.model_service.uuid_service.make_id(),
+            arena_id=contest.arena_id,
+            current_round=0,
+            player_inventories=contest.player_inventories,
+            player_positions=contest.player_positions,
+            state=ContestState.CREATED,
+        )
+        session.add(clone)
+        session.commit()
+
+        for p in contest.participants:
+            clone.participants.append(p)
+        session.commit()
+        return clone.get_public()
+
     # @router.post("/contest", response_model=Dict[str, str])
     async def create_contest(self, req: ContestCreate, session: Session) -> Contest:
         """
@@ -339,7 +363,13 @@ class ContestController(
             judge_result_service=self.judge_result_service,
         )
         await machine.activate_initial_state()  # type: ignore
-        await machine.start_contest("start_contest")
+        log = log.bind(state=machine.current_state.id)
+        if machine.current_state.initial:
+            log.info("Machine is in initial state, starting contest")
+            await machine.start_contest("start_contest")
+        else:
+            log.info("Machine already started, not restarting")
+
         log.info(
             "started contest machine",
             contest_id=contest_id,
@@ -425,6 +455,11 @@ class ContestController(
         async def prompt(contest_id: str, prompt_type: PromptType, target_id: str):
             with self.model_service.get_session() as session:
                 return await self.prompt(contest_id, target_id, prompt_type, session)
+
+        @router.post("/{contest_id}/clone", response_model=ContestPublic)
+        async def clone(contest_id: str):
+            with self.model_service.get_session() as session:
+                return await self.clone_contest(contest_id, session)
 
         @router.post("/{contest_id}/start", response_model=ContestPublic)
         async def start(contest_id: str):

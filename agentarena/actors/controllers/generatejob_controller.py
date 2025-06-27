@@ -57,6 +57,7 @@ class GenerateJobController(
             job_id=self.uuid_service.make_id(),
             model=req.model or job.model,
             prompt=req.prompt or job.prompt,
+            prompt_type=job.prompt_type,
             state=JobState.IDLE,
         )
         cloned, result = await self.model_service.create(generate_job, session)

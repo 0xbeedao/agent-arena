@@ -47,11 +47,8 @@ class RoundMachine(StateMachine):
 
     in_progress = State(ContestRoundState.IN_PROGRESS.value, initial=True)
     round_prompting = State(ContestRoundState.ROUND_PROMPTING.value)
-    awaiting_actions = State(ContestRoundState.AWAITING_ACTIONS.value)
     judging_actions = State(ContestRoundState.JUDGING_ACTIONS.value)
-    awaiting_judging_actions = State(ContestRoundState.AWAITING_JUDGING_ACTIONS.value)
     applying_effects = State(ContestRoundState.APPLYING_EFFECTS.value)
-    awaiting_applying_effects = State(ContestRoundState.AWAITING_APPLYING_EFFECTS.value)
     describing_results = State(ContestRoundState.DESCRIBING_RESULTS.value)
     presenting_results = State(ContestRoundState.PRESENTING_RESULTS.value)
     round_complete = State(ContestRoundState.ROUND_COMPLETE.value, final=True)
@@ -59,23 +56,17 @@ class RoundMachine(StateMachine):
 
     cycle = (
         in_progress.to(round_prompting)
-        | round_prompting.to(awaiting_actions)
-        | awaiting_actions.to(judging_actions)
-        | judging_actions.to(awaiting_judging_actions)
-        | awaiting_judging_actions.to(applying_effects)
-        | applying_effects.to(awaiting_applying_effects)
-        | awaiting_applying_effects.to(describing_results)
+        | round_prompting.to(judging_actions)
+        | judging_actions.to(applying_effects)
+        | applying_effects.to(describing_results)
         | describing_results.to(presenting_results)
         | presenting_results.to(round_complete)
     )
 
     step_failed = (
         round_prompting.to(round_fail)
-        | awaiting_actions.to(round_fail)
         | judging_actions.to(round_fail)
-        | awaiting_judging_actions.to(round_fail)
         | applying_effects.to(round_fail)
-        | awaiting_applying_effects.to(round_fail)
         | describing_results.to(round_fail)
         | presenting_results.to(round_fail)
     )
@@ -115,7 +106,11 @@ class RoundMachine(StateMachine):
         await self.cycle("in_progress")
 
     async def on_enter_round_prompting(self):
-        """Called when entering the RoundPrompting state."""
+        """Called when entering the RoundPrompting state.
+
+        This state is a holding state, waiting for the player actions to be received.
+        The message handler will transition to the next state.
+        """
         players = self.contest_round.contest.get_role(RoleType.PLAYER)
 
         if not players:
@@ -126,49 +121,31 @@ class RoundMachine(StateMachine):
         for player in players:
             await self.send_player_prompt(player)
         self.log.info("sent player prompts")
-        await self.cycle("From round_prompting to awaiting_actions")
-
-    async def on_enter_awaiting_actions(self):
-        """Called when entering the AwaitingActions state."""
-        self.log.info("entering awaiting actions")
 
     async def on_enter_judging_actions(self):
-        """Called when entering the JudgingActions state."""
+        """Called when entering the JudgingActions state.
+
+        This state is a holding state, waiting for the judge results to be received.
+        The message handler will transition to the next state.
+        """
         for action in self.contest_round.player_actions:
             await self.send_judging_action_prompt(action)
         self.log.info("sent judging actions prompts")
-        await self.cycle("judging_actions")
-
-    async def on_enter_awaiting_judging_actions(self):
-        """Called when entering the AwaitingJudgingActions state."""
-        # a holding state - waiting until the message is received
-        # the message handler will transition to the next state
-        # Maybe we could check which judge results are
-        # missing and set up subscriptions for them, for
-        # contest resuming.
-        pass
 
     async def on_enter_applying_effects(self):
-        """Called when entering the ApplyingEffects state."""
+        """Called when entering the ApplyingEffects state.
+
+        This state is a holding state, waiting for the apply effects message to be received.
+        The message handler will transition to the next state.
+        """
         await self.send_apply_effects_prompt()
         self.log.info("sent applying effects prompt")
-        await self.cycle("awaiting_applying_effects")  # to awaiting_applying_effects
-
-    async def on_enter_awaiting_applying_effects(self):
-        """Called when entering the AwaitingApplyingEffects state."""
-        # a holding state - waiting until the message is received
-        # it should be idempotent though and there's just the one
-        # message, so let's make sure we are subscribed to it.
-        # the message handler will transition to the next state
-        await self.subscribe_to_apply_effects_message(self.log)
 
     async def on_enter_describing_results(self):
         """Called when entering the DescribingResults state."""
-        await self.cycle("describing_results")
 
     async def on_enter_presenting_results(self):
         """Called when entering the PresentingResults state."""
-        await self.cycle("presenting_results")  # to describing_results
 
     async def on_enter_round_fail(self, message: str):
         """Called when entering the RoundFail state."""
@@ -187,12 +164,12 @@ class RoundMachine(StateMachine):
             raw = decode(msg.data, "utf-8", "unicode_escape")
             if not raw:
                 log.error("No data in message")
-                await self.cycle("step_failed")
+                await self.step_failed("no data in apply effects message")
                 return
             result = extract_obj_from_json(raw)
             if not result:
                 log.error("No result in message")
-                await self.cycle("step_failed")
+                await self.step_failed("no result in apply effects message")
                 return
             log.info("parsed apply effects message", result=result)
             player_state_map = {}
@@ -237,10 +214,10 @@ class RoundMachine(StateMachine):
             self.session.commit()
             log.info("updated player states and features")
 
-            asyncio.create_task(self.cycle("describing_results"))
+            asyncio.create_task(self.cycle("apply effects done"))
         except Exception as e:
             log.error("Exception in handle_apply_effects_message", error=e)
-            await self.cycle("step_failed")
+            await self.step_failed("error in apply effects message")
 
     async def handle_judging_action_message(self, msg: Msg):
         """Handle a judging action message."""
@@ -253,12 +230,12 @@ class RoundMachine(StateMachine):
             raw = decode(msg.data, "utf-8", "unicode_escape")
             if not raw:
                 log.error("No data in message")
-                await self.cycle("step_failed")
+                await self.step_failed("no data in judging action message")
                 return
             result = extract_obj_from_json(raw)
             if not result:
                 log.error("No result in message")
-                await self.cycle("step_failed")
+                await self.step_failed("no result in judging action message")
                 return
             log.info("received judging action", result=result)
             jc = JudgeResultCreate(
@@ -272,7 +249,7 @@ class RoundMachine(StateMachine):
             created, result = await self.judge_result_service.create(jc, self.session)
             if not created or not result.success:
                 log.error("Failed to create judge result", error=result)
-                await self.cycle("step_failed")
+                await self.step_failed("failed to create judge result")
                 return
             self.pending_judging_actions.remove(player_id)
             if not self.pending_judging_actions:
@@ -288,7 +265,7 @@ class RoundMachine(StateMachine):
                 )
         except Exception as e:
             log.error("Exception in handle_judging_action_message", error=e)
-            await self.cycle("step_failed")
+            await self.step_failed("error in judging action message")
 
     async def handle_player_prompt_message(self, msg: Msg):
         """Handle a player prompt message."""
@@ -301,18 +278,18 @@ class RoundMachine(StateMachine):
             raw = decode(msg.data, "utf-8", "unicode_escape")
             if not raw:
                 log.error("No data in message")
-                await self.cycle("step_failed")
+                await self.step_failed("no data in message")
                 return
             action = extract_obj_from_json(raw)
             if not action:
                 log.error("No action in message")
-                await self.step_failed(player_id)
+                await self.step_failed(f"no action in message for player {player_id}")
                 return
             log.info("received action", action=action)
             valid = "action" in action and action.get("action", "") != ""
             if not valid:
                 log.error("Invalid action", action=action)
-                await self.step_failed(player_id)
+                await self.step_failed(f"invalid action for player {player_id}")
                 return
             pa = PlayerActionCreate(
                 participant_id=player_id,
@@ -327,20 +304,21 @@ class RoundMachine(StateMachine):
             created, result = await self.action_service.create(pa, self.session)
             if not created or not result.success:
                 log.error("Failed to create action", error=result)
-                await self.step_failed(player_id)
+                await self.step_failed(
+                    f"failed to create action for player {player_id}"
+                )
                 return
             log.info("created action", action=created.id)
             self.pending_actions.remove(player_id)
             # transition to judging actions if all actions are received and we are in the awaiting actions state
-            if (
-                self.current_state.id == ContestRoundState.AWAITING_ACTIONS.value
-                and len(self.pending_actions) == 0
-            ):
+            if len(self.pending_actions) == 0:
                 log.info("all actions received, transitioning to judging actions")
                 asyncio.create_task(self.cycle("judging_actions"))
         except Exception as e:
             log.error("Failed to extract text response", error=e)
-            await self.step_failed(player_id)
+            await self.step_failed(
+                f"failed to extract text response for player {player_id}"
+            )
             return
 
     async def send_apply_effects_prompt(self):

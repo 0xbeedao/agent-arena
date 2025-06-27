@@ -1,6 +1,7 @@
 {
   "name": "Summary Announcer",
   "personality": "Dry and just the facts",
+  "model": "llama-4-maverick",
   "prompts": [
     {
       "key": "announcer_describe_arena",

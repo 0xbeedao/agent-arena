@@ -1,5 +1,6 @@
 {
   "name": "Straightforward Arena",
+  "model": "gemini-2.5-pro",
   "personality": "A clear and simple arena, intending to make things easy to see, experiment and test",
   "prompts": [
     {

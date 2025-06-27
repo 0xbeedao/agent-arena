@@ -193,6 +193,19 @@ BASE_COMMANDS = {
     "contest": {
         "description": "Contest Control",
         "commands": {
+            "clone": {
+                "description": "clone a contest",
+                "commands": {
+                    "latest": {
+                        "description": "Clone the latest contest",
+                        "commands": {},
+                    },
+                    "$contest_ids": {
+                        "description": "Contest IDs",
+                        "commands": {},
+                    },
+                },
+            },
             "create": {
                 "description": "create a contest",
                 "commands": {},
@@ -409,30 +422,31 @@ class CommandCompleter(Completer):
     def expand_commands(self, commands: Dict) -> Dict:
         rv = {}
         for key, value in commands.items():
-            if key == "$arena_ids" and "arenas" in self.loaded:
-                for a in self.loaded["arenas"]:
-                    rv[a["id"]] = {
-                        "description": f"Arena {a['name']}",
-                        "commands": {},
-                    }
-            elif key == "$contest_ids" and "contests" in self.loaded:
-                for c in self.loaded["contests"]:
-                    rv[c["id"]] = {
-                        "description": f"Contest {c['arena']['name']}",
-                        "commands": {},
-                    }
-            elif key == "$job_ids" and "jobs" in self.loaded:
-                for j in self.loaded["jobs"]:
-                    rv[j["id"]] = {
-                        "description": f"Job {j['channel']} {j['url']}",
-                        "commands": {},
-                    }
-            elif key == "$generatejob_ids" and "generatejobs" in self.loaded:
-                for j in self.loaded["generatejobs"]:
-                    rv[j["id"]] = {
-                        "description": f"Generate Job {j['job_id']} {j['model']}",
-                        "commands": {},
-                    }
+            if key.startswith("$"):
+                if key == "$arena_ids" and "arenas" in self.loaded:
+                    for a in self.loaded["arenas"]:
+                        rv[a["id"]] = {
+                            "description": f"Arena {a['name']}",
+                            "commands": {},
+                        }
+                elif key == "$contest_ids" and "contests" in self.loaded:
+                    for c in self.loaded["contests"]:
+                        rv[c["id"]] = {
+                            "description": f"Contest {c['arena']['name']}",
+                            "commands": {},
+                        }
+                elif key == "$job_ids" and "jobs" in self.loaded:
+                    for j in self.loaded["jobs"]:
+                        rv[j["id"]] = {
+                            "description": f"Job {j['channel']} {j['url']}",
+                            "commands": {},
+                        }
+                elif key == "$generatejob_ids" and "generatejobs" in self.loaded:
+                    for g in self.loaded["generatejobs"]:
+                        rv[g["id"]] = {
+                            "description": f"Generate Job {g['job_id']} {g['model']}",
+                            "commands": {},
+                        }
             else:
                 rv[key] = value
         return rv
@@ -508,15 +522,25 @@ class ArenaCommander:
             id = sorted_possibles[-1]["id"]
         return id
 
-    async def cmd_arena(self, args: list[str]):
-        arena_id = None
+    def safe_get_id(self, args: list[str], key: str, groupkey: str):
+        """
+        Get an id from the command line arguments.
+        """
         if len(args) == 0:
-            arena = self.loaded.get("arena", None)
-            arena_id = arena["id"] if arena else None
-            if not arena_id:
-                print_title("No arena id provided", error=True)
-                return True
+            obj = self.loaded.get(key, None)
+            if not obj:
+                print_title(f"No {key} loaded", error=True)
+                return None
+            args = [obj["id"]]
+        return self.clean_id(args[0], groupkey)
+
+    async def cmd_arena(self, args: list[str]):
+        arena_id = self.safe_get_id(args, "arena", "arenas")
+        if len(args) == 0 and arena_id:
             args = ["load", arena_id]
+
+        if len(args) == 0:
+            return True
 
         cmd = args.pop(0)
 
@@ -526,9 +550,6 @@ class ArenaCommander:
             arena_id = await self.cmd_arena_create(args)
         else:
             arena_id = cmd
-
-        if arena_id:
-            arena_id = self.clean_id(arena_id, "arenas")
 
         if arena_id and arena_id != "":
             body = await self.arena_client.get(f"/api/arena/{arena_id}.md")
@@ -596,10 +617,11 @@ class ArenaCommander:
         return data["id"]
 
     async def cmd_arena_load(self, args: list[str]):
-        if not args:
-            print_title("No arena id provided", error=True)
+        arena_id = self.safe_get_id(args, "arena", "arenas")
+
+        if not arena_id:
             return None
-        arena_id = self.clean_id(args[0], "arenas")
+
         r = await self.arena_client.get(f"/api/arena/{arena_id}")
         r.raise_for_status()
         self.loaded["arena"] = r.json()
@@ -633,14 +655,12 @@ class ArenaCommander:
         return True
 
     async def cmd_contest(self, args: list[str]):
-        contest_id = None
-        if len(args) == 0:
-            contest = self.loaded.get("contest", None)
-            contest_id = contest["id"] if contest else None
-            if not contest_id:
-                print_title("No contest id provided", error=True)
-                return True
+        contest_id = self.safe_get_id(args, "contest", "contests")
+        if len(args) == 0 and contest_id:
             args = ["load", contest_id]
+
+        if len(args) == 0:
+            return True
 
         cmd = args.pop(0)
 
@@ -648,11 +668,10 @@ class ArenaCommander:
             contest_id = await self.cmd_contest_load(args)
         elif cmd == "start":
             contest_id = await self.cmd_contest_start(args)
+        elif cmd == "clone":
+            contest_id = await self.cmd_contest_clone(args)
         else:
             contest_id = cmd
-
-        if contest_id and isinstance(contest_id, str):
-            contest_id = self.clean_id(contest_id, "contests")
 
         if contest_id and contest_id != "":
             body = await self.arena_client.get(f"/api/contest/{contest_id}.md")
@@ -660,18 +679,7 @@ class ArenaCommander:
 
         return True
 
-    async def cmd_contest_load(self, args: list[str]):
-        if not args:
-            print_title("No contest id provided", error=True)
-            return None
-        contest_id = self.clean_id(args[0], "contests")
-        r = await self.arena_client.get(f"/api/contest/{contest_id}")
-        r.raise_for_status()
-        self.loaded["contest"] = r.json()
-
-        return contest_id
-
-    async def cmd_contest_start(self, args: list[str]):
+    async def cmd_contest_clone(self, args: list[str]):
         contest_id = None
         if len(args) > 0:
             contest_id = args[0]
@@ -681,6 +689,28 @@ class ArenaCommander:
         if not contest_id:
             print_title("No contest id provided", error=True)
             return True
+        r = await self.arena_client.post(f"/api/contest/{contest_id}/clone", {})
+        r.raise_for_status()
+        data = r.json()
+        self.loaded["contest"] = data
+        print_title(f"Contest {contest_id} cloned", success=True)
+
+    async def cmd_contest_load(self, args: list[str]):
+        contest_id = self.safe_get_id(args, "contest", "contests")
+        if not contest_id or contest_id == "":
+            return None
+        print_title(f"Loading contest {contest_id}", info=True)
+        r = await self.arena_client.get(f"/api/contest/{contest_id}")
+        r.raise_for_status()
+        self.loaded["contest"] = r.json()
+
+        return contest_id
+
+    async def cmd_contest_start(self, args: list[str]):
+        contest_id = self.safe_get_id(args, "contest", "contests")
+        if not contest_id:
+            return True
+
         r = await self.arena_client.post(f"/api/contest/{contest_id}/start", {})
         r.raise_for_status()
         return contest_id
@@ -698,14 +728,12 @@ class ArenaCommander:
         return False
 
     async def cmd_generatejob(self, args: list[str]):
-        job_id = None
-        if len(args) == 0:
-            job = self.loaded.get("generatejob", None)
-            job_id = job["id"] if job else None
-            if not job_id:
-                print_title("No generate job id provided", error=True)
-                return True
+        job_id = self.safe_get_id(args, "generatejob", "generatejobs")
+        if len(args) == 0 and job_id:
             args = ["load", job_id]
+
+        if len(args) == 0:
+            return True
 
         cmd = args.pop(0)
         show_md = True
@@ -719,9 +747,6 @@ class ArenaCommander:
             job_id = cmd
 
         if show_md:
-            if job_id:
-                job_id = self.clean_id(job_id, "generatejobs")
-
             if job_id and job_id != "":
                 body = await self.participant_client.get(
                     f"/api/generatejob/{job_id}.md"
@@ -731,30 +756,20 @@ class ArenaCommander:
         return True
 
     async def cmd_generatejob_load(self, args: list[str]):
-        if not args:
-            job = self.loaded.get("generatejob", None)
-            if not job:
-                print_title("No generate job id provided", error=True)
-                return None
-            job_id = job["id"]
-            args = [job_id]
+        job_id = self.safe_get_id(args, "generatejob", "generatejobs")
+        if not job_id:
+            return None
 
-        job_id = self.clean_id(args[0], "generatejobs")
         r = await self.participant_client.get(f"/api/generatejob/{job_id}")
         r.raise_for_status()
         self.loaded["generatejob"] = r.json()
         return job_id
 
     async def cmd_generatejob_repeat(self, args: list[str]):
-        if not args:
-            job = self.loaded.get("generatejob", None)
-            if not job:
-                print_title("No generate job id provided", error=True)
-                return None
-            job_id = job["id"]
-            args = [job_id]
+        job_id = self.safe_get_id(args, "generatejob", "generatejobs")
+        if not job_id:
+            return True
 
-        job_id = self.clean_id(args[0], "generatejobs")
         r = await self.participant_client.get(f"/api/generatejob/{job_id}")
         r.raise_for_status()
         self.loaded["generatejob"] = r.json()
@@ -800,14 +815,12 @@ class ArenaCommander:
         return True
 
     async def cmd_job(self, args: list[str]):
-        job_id = None
-        if len(args) == 0:
-            job = self.loaded.get("job", None)
-            job_id = job["id"] if job else None
-            if not job_id:
-                print_title("No job id provided", error=True)
-                return True
+        job_id = self.safe_get_id(args, "job", "jobs")
+        if len(args) == 0 and job_id:
             args = ["load", job_id]
+
+        if len(args) == 0:
+            return True
 
         cmd = args.pop(0)
 
@@ -818,9 +831,6 @@ class ArenaCommander:
         else:
             job_id = cmd
 
-        if job_id:
-            job_id = self.clean_id(job_id, "jobs")
-
         if job_id and job_id != "":
             body = await self.scheduler_client.get(f"/api/job/{job_id}.md")
             print(render_markdown(body.content.decode("utf-8")))
@@ -828,10 +838,10 @@ class ArenaCommander:
         return True
 
     async def cmd_job_load(self, args: list[str]):
-        if not args:
-            print_title("No job id provided", error=True)
+        job_id = self.safe_get_id(args, "job", "jobs")
+        if not job_id:
             return None
-        job_id = self.clean_id(args[0], "jobs")
+
         r = await self.scheduler_client.get(f"/api/job/{job_id}")
         r.raise_for_status()
         self.loaded["job"] = r.json()
@@ -897,14 +907,13 @@ class ArenaCommander:
         return True
 
     async def cmd_participant(self, args: list[str]):
-        participant_id = None
-        if len(args) == 0:
-            participant = self.loaded.get("participant", None)
-            participant_id = participant["id"] if participant else None
-            if not participant_id:
-                print_title("No participant id provided", error=True)
-                return True
+        participant_id = self.safe_get_id(args, "participant", "participants")
+        if len(args) == 0 and participant_id:
             args = ["load", participant_id]
+
+        if len(args) == 0:
+            return True
+
         cmd = args.pop(0)
         if cmd == "load":
             participant_id = await self.cmd_participant_load(args)
@@ -912,7 +921,8 @@ class ArenaCommander:
             participant_id = await self.cmd_participant_create(args)
         else:
             participant_id = cmd
-        if participant_id:
+
+        if participant_id and participant_id != "":
             r = await self.participant_client.get(f"/api/agent/{participant_id}")
             r.raise_for_status()
             data = r.json()
@@ -945,16 +955,21 @@ class ArenaCommander:
         data = r.json()
         self.loaded["participant"] = data
         print_title(f"participant {data['name']} created", success=True)
+        # r = await self.participant_client.get(f"/api/agent/{data['id']}.md")
+        # print(render_markdown(r.content.decode("utf-8")))
         return data["id"]
 
     async def cmd_participant_load(self, args: list[str]):
-        if not args:
-            print_title("No participant id provided", error=True)
+        participant_id = self.safe_get_id(args, "participant", "participants")
+        if not participant_id:
             return None
-        r = await self.participant_client.get(f"/api/agent/{args[0]}")
+
+        r = await self.participant_client.get(f"/api/agent/{participant_id}")
         r.raise_for_status()
         self.loaded["participant"] = r.json()
-        return args[0]
+        # r = await self.participant_client.get(f"/api/agent/{participant_id}.md")
+        # print(render_markdown(r.content.decode("utf-8")))
+        return participant_id
 
     async def cmd_participants(self, args: list[str]):
         r = await self.participant_client.get("/api/agent")
@@ -964,14 +979,13 @@ class ArenaCommander:
         return True
 
     async def cmd_strategy(self, args: list[str]):
-        strategy_id = None
-        if len(args) == 0:
-            strategy = self.loaded.get("strategy", None)
-            strategy_id = strategy["id"] if strategy else None
-            if not strategy_id:
-                print_title("No strategy id provided", error=True)
-                return True
+        strategy_id = self.safe_get_id(args, "strategy", "strategies")
+        if len(args) == 0 and strategy_id:
             args = ["load", strategy_id]
+
+        if len(args) == 0:
+            return None
+
         cmd = args.pop(0)
         if cmd == "load":
             strategy_id = await self.cmd_strategy_load(args)
@@ -979,7 +993,7 @@ class ArenaCommander:
             strategy_id = await self.cmd_strategy_create(args)
         else:
             strategy_id = cmd
-        if strategy_id:
+        if strategy_id and strategy_id != "":
             r = await self.participant_client.get(f"/api/strategy/{strategy_id}")
             r.raise_for_status()
             data = r.json()
@@ -1022,13 +1036,16 @@ class ArenaCommander:
         return data["id"]
 
     async def cmd_strategy_load(self, args: list[str]):
-        if not args:
-            print_title("No strategy id provided", error=True)
-            return None
-        r = await self.participant_client.get(f"/api/strategy/{args[0]}")
+        strategy_id = self.safe_get_id(args, "strategy", "strategies")
+        if not strategy_id:
+            return True
+
+        r = await self.participant_client.get(f"/api/strategy/{strategy_id}")
         r.raise_for_status()
         self.loaded["strategy"] = r.json()
-        return args[0]
+        # r = await self.participant_client.get(f"/api/strategy/{strategy_id}.md")
+        # print(render_markdown(r.content.decode("utf-8")))
+        return strategy_id
 
     async def cmd_strategies(self, args: list[str]):
         r = await self.participant_client.get("/api/strategy")
@@ -1049,6 +1066,24 @@ class ArenaCommander:
             await self.cmd_arena(args)
         elif cmd == "arenas":
             await self.cmd_arenas(args)
+        elif cmd == "clear":
+            await self.cmd_clear(args)
+        elif cmd == "contests":
+            await self.cmd_contests(args)
+        elif cmd == "contest":
+            await self.cmd_contest(args)
+        elif cmd == "exit":
+            await self.cmd_exit(args)
+        elif cmd == "generatejobs":
+            await self.cmd_generatejobs(args)
+        elif cmd == "generatejob":
+            await self.cmd_generatejob(args)
+        elif cmd == "jobs":
+            await self.cmd_jobs(args)
+        elif cmd == "job":
+            await self.cmd_job(args)
+        elif cmd == "listen":
+            await self.cmd_listen(args)
         elif cmd == "participant":
             await self.cmd_participant(args)
         elif cmd == "participants":
@@ -1057,24 +1092,6 @@ class ArenaCommander:
             await self.cmd_strategy(args)
         elif cmd == "strategies":
             await self.cmd_strategies(args)
-        elif cmd == "clear":
-            await self.cmd_clear(args)
-        elif cmd == "contests":
-            await self.cmd_contests(args)
-        elif cmd == "contest":
-            await self.cmd_contest(args)
-        elif cmd == "listen":
-            await self.cmd_listen(args)
-        elif cmd == "jobs":
-            await self.cmd_jobs(args)
-        elif cmd == "job":
-            await self.cmd_job(args)
-        elif cmd == "generatejobs":
-            await self.cmd_generatejobs(args)
-        elif cmd == "generatejob":
-            await self.cmd_generatejob(args)
-        elif cmd == "exit":
-            await self.cmd_exit(args)
         else:
             print_title(f"Unknown command: {cmd}", error=True)
 

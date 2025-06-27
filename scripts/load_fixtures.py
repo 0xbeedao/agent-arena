@@ -5,22 +5,31 @@ import secrets
 import sys
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import httpx
 import typer
+import yaml
 
-from agentarena.util.files import find_directory_of_file
+from agentarena.util.files import find_directory_of_file, find_file_upwards
 
 # Determine the project root directory
 project_root = find_directory_of_file("agent-arena-config.yaml")
+
 os.chdir(str(project_root))
 sys.path.append(".")
 app = typer.Typer(help="CLI tool to load fixtures into a FastAPI application")
-
 # Base URL of your FastAPI server
 ARENA_URL = "http://localhost:8000/api"
 ACTOR_URL = "http://localhost:8001/api"
+
+
+def read_config():
+    yamlfile = find_file_upwards("agent-arena-config.yaml")
+    assert yamlfile, "Where is my config file?"
+    with open(yamlfile, "r") as f:
+        yaml_data = yaml.safe_load(f)
+    return yaml_data
 
 
 def load_fixture_file(file_path: Path) -> dict:
@@ -75,8 +84,19 @@ def load_participant_fixture(fixture_file: Path):
         return None
 
 
-def load_strategy_fixture(fixture_file: Path):
+def load_strategy_fixture(fixture_file: Path, llm_config: List[Dict[str, Any]]):
     fixture_data = load_fixture_file(Path(fixture_file))
+    model_name = None
+    if "model" in fixture_data:
+        model_key = fixture_data["model"]
+        del fixture_data["model"]
+        possibles = [m for m in llm_config if m["name"] == model_key]
+        model_name = possibles[0]["name"] if len(possibles) > 0 else model_key
+        fixture_data["model"] = model_name
+        typer.echo(f"Using model: {model_name}")
+    else:
+        typer.echo(f"No model specified for strategy: {fixture_data['name']}")
+
     try:
         response = httpx.post(f"{ACTOR_URL}/strategy/", json=fixture_data)
         if response.status_code == 200:
@@ -84,24 +104,27 @@ def load_strategy_fixture(fixture_file: Path):
             typer.echo(
                 f"Successfully created strategy from {fixture_file}: {obj['name']}"
             )
-            return obj
+            return obj, model_name
         else:
             typer.echo(
                 f"Error loading fixtures: {response.status_code} - {response}",
                 err=True,
             )
-            return None
+            return None, None
     except httpx.RequestError as e:
         typer.echo(f"Request error: {e} processing {fixture_file}", err=True)
-        return None
+        return None, None
 
 
-def make_agent(participant, strategy):
+def make_agent(participant, strategy, model_key: Optional[str] = None):
     agent_data = {
         "strategy_id": strategy["id"],
         "name": participant["name"],
         "participant_id": participant["id"],
     }
+
+    if model_key:
+        agent_data["model"] = model_key
 
     json_data = json.dumps(agent_data)
 
@@ -188,6 +211,7 @@ def load_fixtures(
 ):
     """Load fixtures from a JSON file into the FastAPI application."""
     # Load fixture data
+    config = read_config()
     norm_dir = os.path.abspath(fixture_dir)
     fdir = Path(norm_dir)
     typer.echo(f"Checking {norm_dir}")
@@ -227,11 +251,16 @@ def load_fixtures(
         "player": [],
         "announcer": [],
     }
+    strategy_models = {}
+
     for fixture_file in files:
-        strategy = load_strategy_fixture(Path(fixture_file))
+        strategy, model_key = load_strategy_fixture(Path(fixture_file), config["llm"])
         if strategy is None:
             typer.echo(f"Error, could not load strategy from {fixture_file}", err=True)
             raise typer.Exit(code=1)
+        if model_key:
+            strategy_models[strategy["id"]] = model_key
+
         strategies[str(strategy["role"])].append(strategy)
 
     # make agents for each strategy
@@ -244,7 +273,12 @@ def load_fixtures(
         strats = strategies[role]
 
         for participant in participants[role]:
-            agent = make_agent(participant, secrets.choice(strats))
+            strategy = secrets.choice(strats)
+            agent = make_agent(
+                participant,
+                strategy,
+                strategy_models.get(strategy["id"], None),
+            )
             if not agent:
                 typer.echo(f"Error creating agent for {participant}")
                 raise typer.Exit(code=1)
