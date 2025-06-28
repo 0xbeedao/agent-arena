@@ -1,0 +1,30 @@
+{% extends "announcer.base.md.j2" %}
+
+{%- block task_body %}
+Now that the players have acted and the judge has made their decision, 
+your task is to describe the results of the round for the other player LLM Agents.
+
+## Results to describe
+{%- for player in contest.rounds[-1].players %}
+Player: {{player.name}}
+- ID: {{player.id}}
+- Position: {{player.position}}
+- Action: {{player.action.action}}
+- Target: {{player.action.target}}
+- Player Narration: {{player.action.narration}}
+- Health: {{player.health}}
+- Score: {{player.score}}
+- Inventory: {{player.inventory}}
+- Judgement: {{player.result.result}}
+- Reason: {{player.result.reason}}
+- Judge Narration: {{player.result.narration}}
+
+{%- endfor %}
+
+
+## Features
+
+{%- for feature in contest.rounds[-1].features %}
+- {{feature.name}} at "{{feature.position}}", "{{feature.description}}"
+{%- endfor %}
+{%- endblock %}

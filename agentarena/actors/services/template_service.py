@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 
 from jinja2 import ChoiceLoader
@@ -15,6 +16,7 @@ from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.constants import PromptType
 from agentarena.models.requests import ParticipantRequest
+from agentarena.util.response_parsers import extract_obj_from_json
 
 
 class TemplateService(JinjaRenderer):
@@ -54,7 +56,17 @@ class TemplateService(JinjaRenderer):
         prompt = strategy_prompt.prompt
         if prompt.startswith("#jinja:"):
             key = prompt.replace("#jinja:", "")
-            data = json.loads(req.data)
+            data = extract_obj_from_json(req.data)
+            if not data:
+                fname = f"bad_req_{datetime.now().timestamp()}.json"
+                log.error(
+                    "Could not parse data in request, dumped to file.",
+                    data=req.data,
+                    fname=fname,
+                )
+                with open(fname, "w") as f:
+                    f.write(req.data)
+                raise InvalidTemplateException("No data in request")
             data["agent"] = agent.get_public().model_dump()
             log = log.bind(template=key)
             log.info("Rendering template for prompt")

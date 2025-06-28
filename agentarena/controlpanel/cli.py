@@ -16,6 +16,7 @@ from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.shortcuts import print_container
+from prompt_toolkit.shortcuts import ProgressBar
 from prompt_toolkit.widgets import Frame
 from prompt_toolkit.widgets import TextArea
 
@@ -284,6 +285,32 @@ BASE_COMMANDS = {
                 "commands": {
                     "latest": {
                         "description": "load the latest job",
+                        "commands": {},
+                    },
+                    "$job_ids": {
+                        "description": "Job IDs",
+                        "commands": {},
+                    },
+                },
+            },
+            "clone": {
+                "description": "clone a job",
+                "commands": {
+                    "latest": {
+                        "description": "Clone the latest job",
+                        "commands": {},
+                    },
+                    "$job_ids": {
+                        "description": "Job IDs",
+                        "commands": {},
+                    },
+                },
+            },
+            "requeue": {
+                "description": "requeue a job",
+                "commands": {
+                    "latest": {
+                        "description": "Requeue the latest job",
                         "commands": {},
                     },
                     "$job_ids": {
@@ -828,6 +855,10 @@ class ArenaCommander:
             job_id = await self.cmd_job_load(args)
         elif cmd == "create":
             job_id = await self.cmd_job_create(args)
+        elif cmd == "clone":
+            job_id = await self.cmd_job_clone(args)
+        elif cmd == "restart":
+            job_id = await self.cmd_job_restart(args)
         else:
             job_id = cmd
 
@@ -836,6 +867,26 @@ class ArenaCommander:
             print(render_markdown(body.content.decode("utf-8")))
 
         return True
+
+    async def cmd_job_clone(self, args: list[str]):
+        job_id = self.safe_get_id(args, "job", "jobs")
+        if not job_id:
+            return None
+
+        r = await self.scheduler_client.post(f"/api/job/{job_id}/clone", {})
+        r.raise_for_status()
+        data = r.json()
+        self.loaded["job"] = data
+        print_title(f"Job {data['id']} cloned", success=True)
+        return data["id"]
+
+    async def cmd_job_restart(self, args: list[str]):
+        job_id = self.safe_get_id(args, "job", "jobs")
+        if not job_id:
+            return None
+
+        r = await self.scheduler_client.post(f"/api/job/{job_id}/requeue", {})
+        r.raise_for_status()
 
     async def cmd_job_load(self, args: list[str]):
         job_id = self.safe_get_id(args, "job", "jobs")
@@ -1054,6 +1105,22 @@ class ArenaCommander:
         print_strategy_list(strategies)
         return True
 
+    async def load_all(self):
+        title = HTML("<ansiblue>Loading data...</ansiblue>")
+        fetches = [
+            ("arenas", self.arena_client, "/api/arena"),
+            ("contests", self.arena_client, "/api/contest"),
+            ("strategies", self.participant_client, "/api/strategy"),
+            ("participants", self.participant_client, "/api/agent"),
+            ("generatejobs", self.participant_client, "/api/generatejob"),
+            ("jobs", self.scheduler_client, "/api/job"),
+        ]
+        with ProgressBar(title=title) as pb:
+            for key, client, path in pb(fetches, total=len(fetches)):
+                r = await client.get(path)
+                r.raise_for_status()
+                self.add_loaded(key, r.json())
+
     async def process_command(self, text: str):
         words = text.split()
         if not words:
@@ -1111,6 +1178,7 @@ class ArenaCommander:
         )
 
     async def start(self):
+        await self.load_all()
         while True:
             try:
                 text = await self.prompt()
@@ -1121,7 +1189,11 @@ class ArenaCommander:
             except Exception as e:
                 print_title(f"{e}", error=True)
                 continue
-            await self.process_command(text)
+            try:
+                await self.process_command(text)
+            except Exception as e:
+                print_title(f"{e}", error=True)
+                continue
 
 
 async def main():

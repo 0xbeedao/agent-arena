@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Dict, List
 
 import llm
 from sqlmodel import Field
@@ -7,7 +8,7 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import JobState
+from agentarena.models.constants import DEFAULT_AGENT_MODEL, JobState
 from agentarena.models.constants import PromptType
 from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
@@ -18,11 +19,17 @@ class LLMService:
     def __init__(
         self,
         db_service: DbService,
+        llm_map: List[Dict[str, str]],
         message_broker: MessageBroker = Field(),
         uuid_service: UUIDService = Field(),
         logging: LoggingService = Field(),
     ):
+        assert llm_map is not None, "llm_map is required"
+        self.llm_map = {}
+        for llm in llm_map:
+            self.llm_map[llm["name"]] = llm["key"]
         self.log = logging.get_logger("llm")
+        self.log.debug(f"LLM map is {len(llm_map)}")
         self.message_broker = message_broker
         self.db_service = db_service
         self.uuid_service = uuid_service
@@ -31,6 +38,11 @@ class LLMService:
         """
         Query the LLM and return the text
         """
+        if model_alias in self.llm_map:
+            model_alias = self.llm_map[model_alias]
+            self.log.debug(f"Using model {model_alias} from map")
+        if not model_alias:
+            model_alias = DEFAULT_AGENT_MODEL
         try:
             model = llm.get_model(model_alias)
             return model.prompt(prompt).text()

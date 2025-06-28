@@ -7,17 +7,18 @@ You are acting as the Announcer in an arena contest. The arena details are as fo
 - Playgrid Dimensions: {{ arena.width }} x {{ arena.height }}
 - Players: {player_count}
 - Grid size: 2 meters per cell
-- This is the setup round "0"
+- Round: First Round
 
-Your task is to describe the arena setup for the other player LLM Agents in a way consistent with your personality:
+You always carry out your task in a way consistent with your personality:
+{% block personality %}
 "{{agent.personality}}"
+{% endblock %}
 
+{%- block task_body %}
 ## Arena Details to describe
 
 {% for feature in rounds[0].features %}
 - {{feature.name}} at "{{feature.position}}"
 {% endfor %}
+{%- endblock %}
 
-## Output
-
-Respond in a paragraph or two, in the voice of an Announcer.

@@ -15,13 +15,14 @@ from statemachine import Event
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import Contest
+from agentarena.arena.models import Contest, ContestRoundCreate
 from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import JudgeResult
 from agentarena.arena.models import JudgeResultCreate
+from agentarena.arena.models import Participant
 from agentarena.arena.models import PlayerAction
 from agentarena.arena.models import PlayerActionCreate
 from agentarena.arena.models import PlayerState
@@ -59,6 +60,7 @@ class ContestMachine(StateMachine):
     starting = State("starting", initial=True)
     role_call = State("role_call")
     setup_arena = State("setup_arena")
+    create_round = State("create_round")
     in_round = State("in_round")
     check_end = State("check_end")
     fail = State("fail", final=True)
@@ -66,14 +68,15 @@ class ContestMachine(StateMachine):
 
     # Transitions
     start_contest = starting.to(role_call)
-    # roles_present = role_call.to(setup_arena) # Replaced by explicit Event
-    # roles_error = role_call.to(fail) # Replaced by explicit Event
     setup_done = setup_arena.to(in_round)
     setup_error = setup_arena.to(fail)
-    round_complete = in_round.to(check_end)
+    round_created = create_round.to(in_round)
+    round_complete = in_round.to(
+        check_end, unless="current_round_failed"
+    ) | in_round.to(fail)
     round_error = in_round.to(fail)
     contest_complete = check_end.to(complete)
-    more_rounds = check_end.to(in_round)
+    more_rounds = check_end.to(create_round)
 
     # Explicit Event definitions
     roles_present = Event(role_call.to(setup_arena))
@@ -123,6 +126,16 @@ class ContestMachine(StateMachine):
         self.log = log.bind(contest_id=contest_id, state=state)
         StateMachine.__init__(self, start_value=state)
         self.log.info("setup complete")
+
+    def current_round_failed(self) -> bool:
+        """
+        Check if the current round has failed.
+        """
+        if self._round_machine is None:
+            return False
+        return (
+            self._round_machine.current_state.id == ContestRoundState.ROUND_FAIL.value
+        )
 
     async def handle_role_call(self, msg: Msg):
         """
@@ -176,6 +189,7 @@ class ContestMachine(StateMachine):
         """Handle the round complete message."""
         self.log.info("Handling round complete message", msg=msg)
         await self.subscriber.unsubscribe(msg.subject, self.log)
+        asyncio.create_task(self.round_complete(""))  # type: ignore
 
     async def handle_setup_complete(self, msg: Msg):
         """Handle the setup complete message."""
@@ -254,6 +268,27 @@ class ContestMachine(StateMachine):
         await setup_machine.activate_initial_state()  # type: ignore
         await setup_machine.start_generating_features("from contest machine")
 
+    async def on_enter_create_round(self):
+        """Called when entering the CreateRound state, which happens for all rounds after the first."""
+        self.log.info("Entering CreateRound state")
+        rc = ContestRoundCreate(
+            contest_id=self.contest.id,
+            round_no=len(self.contest.rounds),
+            narrative=self.contest.rounds[-1].ending_narrative or "",
+            ending_narrative=None,
+            state=ContestRoundState.IDLE,
+        )
+        created, result = await self.round_service.create(rc, self.session)
+        if not created or not result.success:
+            self.log.error("Failed to create round", error=result)
+            asyncio.create_task(self.round_error(""))  # type: ignore
+            return
+        self.log.info("Round created", round=created.id)
+        self.contest.current_round = len(self.contest.rounds)
+        self.contest.rounds.append(created)
+        self.session.commit()
+        asyncio.create_task(self.round_created(""))  # type: ignore
+
     async def on_enter_in_round(self):
         """Called when entering the InRound state.
         This will create a new round machine and subscribe to the round complete channel.
@@ -280,11 +315,25 @@ class ContestMachine(StateMachine):
         )
         await self._round_machine.activate_initial_state()  # type: ignore
 
-    def on_enter_checking_end(self):
-        """Called when entering the CheckingEnd state."""
+    def on_enter_check_end(self):
+        """Called when entering the CheckEnd state."""
+        # We could check using an LLM, but for now we'll just check the scores
+        round = self.contest.rounds[-1]
+        for state in round.player_states:
+            if state.score > 100:
+                self.log.info("Player has won", player=state.participant.name)
+                asyncio.create_task(self.contest_complete(state.participant))  # type: ignore
+                return
+        self.log.info("No player has won, continuing to next round")
+        asyncio.create_task(self.more_rounds(""))  # type: ignore
 
-    def on_enter_completed(self):
-        """Called when entering the Completed state."""
+    def on_enter_complete(self, winner: Participant):
+        """Called when entering the Complete state."""
+        self.log.info("Contest complete")
+        self.contest.winner_id = winner.id
+        self.contest.updated_at = int(datetime.now().timestamp())
+        self.session.commit()
+        asyncio.create_task(self.subscriber.unsubscribe_all(self.log))
 
     def check_setup_done(self) -> bool:
         """
@@ -299,17 +348,6 @@ class ContestMachine(StateMachine):
             self._setup_machine.current_state.id
             == ContestRoundState.DESCRIBING_SETUP.value
         )
-
-    def check_round_done(self) -> bool:
-        """
-        Check if round is done.
-
-        Returns:
-            bool: True if round is done, False otherwise.
-        """
-        if self._round_machine is None:
-            return False
-        return True
 
     def get_state_dict(self) -> Dict[str, Any]:
         """

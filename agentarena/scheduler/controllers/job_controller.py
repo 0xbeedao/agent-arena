@@ -121,13 +121,13 @@ class JobController(
             with self.model_service.get_session() as session:
                 return await self.get_model(obj_id, session)
 
-        @router.post("/{obj_id}/redo", response_model=CommandJobPublic)
-        async def redo(obj_id: str):
+        @router.post("/{obj_id}/clone", response_model=CommandJobPublic)
+        async def clone(obj_id: str):
             with self.model_service.get_session() as session:
                 return await self.redo(obj_id, session, False)
 
-        @router.post("/{obj_id}/redokey", response_model=CommandJobPublic)
-        async def redo_key(obj_id: str):
+        @router.post("/{obj_id}/requeue", response_model=CommandJobPublic)
+        async def requeue(obj_id: str):
             with self.model_service.get_session() as session:
                 return await self.redo(obj_id, session, True)
 

@@ -6,6 +6,7 @@
 
 # Temporary files
 *~
+bad_req_*.json
 
 # local environment
 .env

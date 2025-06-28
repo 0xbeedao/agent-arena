@@ -128,6 +128,7 @@ class ActorContainer(containers.DeclarativeContainer):
     llm_service = providers.Singleton(
         LLMService,
         db_service,
+        config.llm,
         message_broker=message_broker,
         uuid_service=uuid_service,
         logging=logging,

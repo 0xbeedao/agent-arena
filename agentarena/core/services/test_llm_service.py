@@ -10,7 +10,7 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import JobState
+from agentarena.models.constants import JobState, PromptType
 from agentarena.models.job import GenerateJob
 
 
@@ -41,6 +41,7 @@ def llm_service(
     mock_db_service, mock_message_broker, mock_uuid_service, mock_logging_service
 ):
     return LLMService(
+        llm_map={},
         db_service=mock_db_service,
         message_broker=mock_message_broker,
         uuid_service=mock_uuid_service,
@@ -61,6 +62,7 @@ async def test_execute_job_success(llm_service, mock_db_service, mock_message_br
         job_id=job_id,
         model=model_alias,
         prompt=prompt,
+        prompt_type=PromptType.ANNOUNCER_DESCRIBE_ARENA,
         state=JobState.IDLE,
     )
 
@@ -110,6 +112,7 @@ async def test_execute_job_failure_invalid_model(
         job_id=job_id,
         model=model_alias,
         prompt=prompt,
+        prompt_type=PromptType.ANNOUNCER_DESCRIBE_ARENA,
         state=JobState.IDLE,
     )
 

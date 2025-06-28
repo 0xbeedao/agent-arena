@@ -16,7 +16,7 @@ from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 
-from agentarena.arena.models import Contest
+from agentarena.arena.models import Contest, ContestRound
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestPublic
 from agentarena.arena.models import ContestState
@@ -44,6 +44,7 @@ from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
+from agentarena.models.constants import ContestRoundState
 from agentarena.models.public import JobResponse
 from agentarena.models.requests import ControllerRequest
 from agentarena.models.requests import ParticipantRequest
@@ -107,7 +108,7 @@ class ContestController(
 
     async def clone_contest(self, contest_id: str, session: Session) -> ContestPublic:
         """
-        Clone a contest.
+        Clone a contest, including all non-failed rounds and their children.
         """
         contest, response = await self.model_service.get(contest_id, session)
         if not contest or not response.success:
@@ -126,6 +127,98 @@ class ContestController(
 
         for p in contest.participants:
             clone.participants.append(p)
+        session.commit()
+
+        # Deep clone rounds and children if not in a fail state
+        fail_states = {
+            ContestRoundState.FAIL,
+            ContestRoundState.ROUND_FAIL,
+            ContestRoundState.SETUP_FAIL,
+        }
+        for round in contest.rounds:
+            if round.state in fail_states:
+                continue
+            new_round_id = self.model_service.uuid_service.make_id()
+            new_round = ContestRound(
+                id=new_round_id,
+                contest_id=clone.id,
+                round_no=round.round_no,
+                narrative=round.narrative,
+                state=round.state,
+            )
+            session.add(new_round)
+            session.flush()
+
+            # Features
+            for f in round.features:
+                new_feature = Feature(
+                    id=self.model_service.uuid_service.make_id(),
+                    arena_id=f.arena_id,
+                    contestround_id=new_round_id,
+                    name=f.name,
+                    description=f.description,
+                    position=f.position,
+                    origin=f.origin,
+                )
+                session.add(new_feature)
+                new_round.features.append(new_feature)
+
+            # Judge Results
+            for jr in round.judge_results:
+                new_jr = JudgeResult(
+                    id=self.model_service.uuid_service.make_id(),
+                    contestround_id=new_round_id,
+                    participant_id=jr.participant_id,
+                    narration=jr.narration,
+                    memories=jr.memories,
+                    result=jr.result,
+                    reason=jr.reason,
+                )
+                session.add(new_jr)
+                new_round.judge_results.append(new_jr)
+
+            # Player States
+            for ps in round.player_states:
+                new_ps = PlayerState(
+                    id=self.model_service.uuid_service.make_id(),
+                    participant_id=ps.participant_id,
+                    contestround_id=new_round_id,
+                    position=ps.position,
+                    inventory=list(ps.inventory) if ps.inventory else [],
+                    health=ps.health,
+                    score=ps.score,
+                )
+                session.add(new_ps)
+                new_round.player_states.append(new_ps)
+
+            # Player Actions
+            for pa in round.player_actions:
+                new_pa = PlayerAction(
+                    id=self.model_service.uuid_service.make_id(),
+                    participant_id=pa.participant_id,
+                    contestround_id=new_round_id,
+                    action=pa.action,
+                    narration=pa.narration,
+                    memories=pa.memories,
+                    target=pa.target,
+                )
+                session.add(new_pa)
+                new_round.player_actions.append(new_pa)
+
+            # Round Stats (optional, 1:1)
+            if round.round_stats:
+                rs = round.round_stats
+                new_rs = type(rs)(
+                    id=self.model_service.uuid_service.make_id(),
+                    contestround_id=new_round_id,
+                    actions_count=rs.actions_count,
+                    duration_ms=rs.duration_ms,
+                    metrics_json=dict(rs.metrics_json) if rs.metrics_json else {},
+                )
+                session.add(new_rs)
+                new_round.round_stats = new_rs
+
+            clone.rounds.append(new_round)
         session.commit()
         return clone.get_public()
 
@@ -398,12 +491,6 @@ class ContestController(
             boundlog.error("failed to get contest data")
             raise HTTPException(status_code=404, detail="internal error")
 
-        if contest.state != ContestState.CREATED:
-            boundlog.error(f"contest is not in CREATED state, was: {contest.state}")
-            raise HTTPException(
-                status_code=422, detail="Contest is not in CREATED state"
-            )
-
         participants = [p for p in contest.participants]
         if len(participants) < 4:
             boundlog.error("No agents in arena, raising error")
@@ -426,10 +513,11 @@ class ContestController(
 
         # Set contest state to STARTING
         # and update start time
-        contest.state = ContestState.STARTING
-        contest.start_time = int(datetime.now().timestamp())
+        if contest.state == ContestState.STARTING:
+            contest.start_time = int(datetime.now().timestamp())
         await self.model_service.update(contest_id, contest, session)
         await self.message_broker.send_message(
+            # should be STARTING, so that the machine starts
             f"arena.contest.{contest_id}.contestflow.{ContestState.STARTING.value}",
             contest_id,
         )

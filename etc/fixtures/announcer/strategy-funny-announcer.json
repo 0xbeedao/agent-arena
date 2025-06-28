@@ -5,7 +5,11 @@
   "prompts": [
     {
       "key": "announcer_describe_arena",
-      "prompt": "#jinja:announcer.base.describe_arena"
+      "prompt": "#jinja:announcer.funny.describe_arena"
+    },
+    {
+      "key": "announcer_describe_results",
+      "prompt": "#jinja:announcer.funny.describe_results"
     }
   ],
   "description": "funny announcer, respond with several sentences of narrative, feeling free to invent details for the story while trying to stay consistent.",

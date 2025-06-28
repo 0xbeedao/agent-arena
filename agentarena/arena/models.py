@@ -120,7 +120,10 @@ class ContestRoundBase(SQLModel, table=False):
         description="Reference to Contest", foreign_key="contest.id"
     )
     round_no: int = Field(description="Round number", ge=0)
-    narrative: str = Field(default=None, description="Round narrative")
+    narrative: str = Field(default="", description="Round narrative")
+    ending_narrative: Optional[str] = Field(
+        default=None, description="Round ending narrative"
+    )
     state: ContestRoundState = Field(description="Round state")
 
 
@@ -135,6 +138,7 @@ class ContestRound(ContestRoundBase, DbBase, table=True):
     judge_results: List["JudgeResult"] = Relationship(back_populates="contestround")
     player_states: List["PlayerState"] = Relationship(back_populates="contestround")
     player_actions: List["PlayerAction"] = Relationship(back_populates="contestround")
+
     round_stats: "ContestRoundStats" = Relationship(
         back_populates="contestround",
         sa_relationship_kwargs={"uselist": False},

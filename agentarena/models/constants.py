@@ -25,7 +25,6 @@ class ContestRoundState(str, Enum):
     JUDGING_ACTIONS = "judging_actions"
     APPLYING_EFFECTS = "applying_effects"
     DESCRIBING_RESULTS = "describing_results"
-    PRESENTING_RESULTS = "presenting_results"
     ROUND_COMPLETE = "round_complete"
     ROUND_FAIL = "round_fail"
 
@@ -42,6 +41,7 @@ class ContestState(str, Enum):
     STARTING = "starting"
     ROLE_CALL = "role_call"
     SETUP_ARENA = "setup_arena"
+    CREATE_ROUND = "create_round"
     IN_ROUND = "in_round"
     CHECK_WIN = "check_win"
 
@@ -71,6 +71,7 @@ class PromptType(str, Enum):
     """
 
     ANNOUNCER_DESCRIBE_ARENA = "announcer_describe_arena"
+    ANNOUNCER_DESCRIBE_RESULTS = "announcer_describe_results"
     ARENA_GENERATE_FEATURES = "arena_generate_features"
     JUDGE_APPLY_EFFECTS = "judge_apply_effects"
     JUDGE_PLAYER_ACTION_JUDGEMENT = "judge_player_action_judgement"

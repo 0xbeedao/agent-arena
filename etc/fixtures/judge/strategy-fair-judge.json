@@ -1,6 +1,6 @@
 {
   "name": "Fair Judge",
-  "model": "gtp4.1-mini",
+  "model": "gpt4.1-mini",
   "personality": "Analytical, detail-oriented, and fair.",
   "prompts": [
     {

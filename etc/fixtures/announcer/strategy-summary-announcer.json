@@ -5,7 +5,11 @@
   "prompts": [
     {
       "key": "announcer_describe_arena",
-      "prompt": "#jinja:announcer.base.describe_arena"
+      "prompt": "#jinja:announcer.summary.describe_arena"
+    },
+    {
+      "key": "announcer_describe_results",
+      "prompt": "#jinja:announcer.summary.describe_results"
     }
   ],
   "description": "summary announcer, keeping things short and to the facts, like an AP wire summary.",

@@ -50,7 +50,6 @@ class RoundMachine(StateMachine):
     judging_actions = State(ContestRoundState.JUDGING_ACTIONS.value)
     applying_effects = State(ContestRoundState.APPLYING_EFFECTS.value)
     describing_results = State(ContestRoundState.DESCRIBING_RESULTS.value)
-    presenting_results = State(ContestRoundState.PRESENTING_RESULTS.value)
     round_complete = State(ContestRoundState.ROUND_COMPLETE.value, final=True)
     round_fail = State(ContestRoundState.ROUND_FAIL.value, final=True)
 
@@ -59,8 +58,7 @@ class RoundMachine(StateMachine):
         | round_prompting.to(judging_actions)
         | judging_actions.to(applying_effects)
         | applying_effects.to(describing_results)
-        | describing_results.to(presenting_results)
-        | presenting_results.to(round_complete)
+        | describing_results.to(round_complete)
     )
 
     step_failed = (
@@ -68,7 +66,6 @@ class RoundMachine(StateMachine):
         | judging_actions.to(round_fail)
         | applying_effects.to(round_fail)
         | describing_results.to(round_fail)
-        | presenting_results.to(round_fail)
     )
 
     def __init__(
@@ -143,6 +140,8 @@ class RoundMachine(StateMachine):
 
     async def on_enter_describing_results(self):
         """Called when entering the DescribingResults state."""
+        await self.send_describing_results_prompt()
+        self.log.info("sent describing results prompt")
 
     async def on_enter_presenting_results(self):
         """Called when entering the PresentingResults state."""
@@ -278,18 +277,22 @@ class RoundMachine(StateMachine):
             raw = decode(msg.data, "utf-8", "unicode_escape")
             if not raw:
                 log.error("No data in message")
-                await self.step_failed("no data in message")
+                asyncio.create_task(self.step_failed("no data in message"))
                 return
             action = extract_obj_from_json(raw)
             if not action:
                 log.error("No action in message")
-                await self.step_failed(f"no action in message for player {player_id}")
+                asyncio.create_task(
+                    self.step_failed(f"no action in message for player {player_id}")
+                )
                 return
             log.info("received action", action=action)
             valid = "action" in action and action.get("action", "") != ""
             if not valid:
                 log.error("Invalid action", action=action)
-                await self.step_failed(f"invalid action for player {player_id}")
+                asyncio.create_task(
+                    self.step_failed(f"invalid action for player {player_id}")
+                )
                 return
             pa = PlayerActionCreate(
                 participant_id=player_id,
@@ -304,8 +307,8 @@ class RoundMachine(StateMachine):
             created, result = await self.action_service.create(pa, self.session)
             if not created or not result.success:
                 log.error("Failed to create action", error=result)
-                await self.step_failed(
-                    f"failed to create action for player {player_id}"
+                asyncio.create_task(
+                    self.step_failed(f"failed to create action for player {player_id}")
                 )
                 return
             log.info("created action", action=created.id)
@@ -316,8 +319,10 @@ class RoundMachine(StateMachine):
                 asyncio.create_task(self.cycle("judging_actions"))
         except Exception as e:
             log.error("Failed to extract text response", error=e)
-            await self.step_failed(
-                f"failed to extract text response for player {player_id}"
+            asyncio.create_task(
+                self.step_failed(
+                    f"failed to extract text response for player {player_id}"
+                )
             )
             return
 
@@ -337,7 +342,7 @@ class RoundMachine(StateMachine):
         req = ParticipantRequest(
             job_id=job_id,
             command=PromptType.JUDGE_APPLY_EFFECTS,
-            data=f'{{"contest":{contest_json}}}',
+            data=f'{"contest":{contest_json}}',
             message="judge apply effects of actions",
         )
         job = CommandJob(
@@ -372,7 +377,7 @@ class RoundMachine(StateMachine):
         req = ParticipantRequest(
             job_id=job_id,
             command=PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT,
-            data=f'{{"contest":{contest_json},"action":{action_json},"player":{player_json}}}',
+            data=f'{"contest":{contest_json},"action":{action_json},"player":{player_json}}',
             message="judge player action",
         )
         job = CommandJob(
@@ -402,7 +407,7 @@ class RoundMachine(StateMachine):
         req = ParticipantRequest(
             job_id=job_id,
             command=PromptType.PLAYER_PLAYER_ACTION,
-            data='{"contest":' + contest_json + "}",
+            data=f'{"contest":{contest_json}}',
             message="player action",
         )
         job = CommandJob(
@@ -424,6 +429,75 @@ class RoundMachine(StateMachine):
         )
         log.info(f"subscribed", channel=channel)
         return channel, sub
+
+    async def send_describing_results_prompt(self):
+        """Send a prompt to the announcer to describe round results."""
+        job_id = self.message_broker.uuid_service.make_id()
+        log = self.log.bind(job_id=job_id)
+        announcers = self.contest_round.contest.get_role(RoleType.ANNOUNCER)
+        if not announcers:
+            log.error("No announcer found for describing results")
+            return
+        announcer = announcers[0]
+        channel, _ = await self.subscribe_to_describing_results_message(log)
+        log.info("sending describing results prompt")
+        contest = self.contest_round.contest
+        contest_json = contest.get_public().model_dump_json()
+        round_json = self.contest_round.get_public().model_dump_json()
+        req = ParticipantRequest(
+            job_id=job_id,
+            command=PromptType.ANNOUNCER_DESCRIBE_RESULTS,
+            data=f'{"contest":contest_json, "round":round_json}',
+            message="describe round results",
+        )
+        job = CommandJob(
+            channel=channel,
+            data=req.model_dump_json(),
+            method="POST",
+            url=announcer.url("request"),
+        )
+        await self.message_broker.send_job(job)
+
+    async def subscribe_to_describing_results_message(self, log: ILogger):
+        channel = f"arena.contest.{self.contest_round.contest.id}.round.{self.contest_round.round_no}.describing_results.prompt"
+        sub = await self.subscriber.subscribe(
+            self.message_broker.client,
+            channel,
+            log,
+            cb=self.handle_describing_results_message,
+        )
+        log.info(f"subscribed", channel=channel)
+        return channel, sub
+
+    async def handle_describing_results_message(self, msg: Msg):
+        """Handle the message from the announcer agent with the round ending narrative."""
+        log = self.log.bind(msg=msg.subject)
+        log.info("Received describing results message", msg=msg.subject)
+        await self.subscriber.unsubscribe(msg.subject, self.log)
+        try:
+            raw = decode(msg.data, "utf-8", "unicode_escape")
+            result = extract_obj_from_json(raw)
+            if not result:
+                log.error("No result in describing results message")
+                await self.step_failed("no result in describing results message")
+                return
+            narrative = (
+                result.get("narrative")
+                or result.get("description")
+                or result.get("text")
+            )
+            if not narrative:
+                log.error("No narrative in describing results message", result=result)
+                await self.step_failed("no narrative in describing results message")
+                return
+            self.contest_round.ending_narrative = narrative
+            self.contest_round.updated_at = int(datetime.now().timestamp())
+            self.session.commit()
+            log.info("Set ending_narrative for round", ending_narrative=narrative)
+            asyncio.create_task(self.cycle("describing_results_done"))
+        except Exception as e:
+            log.error("Failed to handle describing results message", error=e)
+            await self.step_failed("error in describing results message")
 
     async def on_enter_state(self, target, event):
         # update the round state
