@@ -3,22 +3,19 @@ from codecs import decode
 from datetime import datetime
 
 from nats.aio.msg import Msg
-from sqlmodel import Field
 from sqlmodel import Session
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import (
-    ContestRound,
-    Feature,
-    FeatureCreate,
-    PlayerState,
-    PlayerStateCreate,
-)
+from agentarena.arena.models import ContestRound
+from agentarena.arena.models import Feature
+from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import JudgeResultCreate
 from agentarena.arena.models import Participant
 from agentarena.arena.models import PlayerAction
 from agentarena.arena.models import PlayerActionCreate
+from agentarena.arena.models import PlayerState
+from agentarena.arena.models import PlayerStateCreate
 from agentarena.arena.services.view_service import ViewService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
@@ -28,7 +25,11 @@ from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
-from agentarena.models.requests import ParticipantRequest
+from agentarena.models.requests import ActionRequestPayload
+from agentarena.models.requests import ContestRoundPayload
+from agentarena.models.requests import ParticipantActionRequest
+from agentarena.models.requests import ParticipantContestRequest
+from agentarena.models.requests import ParticipantContestRoundRequest
 from agentarena.util.response_parsers import extract_obj_from_json
 
 
@@ -338,18 +339,16 @@ class RoundMachine(StateMachine):
         channel, _ = await self.subscribe_to_apply_effects_message(log)
         log.info("sending apply effects prompt")
         contest = self.contest_round.contest
-        contest_json = contest.get_public().model_dump_json()
-        req = ParticipantRequest(
-            job_id=job_id,
+        req = ParticipantContestRequest(
             command=PromptType.JUDGE_APPLY_EFFECTS,
-            data=f'{"contest":{contest_json}}',
+            data=contest.get_public(),
             message="judge apply effects of actions",
         )
         job = CommandJob(
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=judge.url("request"),
+            url=judge.url(f"{PromptType.JUDGE_APPLY_EFFECTS.value}/{job_id}"),
         )
         await self.message_broker.send_job(job)
 
@@ -371,13 +370,14 @@ class RoundMachine(StateMachine):
             cb=self.handle_judging_action_message,
         )
         contest = self.contest_round.contest
-        contest_json = contest.get_public().model_dump_json()
-        action_json = action.get_public().model_dump_json()
-        player_json = action.player.get_public().model_dump_json()
-        req = ParticipantRequest(
-            job_id=job_id,
+        payload = ActionRequestPayload(
+            contest=contest.get_public(),
+            action=action.get_public(),
+            player=action.player.get_public(),
+        )
+        req = ParticipantActionRequest(
             command=PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT,
-            data=f'{"contest":{contest_json},"action":{action_json},"player":{player_json}}',
+            data=payload,
             message="judge player action",
         )
         job = CommandJob(
@@ -403,18 +403,16 @@ class RoundMachine(StateMachine):
             cb=self.handle_player_prompt_message,
         )
         view = self.view_service.get_contest_view(self.contest_round.contest, player)
-        contest_json = view.model_dump_json()
-        req = ParticipantRequest(
-            job_id=job_id,
+        req = ParticipantContestRequest(
             command=PromptType.PLAYER_PLAYER_ACTION,
-            data=f'{"contest":{contest_json}}',
+            data=view,
             message="player action",
         )
         job = CommandJob(
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=player.url("request"),
+            url=player.url(f"{PromptType.PLAYER_PLAYER_ACTION.value}/{job_id}"),
         )
         self.pending_actions.add(player.id)
         await self.message_broker.send_job(job)
@@ -441,20 +439,22 @@ class RoundMachine(StateMachine):
         announcer = announcers[0]
         channel, _ = await self.subscribe_to_describing_results_message(log)
         log.info("sending describing results prompt")
-        contest = self.contest_round.contest
-        contest_json = contest.get_public().model_dump_json()
-        round_json = self.contest_round.get_public().model_dump_json()
-        req = ParticipantRequest(
-            job_id=job_id,
+        payload = ContestRoundPayload(
+            contest=self.contest_round.contest.get_public(),
+            round=self.contest_round.get_public(),
+        )
+        req = ParticipantContestRoundRequest(
             command=PromptType.ANNOUNCER_DESCRIBE_RESULTS,
-            data=f'{"contest":contest_json, "round":round_json}',
+            data=payload,
             message="describe round results",
         )
         job = CommandJob(
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=announcer.url("request"),
+            url=announcer.url(
+                f"{PromptType.ANNOUNCER_DESCRIBE_RESULTS.value}/{job_id}"
+            ),
         )
         await self.message_broker.send_job(job)
 

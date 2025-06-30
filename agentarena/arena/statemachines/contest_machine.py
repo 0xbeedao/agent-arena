@@ -15,7 +15,8 @@ from statemachine import Event
 from statemachine import State
 from statemachine import StateMachine
 
-from agentarena.arena.models import Contest, ContestRoundCreate
+from agentarena.arena.models import Contest
+from agentarena.arena.models import ContestRoundCreate
 from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Feature

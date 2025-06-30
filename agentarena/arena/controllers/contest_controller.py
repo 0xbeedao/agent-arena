@@ -16,9 +16,10 @@ from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
 
-from agentarena.arena.models import Contest, ContestRound
+from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import ContestPublic
+from agentarena.arena.models import ContestRound
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import ContestUpdate
 from agentarena.arena.models import Feature
@@ -41,13 +42,17 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
+from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
-from agentarena.models.constants import ContestRoundState
 from agentarena.models.public import JobResponse
+from agentarena.models.requests import ActionRequestPayload
+from agentarena.models.requests import ContestRoundPayload
 from agentarena.models.requests import ControllerRequest
-from agentarena.models.requests import ParticipantRequest
+from agentarena.models.requests import ParticipantActionRequest
+from agentarena.models.requests import ParticipantContestRequest
+from agentarena.models.requests import ParticipantContestRoundRequest
 
 
 class ContestController(
@@ -378,68 +383,138 @@ class ContestController(
                 log.error("Failed to start contest", error=str(e))
                 return False, e.detail
 
-    async def prompt(
-        self, contest_id: str, target_id: str, prompt_type: PromptType, session: Session
-    ) -> ParticipantRequest:
+    async def prompt_announcer_describe_arena(
+        self, contest_id: str, session: Session
+    ) -> ParticipantContestRequest:
         """
-        Get the prompt the contest will use with a given prompt type.
+        Get the prompt the announcer will use to describe the arena.
         """
         contest, response = await self.model_service.get(contest_id, session)
         if not contest or not response.success:
             raise HTTPException(status_code=404, detail=response.model_dump())
-        if prompt_type == PromptType.PLAYER_PLAYER_ACTION:
-            players = contest.participants_by_role()[RoleType.PLAYER]
-            player = next((p for p in players if p.id == target_id), None)
-            if not player:
-                raise HTTPException(
-                    status_code=404, detail=f"Player {target_id} not found"
-                )
-            view = self.view_service.get_contest_view(contest, player)
-            view_json = view.model_dump_json()
-            req = ParticipantRequest(
-                job_id=self.model_service.uuid_service.make_id(),
-                command=prompt_type,
-                data='{"contest":' + view_json + "}",
-                message=f"prompt for {player.name}",
-            )
-            return req
-        elif prompt_type == PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT:
-            judges = contest.get_role(RoleType.JUDGE)
-            if not judges:
-                raise HTTPException(status_code=404, detail="No judges found")
-            judge = judges[0]
-
-            action, response = await self.playeraction_service.get(target_id, session)
-            if not action or not response.success:
-                raise HTTPException(
-                    status_code=404, detail=f"No action found for {target_id}"
-                )
-            contest_json = contest.get_public().model_dump_json()
-            action_json = action.get_public().model_dump_json()
-            req = ParticipantRequest(
-                job_id=self.model_service.uuid_service.make_id(),
-                command=prompt_type,
-                data=f'{{"contest":{contest_json},"action":{action_json}}}',
-                message=f"prompt for {judge.name}",
-            )
-            return req
-        elif prompt_type == PromptType.JUDGE_APPLY_EFFECTS:
-            judges = contest.get_role(RoleType.JUDGE)
-            if not judges:
-                raise HTTPException(status_code=404, detail="No judges found")
-            judge = judges[0]
-            contest_json = contest.get_public().model_dump_json()
-            req = ParticipantRequest(
-                job_id=self.model_service.uuid_service.make_id(),
-                command=prompt_type,
-                data=f'{{"contest":{contest_json}}}',
-                message=f"prompt for {judge.name}",
-            )
-            return req
-
-        raise HTTPException(
-            status_code=404, detail=f"Prompt type {prompt_type} not found"
+        announcers = contest.get_role(RoleType.ANNOUNCER)
+        if not announcers:
+            raise HTTPException(status_code=404, detail="No announcers found")
+        announcer = announcers[0]
+        req = ParticipantContestRequest(
+            command=PromptType.ANNOUNCER_DESCRIBE_ARENA,
+            data=contest.get_public(),
+            message=f"prompt for {announcer.name}",
         )
+        return req
+
+    async def prompt_announcer_describe_results(
+        self, contest_id: str, session: Session
+    ) -> ParticipantContestRoundRequest:
+        """
+        Get the prompt the announcer will use to describe the results.
+        """
+        contest, response = await self.model_service.get(contest_id, session)
+        if not contest or not response.success:
+            raise HTTPException(status_code=404, detail=response.model_dump())
+        announcers = contest.get_role(RoleType.ANNOUNCER)
+        if not announcers:
+            raise HTTPException(status_code=404, detail="No announcers found")
+        announcer = announcers[0]
+        payload = ContestRoundPayload(
+            contest=contest.get_public(),
+            round=contest.rounds[0].get_public(),
+        )
+        req = ParticipantContestRoundRequest(
+            command=PromptType.ANNOUNCER_DESCRIBE_RESULTS,
+            data=payload,
+            message=f"prompt for {announcer.name}",
+        )
+        return req
+
+    async def prompt_arena_generate_features(
+        self, contest_id: str, session: Session
+    ) -> ParticipantContestRequest:
+        """
+        Get the prompt the arena will use to generate features.
+        """
+        contest, response = await self.model_service.get(contest_id, session)
+        if not contest or not response.success:
+            raise HTTPException(status_code=404, detail=response.model_dump())
+        arena = contest.get_role(RoleType.ARENA)
+        if not arena:
+            raise HTTPException(status_code=404, detail="No arena found")
+        arena = arena[0]
+        req = ParticipantContestRequest(
+            command=PromptType.ARENA_GENERATE_FEATURES, data=contest.get_public()
+        )
+        return req
+
+    async def prompt_judge_apply_effects(
+        self, contest_id: str, session: Session
+    ) -> ParticipantContestRequest:
+        """
+        Get the prompt the judge will use to apply effects.
+        """
+        contest, response = await self.model_service.get(contest_id, session)
+        if not contest or not response.success:
+            raise HTTPException(status_code=404, detail=response.model_dump())
+        judges = contest.get_role(RoleType.JUDGE)
+        if not judges:
+            raise HTTPException(status_code=404, detail="No judges found")
+        judge = judges[0]
+        req = ParticipantContestRequest(
+            command=PromptType.JUDGE_APPLY_EFFECTS,
+            data=contest.get_public(),
+            message=f"prompt for {judge.name}",
+        )
+        return req
+
+    async def prompt_judge_player_action_judgement(
+        self, contest_id: str, player_id: str, session: Session
+    ) -> ParticipantActionRequest:
+        """
+        Get the prompt the judge will use to judge a player action.
+        """
+        contest, response = await self.model_service.get(contest_id, session)
+        if not contest or not response.success:
+            raise HTTPException(status_code=404, detail=response.model_dump())
+        judges = contest.get_role(RoleType.JUDGE)
+        if not judges:
+            raise HTTPException(status_code=404, detail="No judges found")
+        judge = judges[0]
+        action, response = await self.playeraction_service.get(player_id, session)
+        if not action or not response.success:
+            raise HTTPException(
+                status_code=404, detail=f"No action found for {player_id}"
+            )
+        payload = ActionRequestPayload(
+            contest=contest.get_public(),
+            action=action.get_public(),
+            player=action.player.get_public(),
+        )
+        req = ParticipantActionRequest(
+            command=PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT,
+            data=payload,
+            message=f"prompt for {judge.name}",
+        )
+        return req
+
+    async def prompt_player_player_action(
+        self, contest_id: str, player_id: str, session: Session
+    ) -> ParticipantContestRequest:
+        """
+        Get the prompt the player will use to perform an action.
+        """
+        contest, response = await self.model_service.get(contest_id, session)
+        if not contest or not response.success:
+            raise HTTPException(status_code=404, detail=response.model_dump())
+        players = contest.participants_by_role()[RoleType.PLAYER]
+        player = next((p for p in players if p.id == player_id), None)
+        if not player:
+            raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+        view = self.view_service.get_contest_view(contest, player)
+        req = ParticipantContestRequest(
+            command=PromptType.PLAYER_PLAYER_ACTION,
+            data=view,
+            message=f"prompt for {player.name}",
+        )
+        return req
 
     async def run_contest_machine(self, contest_id: str, log: ILogger):
         """Run the contest machine in the current event loop context"""
@@ -537,12 +612,60 @@ class ContestController(
                 return rv
 
         @router.post(
-            "/{contest_id}/prompt/{prompt_type}/{target_id}",
-            response_model=ParticipantRequest,
+            "/{contest_id}/prompt/" + PromptType.ANNOUNCER_DESCRIBE_ARENA.value,
+            response_model=ParticipantContestRequest,
         )
-        async def prompt(contest_id: str, prompt_type: PromptType, target_id: str):
+        async def prompt_announcer_describe_arena(contest_id: str):
             with self.model_service.get_session() as session:
-                return await self.prompt(contest_id, target_id, prompt_type, session)
+                return await self.prompt_announcer_describe_arena(contest_id, session)
+
+        @router.post(
+            "/{contest_id}/prompt/" + PromptType.ANNOUNCER_DESCRIBE_RESULTS.value,
+            response_model=ParticipantContestRoundRequest,
+        )
+        async def prompt_announcer_describe_results(contest_id: str):
+            with self.model_service.get_session() as session:
+                return await self.prompt_announcer_describe_results(contest_id, session)
+
+        @router.post(
+            "/{contest_id}/prompt/" + PromptType.ARENA_GENERATE_FEATURES.value,
+            response_model=ParticipantContestRequest,
+        )
+        async def prompt_arena_generate_features(contest_id: str):
+            with self.model_service.get_session() as session:
+                return await self.prompt_arena_generate_features(contest_id, session)
+
+        @router.post(
+            "/{contest_id}/prompt/" + PromptType.JUDGE_APPLY_EFFECTS.value,
+            response_model=ParticipantContestRequest,
+        )
+        async def prompt_judge_apply_effects(contest_id: str):
+            with self.model_service.get_session() as session:
+                return await self.prompt_judge_apply_effects(contest_id, session)
+
+        @router.post(
+            "/{contest_id}/prompt/"
+            + PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value
+            + "/{player_id}",
+            response_model=ParticipantActionRequest,
+        )
+        async def prompt_judge_player_action_judgement(contest_id: str, player_id: str):
+            with self.model_service.get_session() as session:
+                return await self.prompt_judge_player_action_judgement(
+                    contest_id, player_id, session
+                )
+
+        @router.post(
+            "/{contest_id}/prompt/"
+            + PromptType.PLAYER_PLAYER_ACTION.value
+            + "/{player_id}",
+            response_model=ParticipantContestRequest,
+        )
+        async def prompt_player_player_action(contest_id: str, player_id: str):
+            with self.model_service.get_session() as session:
+                return await self.prompt_player_player_action(
+                    contest_id, player_id, session
+                )
 
         @router.post("/{contest_id}/clone", response_model=ContestPublic)
         async def clone(contest_id: str):

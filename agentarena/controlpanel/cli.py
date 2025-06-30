@@ -15,8 +15,8 @@ from prompt_toolkit.completion import Completion
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.shortcuts import print_container
 from prompt_toolkit.shortcuts import ProgressBar
+from prompt_toolkit.shortcuts import print_container
 from prompt_toolkit.widgets import Frame
 from prompt_toolkit.widgets import TextArea
 

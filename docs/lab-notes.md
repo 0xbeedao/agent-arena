@@ -302,4 +302,7 @@ Need a way to repeat those template requests for testing.
 
 Also would love a way to restart a round, or restart at an error even better
 
-## 2025-06-11
+## 2025-06-28
+
+Need to examine all the prompt handlers - now that the payloads are better defined.
+Probably several will need template adjustments.

@@ -14,7 +14,6 @@ from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
 from agentarena.actors.models import StrategyPromptCreate
-from agentarena.actors.models import StrategyPromptPublic
 from agentarena.actors.models import StrategyPublic
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.core.factories.db_factory import get_engine
@@ -30,7 +29,6 @@ from agentarena.models.constants import RoleType
 from agentarena.models.public import ArenaPublic
 from agentarena.models.public import ContestPublic
 from agentarena.models.public import ContestRoundPublic
-from agentarena.models.requests import ParticipantRequest
 
 # from agentarena.models.requests import HealthResponse
 # from agentarena.models.requests import HealthStatus

@@ -1,5 +1,5 @@
-from datetime import datetime
 import json
+from datetime import datetime
 
 from jinja2 import ChoiceLoader
 from jinja2 import PackageLoader
@@ -15,7 +15,11 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.constants import PromptType
-from agentarena.models.requests import ParticipantRequest
+from agentarena.models.requests import (
+    ParticipantActionRequest,
+    ParticipantContestRequest,
+    ParticipantContestRoundRequest,
+)
 from agentarena.util.response_parsers import extract_obj_from_json
 
 
@@ -45,28 +49,26 @@ class TemplateService(JinjaRenderer):
         self.log.debug("Found templates", templates=self.env.list_templates())
 
     async def expand_prompt(
-        self, agent: Agent, req: ParticipantRequest, session: Session
+        self,
+        agent: Agent,
+        job_id: str,
+        req: (
+            ParticipantContestRequest
+            | ParticipantContestRoundRequest
+            | ParticipantActionRequest
+        ),
+        session: Session,
     ) -> str:
         """
         Takes the prompt from the request and expand it using Jinja.
         """
         strategy_id = agent.strategy_id
-        log = self.log.bind(job=req.job_id, cmd=req.command, agent=agent.id)
+        log = self.log.bind(job=job_id, cmd=req.command, agent=agent.id)
         strategy_prompt = await self.get_prompt(strategy_id, req.command, session)
         prompt = strategy_prompt.prompt
         if prompt.startswith("#jinja:"):
             key = prompt.replace("#jinja:", "")
-            data = extract_obj_from_json(req.data)
-            if not data:
-                fname = f"bad_req_{datetime.now().timestamp()}.json"
-                log.error(
-                    "Could not parse data in request, dumped to file.",
-                    data=req.data,
-                    fname=fname,
-                )
-                with open(fname, "w") as f:
-                    f.write(req.data)
-                raise InvalidTemplateException("No data in request")
+            data = req.data.model_dump()
             data["agent"] = agent.get_public().model_dump()
             log = log.bind(template=key)
             log.info("Rendering template for prompt")
@@ -75,7 +77,7 @@ class TemplateService(JinjaRenderer):
             except Exception as e:
                 log.error("Error rendering template", error=e, data=data)
                 with open("req.json", "w") as f:
-                    json.dump(req.model_dump(), f)
+                    json.dumps(data)
                 with open("error_data.json", "w") as f:
                     json.dump(data, f)
                 raise e

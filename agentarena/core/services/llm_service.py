@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 import llm
 from sqlmodel import Field
@@ -8,7 +9,8 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import DEFAULT_AGENT_MODEL, JobState
+from agentarena.models.constants import DEFAULT_AGENT_MODEL
+from agentarena.models.constants import JobState
 from agentarena.models.constants import PromptType
 from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate

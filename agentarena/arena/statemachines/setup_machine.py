@@ -26,7 +26,7 @@ from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
-from agentarena.models.requests import ParticipantRequest
+from agentarena.models.requests import ParticipantContestRequest
 from agentarena.util.response_parsers import extract_text_response
 from agentarena.util.response_parsers import parse_list
 
@@ -123,10 +123,9 @@ class SetupMachine(StateMachine):
             channel=channel,
         )
         contest = self.contest.get_public()
-        req = ParticipantRequest(
-            job_id=job_id,
+        req = ParticipantContestRequest(
             command=PromptType.ANNOUNCER_DESCRIBE_ARENA,
-            data=contest.model_dump_json(),
+            data=contest,
             message="",
         )
 
@@ -134,7 +133,7 @@ class SetupMachine(StateMachine):
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=announcer.url("request"),
+            url=announcer.url(f"{PromptType.ANNOUNCER_DESCRIBE_ARENA.value}/{job_id}"),
         )
         await self.subscriber.subscribe(
             self.message_broker.client,
@@ -164,10 +163,9 @@ class SetupMachine(StateMachine):
             channel=channel,
         )
         contest = self.contest.get_public()
-        req = ParticipantRequest(
-            job_id=job_id,
+        req = ParticipantContestRequest(
             command=PromptType.ARENA_GENERATE_FEATURES,
-            data=contest.model_dump_json(),
+            data=contest,
             message="",
         )
 
@@ -175,7 +173,7 @@ class SetupMachine(StateMachine):
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=arena_agent.url("request"),
+            url=arena_agent.url(f"{PromptType.ARENA_GENERATE_FEATURES.value}/{job_id}"),
         )
         await self.subscriber.subscribe(
             self.message_broker.client,

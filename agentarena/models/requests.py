@@ -10,6 +10,10 @@ from sqlmodel import Field
 
 from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
+from agentarena.models.public import ContestPublic
+from agentarena.models.public import ContestRoundPublic
+from agentarena.models.public import ParticipantPublic
+from agentarena.models.public import PlayerActionPublic
 
 
 class ControllerRequest(BaseModel):
@@ -37,15 +41,58 @@ class HealthStatus(BaseModel):
     version: Optional[str] = Field(default="", description="service version")
 
 
-class ParticipantRequest(BaseModel):
+class BaseParticipantRequest(BaseModel):
     """
     A request from the arena to a Participant
     """
 
-    job_id: str = Field(description="job that caused this event")
     command: PromptType = Field(description="job command")
-    data: str = Field(description="job payload")
+    # to be overridden by subclasses
+    # data: str = Field(description="job payload")
     message: Optional[str] = Field(default="", description="message regarding data")
     state: Optional[JobResponseState] = Field(
         default=None, description="state of event, a JobState"
     )
+
+
+class ParticipantContestRequest(BaseParticipantRequest):
+    """
+    A participant request with a contest payload
+    """
+
+    data: ContestPublic
+
+
+class ActionRequestPayload(BaseModel):
+    """
+    A payload for an action request
+    """
+
+    contest: ContestPublic
+    action: PlayerActionPublic
+    player: ParticipantPublic
+
+
+class ParticipantActionRequest(BaseParticipantRequest):
+    """
+    A participant request with an action payload
+    """
+
+    data: ActionRequestPayload
+
+
+class ContestRoundPayload(BaseModel):
+    """
+    A payload for a contest round request
+    """
+
+    contest: ContestPublic
+    round: ContestRoundPublic
+
+
+class ParticipantContestRoundRequest(BaseParticipantRequest):
+    """
+    A participant request with a contest round payload
+    """
+
+    data: ContestRoundPayload

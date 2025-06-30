@@ -10,7 +10,8 @@ from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import JobState, PromptType
+from agentarena.models.constants import JobState
+from agentarena.models.constants import PromptType
 from agentarena.models.job import GenerateJob
 
 
