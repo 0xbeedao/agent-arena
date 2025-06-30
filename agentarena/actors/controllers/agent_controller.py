@@ -35,7 +35,9 @@ from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
 from agentarena.models.public import JobResponse
 from agentarena.models.requests import HealthStatus
-from agentarena.models.requests import ParticipantRequest
+from agentarena.models.requests import ParticipantActionRequest
+from agentarena.models.requests import ParticipantContestRequest
+from agentarena.models.requests import ParticipantContestRoundRequest
 
 
 class AgentController(
@@ -86,7 +88,7 @@ class AgentController(
         participant_id = decode(msg.data, "utf-8", "unicode_escape")
         with self.model_service.db_service.get_session() as session:
             response = await self.healthcheck(participant_id, session)
-            await self.message_broker.publish_response(msg, response)
+            await self.message_broker.publish_response(msg, response)  # type: ignore
 
     async def healthcheck(self, participant_id: str, session: Session) -> JobResponse:
         stmt = select(Agent).where(Agent.participant_id == participant_id)
@@ -131,19 +133,32 @@ class AgentController(
         return response
 
     async def agent_prompt(
-        self, agent_id: str, req: ParticipantRequest, session: Session
+        self,
+        agent_id: str,
+        job_id: str,
+        req: (
+            ParticipantContestRequest
+            | ParticipantContestRoundRequest
+            | ParticipantActionRequest
+        ),
+        session: Session,
     ) -> Response:
         stmt = select(Agent).where(Agent.participant_id == agent_id)
         agent = session.exec(stmt).one_or_none()
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
-        raw = await self.template_service.expand_prompt(agent, req, session)
+        raw = await self.template_service.expand_prompt(agent, job_id, req, session)
         return Response(content=raw, media_type="text/markdown")
 
     async def agent_request(
         self,
         participant_id: str,
-        req: ParticipantRequest,
+        job_id: str,
+        req: (
+            ParticipantContestRequest
+            | ParticipantContestRoundRequest
+            | ParticipantActionRequest
+        ),
         session: Session,
         background_tasks: BackgroundTasks,
     ):
@@ -153,7 +168,6 @@ class AgentController(
         """
         stmt = select(Agent).where(Agent.participant_id == participant_id)
         agent = session.exec(stmt).one_or_none()
-        job_id = req.job_id
         log = self.log.bind(job=job_id, cmd=req.command, participant=participant_id)
         url = f"{self.base_path}/agent/{participant_id}/request"
         if not agent:
@@ -190,7 +204,9 @@ class AgentController(
         job = None
         response = None
         if req.command in PromptType:
-            job, response = await self.make_generate_job(agent, req, session, log)
+            job, response = await self.make_generate_job(
+                agent, job_id, req, session, log
+            )
 
         if job and response:
             session.commit()
@@ -205,14 +221,95 @@ class AgentController(
             status_code=404, detail=f"Command not recognized: {req.command}"
         )
 
+    async def announcer_describe_arena(
+        self,
+        agent_id: str,
+        job_id: str,
+        req: ParticipantContestRequest,
+        session: Session,
+        background_tasks: BackgroundTasks,
+    ) -> JobResponse:
+        return await self.agent_request(
+            agent_id, job_id, req, session, background_tasks
+        )
+
+    async def announcer_describe_results(
+        self,
+        agent_id: str,
+        job_id: str,
+        req: ParticipantContestRoundRequest,
+        session: Session,
+        background_tasks: BackgroundTasks,
+    ) -> JobResponse:
+        return await self.agent_request(
+            agent_id, job_id, req, session, background_tasks
+        )
+
+    async def arena_generate_features(
+        self,
+        agent_id: str,
+        job_id: str,
+        req: ParticipantContestRequest,
+        session: Session,
+        background_tasks: BackgroundTasks,
+    ) -> JobResponse:
+        return await self.agent_request(
+            agent_id, job_id, req, session, background_tasks
+        )
+
+    async def judge_apply_effects(
+        self,
+        agent_id: str,
+        job_id: str,
+        req: ParticipantContestRequest,
+        session: Session,
+        background_tasks: BackgroundTasks,
+    ) -> JobResponse:
+        return await self.agent_request(
+            agent_id, job_id, req, session, background_tasks
+        )
+
+    async def judge_player_action_judgement(
+        self,
+        agent_id: str,
+        job_id: str,
+        req: ParticipantActionRequest,
+        session: Session,
+        background_tasks: BackgroundTasks,
+    ) -> JobResponse:
+        return await self.agent_request(
+            agent_id, job_id, req, session, background_tasks
+        )
+
+    async def player_player_action(
+        self,
+        agent_id: str,
+        job_id: str,
+        req: ParticipantContestRequest,
+        session: Session,
+        background_tasks: BackgroundTasks,
+    ) -> JobResponse:
+        return await self.agent_request(
+            agent_id, job_id, req, session, background_tasks
+        )
+
     async def make_generate_job(
-        self, agent: Agent, req: ParticipantRequest, session: Session, log: ILogger
+        self,
+        agent: Agent,
+        job_id: str,
+        req: (
+            ParticipantContestRequest
+            | ParticipantContestRoundRequest
+            | ParticipantActionRequest
+        ),
+        session: Session,
+        log: ILogger,
     ) -> Tuple[Optional[GenerateJob], JobResponse]:
-        prompt = await self.template_service.expand_prompt(agent, req, session)
+        prompt = await self.template_service.expand_prompt(agent, job_id, req, session)
         prompt_type = req.command
         self.log.debug(f"prompt:\n{prompt}", command=prompt_type.value)
         gc = self.llm_service.make_generate_job(
-            req.job_id, agent.model, prompt, prompt_type
+            job_id, agent.model, prompt, prompt_type
         )
         job, response = await self.job_service.create(gc, session)
         if not response.success or not job:
@@ -221,7 +318,7 @@ class AgentController(
                 channel="",
                 state=JobResponseState.FAIL,
                 message="Error creating job",
-                job_id=req.job_id,
+                job_id=job_id,
                 url=f"{self.base_path}/agent/{agent.participant_id}/request",
             )
         session.commit()
@@ -231,7 +328,7 @@ class AgentController(
             state=JobResponseState.PENDING,
             delay=2,
             message=prompt,
-            job_id=req.job_id,
+            job_id=job_id,
             url=f"{self.base_path}/agent/{agent.participant_id}/request",
         )
 
@@ -250,23 +347,167 @@ class AgentController(
             with self.model_service.db_service.get_session() as session:
                 return await self.healthcheck(agent_id, session)
 
-        @router.post("/{agent_id}/request", response_model=JobResponse)
-        async def agent_request(
+        @router.post(
+            "/{agent_id}/{job_id}" + PromptType.ANNOUNCER_DESCRIBE_ARENA.value,
+            response_model=JobResponse,
+        )
+        async def announcer_describe_arena(
             agent_id: str,
+            job_id: str,
             background_tasks: BackgroundTasks,
-            req: ParticipantRequest = Body(...),
+            req: ParticipantContestRequest = Body(...),
         ):
             with self.model_service.get_session() as session:
-                return await self.agent_request(
-                    agent_id, req, session, background_tasks
+                return await self.announcer_describe_arena(
+                    agent_id, job_id, req, session, background_tasks
                 )
 
-        @router.post("/{agent_id}/prompt", response_model=str)
-        async def prompt(
+        @router.post(
+            "/{agent_id}/prompt/{job_id}" + PromptType.ANNOUNCER_DESCRIBE_ARENA.value,
+            response_model=str,
+        )
+        async def prompt_announcer_describe_arena(
             agent_id: str,
-            req: ParticipantRequest = Body(...),
+            job_id: str,
+            req: ParticipantContestRequest = Body(...),
         ):
             with self.model_service.get_session() as session:
-                return await self.agent_prompt(agent_id, req, session)
+                return await self.agent_prompt(agent_id, job_id, req, session)
+
+        @router.post(
+            "/{agent_id}/{job_id}" + PromptType.ANNOUNCER_DESCRIBE_RESULTS.value,
+            response_model=JobResponse,
+        )
+        async def announcer_describe_results(
+            agent_id: str,
+            job_id: str,
+            background_tasks: BackgroundTasks,
+            req: ParticipantContestRoundRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.announcer_describe_results(
+                    agent_id, job_id, req, session, background_tasks
+                )
+
+        @router.post(
+            "/{agent_id}/prompt/{job_id}" + PromptType.ANNOUNCER_DESCRIBE_RESULTS.value,
+            response_model=str,
+        )
+        async def prompt_announcer_describe_results(
+            agent_id: str,
+            job_id: str,
+            req: ParticipantContestRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.agent_prompt(agent_id, job_id, req, session)
+
+        @router.post(
+            "/{agent_id}/{job_id}" + PromptType.ARENA_GENERATE_FEATURES.value,
+            response_model=JobResponse,
+        )
+        async def arena_generate_features(
+            agent_id: str,
+            job_id: str,
+            background_tasks: BackgroundTasks,
+            req: ParticipantContestRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.arena_generate_features(
+                    agent_id, job_id, req, session, background_tasks
+                )
+
+        @router.post(
+            "/{agent_id}/prompt/{job_id}" + PromptType.ARENA_GENERATE_FEATURES.value,
+            response_model=str,
+        )
+        async def prompt_arena_generate_features(
+            agent_id: str,
+            job_id: str,
+            req: ParticipantContestRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.agent_prompt(agent_id, job_id, req, session)
+
+        @router.post(
+            "/{agent_id}/{job_id}" + PromptType.JUDGE_APPLY_EFFECTS.value,
+            response_model=JobResponse,
+        )
+        async def judge_apply_effects(
+            agent_id: str,
+            job_id: str,
+            background_tasks: BackgroundTasks,
+            req: ParticipantContestRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.judge_apply_effects(
+                    agent_id, job_id, req, session, background_tasks
+                )
+
+        @router.post(
+            "/{agent_id}/prompt/{job_id}" + PromptType.JUDGE_APPLY_EFFECTS.value,
+            response_model=str,
+        )
+        async def prompt_judge_apply_effects(
+            agent_id: str,
+            job_id: str,
+            req: ParticipantContestRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.agent_prompt(agent_id, job_id, req, session)
+
+        @router.post(
+            "/{agent_id}/{job_id}" + PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value,
+            response_model=JobResponse,
+        )
+        async def judge_player_action_judgement(
+            agent_id: str,
+            job_id: str,
+            background_tasks: BackgroundTasks,
+            req: ParticipantActionRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.judge_player_action_judgement(
+                    agent_id, job_id, req, session, background_tasks
+                )
+
+        @router.post(
+            "/{agent_id}/prompt/{job_id}"
+            + PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value,
+            response_model=str,
+        )
+        async def prompt_judge_player_action_judgement(
+            agent_id: str,
+            job_id: str,
+            req: ParticipantActionRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.agent_prompt(agent_id, job_id, req, session)
+
+        @router.post(
+            "/{agent_id}/{job_id}" + PromptType.PLAYER_PLAYER_ACTION.value,
+            response_model=JobResponse,
+        )
+        async def player_player_action(
+            agent_id: str,
+            job_id: str,
+            background_tasks: BackgroundTasks,
+            req: ParticipantContestRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.player_player_action(
+                    agent_id, job_id, req, session, background_tasks
+                )
+
+        @router.post(
+            "/{agent_id}/prompt/{job_id}" + PromptType.PLAYER_PLAYER_ACTION.value,
+            response_model=str,
+        )
+        async def prompt_player_player_action(
+            agent_id: str,
+            job_id: str,
+            req: ParticipantContestRequest = Body(...),
+        ):
+            with self.model_service.get_session() as session:
+                return await self.agent_prompt(agent_id, job_id, req, session)
 
         return router
