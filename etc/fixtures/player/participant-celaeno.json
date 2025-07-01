@@ -1,7 +1,7 @@
 {
   "name": "Celaeno",
   "role": "player",
-  "description": "Test Player",
+  "description": "A quick-witted player",
   "endpoint": "$ACTOR$/api/agent/$ID$",
   "api_key": ""
 }

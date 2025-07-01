@@ -85,8 +85,8 @@ llm:
     key: openrouter/deepseek/deepseek-chat-v3-0324:free
   - name: deepseek-r1
     key: deepseek-r1:8b
-  - name: dobby
-    key: openrouter/sentientagi/dobby-mini-unhinged-plus-llama-3.1-8b
+  # - name: dobby
+  #   key: openrouter/sentientagi/dobby-mini-unhinged-plus-llama-3.1-8b
   - name: dolphin3
     key: dolphin3:latest
   - name: dolphin-24

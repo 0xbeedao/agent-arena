@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 
 from jinja2 import ChoiceLoader
 from jinja2 import PackageLoader
@@ -15,12 +14,9 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.models.constants import PromptType
-from agentarena.models.requests import (
-    ParticipantActionRequest,
-    ParticipantContestRequest,
-    ParticipantContestRoundRequest,
-)
-from agentarena.util.response_parsers import extract_obj_from_json
+from agentarena.models.requests import ParticipantActionRequest
+from agentarena.models.requests import ParticipantContestRequest
+from agentarena.models.requests import ParticipantContestRoundRequest
 
 
 class TemplateService(JinjaRenderer):

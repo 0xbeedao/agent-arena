@@ -104,6 +104,10 @@ class QueueService(SubscribingService):
         if job:
             msg.Ack()
             with self.job_service.get_session() as session:
+                current = session.get(CommandJob, job.id)
+                if current:
+                    self.log.info("Job already exists", job=current)
+                    return
                 self.log.info("Adding job from message", job=job)
                 await self.add_job(job, session)
         else:

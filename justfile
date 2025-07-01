@@ -34,6 +34,9 @@ scheduler:
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"
 
+kill:
+    ps ax | grep python | grep agent | grep -v lsp | awk '{print $1}' | xargs kill -9
+
 load:
     PYTHONPATH=. python scripts/load_fixtures.py etc/fixtures
 

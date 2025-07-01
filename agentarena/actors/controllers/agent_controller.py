@@ -348,7 +348,7 @@ class AgentController(
                 return await self.healthcheck(agent_id, session)
 
         @router.post(
-            "/{agent_id}/{job_id}" + PromptType.ANNOUNCER_DESCRIBE_ARENA.value,
+            "/{agent_id}/{job_id}/" + PromptType.ANNOUNCER_DESCRIBE_ARENA.value,
             response_model=JobResponse,
         )
         async def announcer_describe_arena(
@@ -363,7 +363,9 @@ class AgentController(
                 )
 
         @router.post(
-            "/{agent_id}/prompt/{job_id}" + PromptType.ANNOUNCER_DESCRIBE_ARENA.value,
+            "/{agent_id}/{job_id}/"
+            + PromptType.ANNOUNCER_DESCRIBE_ARENA.value
+            + "/prompt",
             response_model=str,
         )
         async def prompt_announcer_describe_arena(
@@ -375,7 +377,7 @@ class AgentController(
                 return await self.agent_prompt(agent_id, job_id, req, session)
 
         @router.post(
-            "/{agent_id}/{job_id}" + PromptType.ANNOUNCER_DESCRIBE_RESULTS.value,
+            "/{agent_id}/{job_id}/" + PromptType.ANNOUNCER_DESCRIBE_RESULTS.value,
             response_model=JobResponse,
         )
         async def announcer_describe_results(
@@ -390,7 +392,9 @@ class AgentController(
                 )
 
         @router.post(
-            "/{agent_id}/prompt/{job_id}" + PromptType.ANNOUNCER_DESCRIBE_RESULTS.value,
+            "/{agent_id}/{job_id}/"
+            + PromptType.ANNOUNCER_DESCRIBE_RESULTS.value
+            + "/prompt",
             response_model=str,
         )
         async def prompt_announcer_describe_results(
@@ -402,7 +406,7 @@ class AgentController(
                 return await self.agent_prompt(agent_id, job_id, req, session)
 
         @router.post(
-            "/{agent_id}/{job_id}" + PromptType.ARENA_GENERATE_FEATURES.value,
+            "/{agent_id}/{job_id}/" + PromptType.ARENA_GENERATE_FEATURES.value,
             response_model=JobResponse,
         )
         async def arena_generate_features(
@@ -417,7 +421,9 @@ class AgentController(
                 )
 
         @router.post(
-            "/{agent_id}/prompt/{job_id}" + PromptType.ARENA_GENERATE_FEATURES.value,
+            "/{agent_id}/{job_id}/"
+            + PromptType.ARENA_GENERATE_FEATURES.value
+            + "/prompt",
             response_model=str,
         )
         async def prompt_arena_generate_features(
@@ -429,7 +435,7 @@ class AgentController(
                 return await self.agent_prompt(agent_id, job_id, req, session)
 
         @router.post(
-            "/{agent_id}/{job_id}" + PromptType.JUDGE_APPLY_EFFECTS.value,
+            "/{agent_id}/{job_id}/" + PromptType.JUDGE_APPLY_EFFECTS.value,
             response_model=JobResponse,
         )
         async def judge_apply_effects(
@@ -444,7 +450,7 @@ class AgentController(
                 )
 
         @router.post(
-            "/{agent_id}/prompt/{job_id}" + PromptType.JUDGE_APPLY_EFFECTS.value,
+            "/{agent_id}/{job_id}/" + PromptType.JUDGE_APPLY_EFFECTS.value + "/prompt",
             response_model=str,
         )
         async def prompt_judge_apply_effects(
@@ -456,7 +462,7 @@ class AgentController(
                 return await self.agent_prompt(agent_id, job_id, req, session)
 
         @router.post(
-            "/{agent_id}/{job_id}" + PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value,
+            "/{agent_id}/{job_id}/" + PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value,
             response_model=JobResponse,
         )
         async def judge_player_action_judgement(
@@ -471,8 +477,9 @@ class AgentController(
                 )
 
         @router.post(
-            "/{agent_id}/prompt/{job_id}"
-            + PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value,
+            "/{agent_id}/{job_id}/"
+            + PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value
+            + "/prompt",
             response_model=str,
         )
         async def prompt_judge_player_action_judgement(
@@ -484,7 +491,7 @@ class AgentController(
                 return await self.agent_prompt(agent_id, job_id, req, session)
 
         @router.post(
-            "/{agent_id}/{job_id}" + PromptType.PLAYER_PLAYER_ACTION.value,
+            "/{agent_id}/{job_id}/" + PromptType.PLAYER_PLAYER_ACTION.value,
             response_model=JobResponse,
         )
         async def player_player_action(
@@ -499,7 +506,7 @@ class AgentController(
                 )
 
         @router.post(
-            "/{agent_id}/prompt/{job_id}" + PromptType.PLAYER_PLAYER_ACTION.value,
+            "/{agent_id}/{job_id}/" + PromptType.PLAYER_PLAYER_ACTION.value + "/prompt",
             response_model=str,
         )
         async def prompt_player_player_action(

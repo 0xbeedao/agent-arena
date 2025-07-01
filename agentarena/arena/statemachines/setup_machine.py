@@ -26,7 +26,7 @@ from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
-from agentarena.models.requests import ParticipantContestRequest
+from agentarena.models.requests import ContestRequestPayload, ParticipantContestRequest
 from agentarena.util.response_parsers import extract_text_response
 from agentarena.util.response_parsers import parse_list
 
@@ -125,7 +125,7 @@ class SetupMachine(StateMachine):
         contest = self.contest.get_public()
         req = ParticipantContestRequest(
             command=PromptType.ANNOUNCER_DESCRIBE_ARENA,
-            data=contest,
+            data=ContestRequestPayload(contest=contest),
             message="",
         )
 
@@ -133,7 +133,7 @@ class SetupMachine(StateMachine):
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=announcer.url(f"{PromptType.ANNOUNCER_DESCRIBE_ARENA.value}/{job_id}"),
+            url=announcer.url(f"{job_id}/{PromptType.ANNOUNCER_DESCRIBE_ARENA.value}"),
         )
         await self.subscriber.subscribe(
             self.message_broker.client,
@@ -165,7 +165,7 @@ class SetupMachine(StateMachine):
         contest = self.contest.get_public()
         req = ParticipantContestRequest(
             command=PromptType.ARENA_GENERATE_FEATURES,
-            data=contest,
+            data=ContestRequestPayload(contest=contest),
             message="",
         )
 
@@ -173,7 +173,7 @@ class SetupMachine(StateMachine):
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=arena_agent.url(f"{PromptType.ARENA_GENERATE_FEATURES.value}/{job_id}"),
+            url=arena_agent.url(f"{job_id}/{PromptType.ARENA_GENERATE_FEATURES.value}"),
         )
         await self.subscriber.subscribe(
             self.message_broker.client,

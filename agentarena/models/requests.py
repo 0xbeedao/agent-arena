@@ -55,12 +55,20 @@ class BaseParticipantRequest(BaseModel):
     )
 
 
+class ContestRequestPayload(BaseModel):
+    """
+    A payload for a contest request
+    """
+
+    contest: ContestPublic
+
+
 class ParticipantContestRequest(BaseParticipantRequest):
     """
     A participant request with a contest payload
     """
 
-    data: ContestPublic
+    data: ContestRequestPayload
 
 
 class ActionRequestPayload(BaseModel):

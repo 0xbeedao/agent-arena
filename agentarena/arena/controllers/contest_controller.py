@@ -47,7 +47,7 @@ from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.public import JobResponse
-from agentarena.models.requests import ActionRequestPayload
+from agentarena.models.requests import ActionRequestPayload, ContestRequestPayload
 from agentarena.models.requests import ContestRoundPayload
 from agentarena.models.requests import ControllerRequest
 from agentarena.models.requests import ParticipantActionRequest
@@ -398,7 +398,7 @@ class ContestController(
         announcer = announcers[0]
         req = ParticipantContestRequest(
             command=PromptType.ANNOUNCER_DESCRIBE_ARENA,
-            data=contest.get_public(),
+            data=ContestRequestPayload(contest=contest.get_public()),
             message=f"prompt for {announcer.name}",
         )
         return req
@@ -441,7 +441,8 @@ class ContestController(
             raise HTTPException(status_code=404, detail="No arena found")
         arena = arena[0]
         req = ParticipantContestRequest(
-            command=PromptType.ARENA_GENERATE_FEATURES, data=contest.get_public()
+            command=PromptType.ARENA_GENERATE_FEATURES,
+            data=ContestRequestPayload(contest=contest.get_public()),
         )
         return req
 
@@ -460,7 +461,7 @@ class ContestController(
         judge = judges[0]
         req = ParticipantContestRequest(
             command=PromptType.JUDGE_APPLY_EFFECTS,
-            data=contest.get_public(),
+            data=ContestRequestPayload(contest=contest.get_public()),
             message=f"prompt for {judge.name}",
         )
         return req
@@ -511,7 +512,7 @@ class ContestController(
         view = self.view_service.get_contest_view(contest, player)
         req = ParticipantContestRequest(
             command=PromptType.PLAYER_PLAYER_ACTION,
-            data=view,
+            data=ContestRequestPayload(contest=view),
             message=f"prompt for {player.name}",
         )
         return req

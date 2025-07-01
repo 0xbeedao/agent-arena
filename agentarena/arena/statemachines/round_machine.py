@@ -25,7 +25,7 @@ from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.job import CommandJob
-from agentarena.models.requests import ActionRequestPayload
+from agentarena.models.requests import ActionRequestPayload, ContestRequestPayload
 from agentarena.models.requests import ContestRoundPayload
 from agentarena.models.requests import ParticipantActionRequest
 from agentarena.models.requests import ParticipantContestRequest
@@ -341,14 +341,14 @@ class RoundMachine(StateMachine):
         contest = self.contest_round.contest
         req = ParticipantContestRequest(
             command=PromptType.JUDGE_APPLY_EFFECTS,
-            data=contest.get_public(),
+            data=ContestRequestPayload(contest=contest.get_public()),
             message="judge apply effects of actions",
         )
         job = CommandJob(
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=judge.url(f"{PromptType.JUDGE_APPLY_EFFECTS.value}/{job_id}"),
+            url=judge.url(f"{job_id}/{PromptType.JUDGE_APPLY_EFFECTS.value}"),
         )
         await self.message_broker.send_job(job)
 
@@ -384,7 +384,7 @@ class RoundMachine(StateMachine):
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=judge.url("request"),
+            url=judge.url(f"{job_id}/{PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value}"),
         )
         self.pending_judging_actions.add(action.participant_id)
         await self.message_broker.send_job(job)
@@ -405,14 +405,14 @@ class RoundMachine(StateMachine):
         view = self.view_service.get_contest_view(self.contest_round.contest, player)
         req = ParticipantContestRequest(
             command=PromptType.PLAYER_PLAYER_ACTION,
-            data=view,
+            data=ContestRequestPayload(contest=view),
             message="player action",
         )
         job = CommandJob(
             channel=channel,
             data=req.model_dump_json(),
             method="POST",
-            url=player.url(f"{PromptType.PLAYER_PLAYER_ACTION.value}/{job_id}"),
+            url=player.url(f"{job_id}/{PromptType.PLAYER_PLAYER_ACTION.value}"),
         )
         self.pending_actions.add(player.id)
         await self.message_broker.send_job(job)
@@ -453,7 +453,7 @@ class RoundMachine(StateMachine):
             data=req.model_dump_json(),
             method="POST",
             url=announcer.url(
-                f"{PromptType.ANNOUNCER_DESCRIBE_RESULTS.value}/{job_id}"
+                f"{job_id}/{PromptType.ANNOUNCER_DESCRIBE_RESULTS.value}"
             ),
         )
         await self.message_broker.send_job(job)

@@ -2,9 +2,9 @@
 
 You are acting as the Announcer in an arena contest. The arena details are as follows:
 
-- Name: "{{ arena.name }}"
-- Description: "{{ arena.description}}"
-- Playgrid Dimensions: {{ arena.width }} x {{ arena.height }}
+- Name: "{{ contest.arena.name }}"
+- Description: "{{ contest.arena.description}}"
+- Playgrid Dimensions: {{ contest.arena.width }} x {{ contest.arena.height }}
 - Players: {player_count}
 - Grid size: 2 meters per cell
 - Round: First Round
@@ -17,7 +17,7 @@ You always carry out your task in a way consistent with your personality:
 {%- block task_body %}
 ## Arena Details to describe
 
-{% for feature in rounds[0].features %}
+{% for feature in contest.rounds[0].features %}
 - {{feature.name}} at "{{feature.position}}"
 {% endfor %}
 {%- endblock %}
