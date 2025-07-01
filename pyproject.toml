@@ -7,10 +7,10 @@ name = "agentarena"
 version = "0.1.0"
 description = "A system that orchestrates contests between AI agents"
 readme = "README.md"
-requires-python = ">=3.8"
-license = {text = "MIT"}
+requires-python = ">=3.11.11"
+license = "MIT"
 authors = [
-    {name = "Bruce Kroeze", email = "bkroeze@gmail.com"},
+    {name = "Bruce Kroeze", email = "bkroeze@gmail.com"}
 ]
 dependencies = [
     "fastapi>=0.95.0",
@@ -18,7 +18,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
     "httpx>=0.24.0",
-    "llm>=0.24.2",
+    "llm>=0.26",
     "sqlite-utils",
     "structlog>=25.3.0",
     "python-ulid[pydantic]",
@@ -50,7 +50,7 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = {"" = "."}
 packages = ["agentarena"]
 
 [tool.black]
