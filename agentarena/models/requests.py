@@ -69,6 +69,9 @@ class ParticipantContestRequest(BaseParticipantRequest):
     """
 
     data: ContestRequestPayload
+    model: Optional[str] = Field(
+        default=None, description="Optional model override for evaluation"
+    )
 
 
 class ActionRequestPayload(BaseModel):
@@ -87,6 +90,9 @@ class ParticipantActionRequest(BaseParticipantRequest):
     """
 
     data: ActionRequestPayload
+    model: Optional[str] = Field(
+        default=None, description="Optional model override for evaluation"
+    )
 
 
 class ContestRoundPayload(BaseModel):
@@ -104,3 +110,6 @@ class ParticipantContestRoundRequest(BaseParticipantRequest):
     """
 
     data: ContestRoundPayload
+    model: Optional[str] = Field(
+        default=None, description="Optional model override for evaluation"
+    )

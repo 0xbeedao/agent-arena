@@ -295,8 +295,11 @@ class AgentController(
         prompt = await self.template_service.expand_prompt(agent, job_id, req, session)
         prompt_type = req.command
         self.log.debug(f"prompt:\n{prompt}", command=prompt_type.value)
+        # Use model override if provided in the request
+        model_override = getattr(req, "model", None)
+        model_to_use = model_override if model_override else agent.model
         gc = self.llm_service.make_generate_job(
-            job_id, agent.model, prompt, prompt_type
+            job_id, model_to_use, prompt, prompt_type
         )
         job, response = await self.job_service.create(gc, session)
         if not response.success or not job:
