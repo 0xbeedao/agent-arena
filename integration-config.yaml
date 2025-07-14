@@ -1,10 +1,10 @@
 arena:
   db:
-    filename: <projectroot>/arena.db
+    filename: <projectroot>/arena-test.db
   logging:
     level: DEBUG
     capture: False
-    logfile: <projectroot>/arena.log
+    logfile: <projectroot>/arena-test.log
     loggers:
       factory: DEBUG
       service: DEBUG
@@ -14,11 +14,11 @@ arena:
 
 actor:
   db:
-    filename: <projectroot>/actor.db
+    filename: <projectroot>/actor-test.db
   logging:
     level: DEBUG
     capture: False
-    logfile: <projectroot>/actor.log
+    logfile: <projectroot>/actor-test.log
     loggers:
       factory: DEBUG
       service: DEBUG
@@ -26,22 +26,7 @@ actor:
   url: http://localhost:8001
 
 messagebroker:
-  url: nats://mountain.local:4222
-
-scheduler:
-  db:
-    filename: <projectroot>/scheduler.db
-  delay: 1
-  logging:
-    level: DEBUG
-    capture: False
-    logfile: <projectroot>/scheduler.log
-    loggers:
-      factory: DEBUG
-      service: DEBUG
-      controller: DEBUG
-  max_concurrent: 5
-  url: http://localhost:8002
+  url: nats://localhost:32925
 
 uuid:
   wordlist: <projectroot>/etc/words.csv

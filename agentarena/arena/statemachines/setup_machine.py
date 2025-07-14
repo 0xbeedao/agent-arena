@@ -1,4 +1,3 @@
-import asyncio
 import json
 from codecs import decode
 from datetime import datetime
@@ -16,17 +15,17 @@ from agentarena.arena.models import ContestRoundState
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import FeatureOriginType
+from agentarena.arena.models import Participant
 from agentarena.arena.services.round_service import RoundService
 from agentarena.arena.services.view_service import ViewService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.model_service import ModelService
-from agentarena.core.services.subscribing_service import Subscriber
 from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
-from agentarena.models.job import CommandJob
-from agentarena.models.requests import ContestRequestPayload, ParticipantContestRequest
+from agentarena.models.requests import ContestRequestPayload
+from agentarena.models.requests import ParticipantContestRequest
 from agentarena.util.response_parsers import extract_text_response
 from agentarena.util.response_parsers import parse_list
 
@@ -87,11 +86,12 @@ class SetupMachine(StateMachine):
         self.contest_public = contest.get_public()
         self.contest_round: ContestRound | None = None
         self.feature_service = feature_service
+        self.uuid_service = feature_service.uuid_service
         self.message_broker = message_broker
         self.round_service = round_service
         self.view_service = view_service
         self.session = session
-        self.completion_channel = f"arena.contest.{contest.id}.setup.complete"
+        self.completion_channel = f"arena.contest.{contest.id}.setupmachine.complete"
         self.log = log.bind(contest_id=contest.id)
         stmt = (
             select(ContestRound)
@@ -100,167 +100,9 @@ class SetupMachine(StateMachine):
         )
         round = session.exec(stmt).one_or_none()
         self.contest_round = round
-        self.subscriber = Subscriber()
-        super().__init__()
-
-    async def generate_arena_description(self):
-        """Generate the arena description, now that we have all the features.
-        This will come back on our handler channel "arena.contest.{self.contest.id}.setup.description".
-        """
-        log = self.log
-        log.debug("generating")
-        agents = self.contest.get_role(RoleType.ANNOUNCER)
-        if not agents:
-            log.error("No announcer agent found for describing arena")
-            return
-        announcer = agents[0]
-        log = log.bind(agent=announcer.name)
-        job_id = self.round_service.uuid_service.make_id()
-        channel = f"arena.contest.{self.contest.id}.setup.description"
-        log.info(
-            "requesting description from announcer agent",
-            job_id=job_id,
-            channel=channel,
+        super().__init__(
+            start_value=round.state if round else ContestRoundState.IDLE.value
         )
-        contest = self.contest.get_public()
-        req = ParticipantContestRequest(
-            command=PromptType.ANNOUNCER_DESCRIBE_ARENA,
-            data=ContestRequestPayload(contest=contest),
-            message="",
-        )
-
-        job = CommandJob(
-            channel=channel,
-            data=req.model_dump_json(),
-            method="POST",
-            url=announcer.url(f"{job_id}/{PromptType.ANNOUNCER_DESCRIBE_ARENA.value}"),
-        )
-        await self.subscriber.subscribe(
-            self.message_broker.client,
-            channel,
-            self.log,
-            cb=self.handle_arena_description_message,
-        )
-        await self.message_broker.send_job(job)
-
-    async def generate_random_features(self):
-        """Generate a list of random features up to count, by sending jobs to the message broker,
-        which will come back on our handler channel "arena.contest.{self.contest.id}.setup.features".
-        """
-        log = self.log
-        log.debug("generating")
-        agents = self.contest.get_role(RoleType.ARENA)
-        if not agents:
-            log.error("No arena agents found for generating features")
-            return
-        arena_agent = agents[0]
-        log = log.bind(agent=arena_agent.name)
-        channel = f"arena.contest.{self.contest.id}.setup.features"
-        job_id = self.round_service.uuid_service.make_id()
-        log.info(
-            "requesting random features from arena agent",
-            job_id=job_id,
-            channel=channel,
-        )
-        contest = self.contest.get_public()
-        req = ParticipantContestRequest(
-            command=PromptType.ARENA_GENERATE_FEATURES,
-            data=ContestRequestPayload(contest=contest),
-            message="",
-        )
-
-        job = CommandJob(
-            channel=channel,
-            data=req.model_dump_json(),
-            method="POST",
-            url=arena_agent.url(f"{job_id}/{PromptType.ARENA_GENERATE_FEATURES.value}"),
-        )
-        await self.subscriber.subscribe(
-            self.message_broker.client,
-            channel,
-            self.log,
-            cb=self.handle_feature_generation_message,
-        )
-        await self.message_broker.send_job(job)
-
-    async def handle_arena_description_message(self, msg: Msg):
-        """Handle the message from the announcer agent with generated features."""
-        log = self.log.bind(msg=msg.subject)
-        log.info("Received arena description message", msg=msg.subject)
-        try:
-            description = extract_text_response(
-                decode(msg.data, "utf-8", "unicode_escape")
-            )
-
-            round = self.contest_round
-            if not round:
-                log.error("No round found")
-                return
-            round.state = ContestRoundState.DESCRIBING_SETUP
-            round.updated_at = int(datetime.now().timestamp())
-            log.info("Setting round narrative", description=description)
-            round.narrative = description
-            self.session.commit()
-
-        except Exception as e:
-            log.error("Failed to parse description", error=e)
-            self.send("step_failed", "bad description")
-
-        await self.subscriber.unsubscribe(msg.subject, self.log)
-        asyncio.create_task(self.send("cycle"))  # type: ignore
-
-    async def handle_feature_generation_message(self, msg: Msg):
-        """Handle the message from the arena agent with generated features."""
-        log = self.log.bind(msg=msg.subject)
-        log.info("Received feature generation message", msg=msg)
-        try:
-            job_data = decode(msg.data, "utf-8", "unicode_escape")
-            obj = json.loads(job_data)
-            state = obj.get("state", None)
-
-            while isinstance(obj, dict) and "data" in obj:
-                obj = obj["data"]
-                if isinstance(obj, str) and obj.find('"data"') != -1:
-                    obj = json.loads(obj)
-                if state is None:
-                    state = obj.get("state", None)  # type: ignore
-
-            if state != JobResponseState.COMPLETE.value:
-                log.error("Feature generation job failed", obj=obj)
-                asyncio.create_task(self.send("step_failed", "job failed"))  # type: ignore
-                return
-            features = parse_list(obj, log=log)
-            log.info("Parsed feature generation message", features=features)
-        except Exception as e:
-            log.error("Failed to parse feature generation message", error=e)
-            asyncio.create_task(self.send("step_failed", "bad feature generation message"))  # type: ignore
-            return
-
-        await self.subscriber.unsubscribe(msg.subject, self.log)
-        round = self.contest_round
-        assert round, "should have a contest round"
-        log.info("Copying new random features to round 0")
-        if features:
-            for f in features:
-                feature = Feature(
-                    id="",
-                    name=f["name"],
-                    description=f["description"] if "description" in f else "",
-                    position=f["position"],
-                    origin=FeatureOriginType.RANDOM,
-                )
-                # TODO handle end_pos
-                log.debug(f"Adding feature", feature=feature.name)
-                feature, result = await self.feature_service.create(
-                    feature, self.session
-                )
-                if feature and result.success:
-                    round.features.append(feature)
-                else:
-                    log.info("could not create feature", result=result)
-
-        self.session.commit()
-        asyncio.create_task(self.send("cycle"))  # type: ignore
 
     def has_opening_round(self) -> bool:
         """Check if the contest has an opening round."""
@@ -271,8 +113,6 @@ class SetupMachine(StateMachine):
         log = self.log.bind(state="creating_round")
         log.info("Creating round 0 for contest")
 
-        # Create a new round 0 if it doesn't exist
-        # TODO: we need to add the initial player_states here - and this should probably by done in the round service
         if not self.contest_round:
             round = await self.round_service.create_round(
                 self.contest.id, 0, self.session
@@ -281,7 +121,7 @@ class SetupMachine(StateMachine):
             self.log = self.log.bind(round_id=round.id)
             log.info("Round 0 created successfully")
 
-        await self.send("cycle", "from creating round")  # type: ignore
+        await self.cycle("from creating round")  # type: ignore
 
     async def on_enter_adding_fixed_features(self):
         """Called when entering the AddingFixedFeatures state."""
@@ -296,6 +136,7 @@ class SetupMachine(StateMachine):
 
         ct = 0
         log.info("Copying arena features to round 0")
+        # TODO: Add replay protection here
         for feature in self.contest.arena.features:
             log.debug(f"Adding feature", feature=feature.name)
             round.features.append(feature)
@@ -304,7 +145,7 @@ class SetupMachine(StateMachine):
         self.session.commit()
 
         log.info(f"{ct} Fixed features added successfully")
-        asyncio.create_task(self.cycle(""))
+        await self.cycle("added fixed features")  # type: ignore
 
     async def on_enter_generating_features(self):
         """Called when entering the GeneratingFeatures state, which adds the random features."""
@@ -321,22 +162,58 @@ class SetupMachine(StateMachine):
             self.log.info("No random features to generate, skipping")
             self.send("cycle", "from generating features")
             return
+        if (
+            len([f for f in round.features if f.origin == FeatureOriginType.RANDOM])
+            >= 1
+        ):
+            self.log.info("Already have features, skipping")
+            await self.cycle("from generating features")  # type: ignore
+            return
+
+        agents = self.contest.get_role(RoleType.ARENA)
+        if not agents:
+            self.log.error("No arena agents found for generating features")
+            await self.step_failed("from generating features")  # type: ignore
+            return
+        arena_agent = agents[0]
+        log = self.log.bind(agent=arena_agent.name)
+
         # Generate random features and add them to the round
-        self.log.info("Starting Generate")
-        await self.generate_random_features()
+        self.log.info("Starting Generate features")
+        msg: Msg = await self.get_generate_features(arena_agent)
+        success, error = await self.handle_generate_features(msg)
+        if not success:
+            self.log.error("Failed to handle feature generation message", error=error)
+            await self.step_failed("from generating features")  # type: ignore
+            return
+        await self.cycle("from generating features")  # type: ignore
 
     async def on_enter_describing_setup(self):
         """Called when entering the DescribingSetup state."""
-        await self.generate_arena_description()
+        agents = self.contest.get_role(RoleType.ANNOUNCER)
+        if not agents:
+            self.log.error("No announcer agents found for describing setup")
+            await self.step_failed("from describing setup")  # type: ignore
+            return
+        announcer = agents[0]
+        log = self.log.bind(agent=announcer.name)
+        log.info("Describing setup")
+        msg: Msg = await self.get_describe_arena(announcer)
+        success, error = await self.handle_describe_arena(msg)
+        if not success:
+            self.log.error("Failed to handle describe setup message", error=error)
+            await self.step_failed("from describing setup")  # type: ignore
+            return
+        await self.cycle("from describing setup")  # type: ignore
 
-    async def after_transition(self, event, source, target):
-        self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
-        state = self.current_state.id
-        self.log = self.log.bind(state=state)
-        await self.message_broker.send_message(
-            f"arena.contest.{self.contest_public.id}.contestflow.setup.{source.id}.{target.id}",
-            state,
-        )
+    # async def after_transition(self, event, source, target):
+    #     self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
+    #     state = self.current_state.id
+    #     self.log = self.log.bind(state=state)
+    #     await self.message_broker.send_message(
+    #         f"arena.contest.{self.contest_public.id}.setup.{source.id}.{target.id}",
+    #         state,
+    #     )
 
     async def on_enter_state(self, target, event):
         if self.contest_round:
@@ -348,6 +225,184 @@ class SetupMachine(StateMachine):
         if target.final:
             self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
             await self.message_broker.send_message(self.completion_channel, target.id)
-            await self.subscriber.unsubscribe_all(self.log)
         else:
             self.log.debug(f"{self.name} enter: {target.id} from {event}")
+
+    # message handlers
+
+    async def get_describe_arena(self, announcer: Participant) -> Msg:
+        """Generate the arena description, now that we have all the features.
+        This will come back on our handler channel "arena.contest.{self.contest.id}.setup.description".
+        """
+        log = self.log.bind(
+            agent=announcer.name, prompt=PromptType.ANNOUNCER_DESCRIBE_ARENA.value
+        )
+        log.debug("generating")
+        log.info(
+            "requesting description from announcer agent",
+        )
+        job_id = self.uuid_service.make_id()
+        channel = announcer.channel_prompt(
+            PromptType.ANNOUNCER_DESCRIBE_ARENA, "request", job_id
+        )
+        contest = self.contest.get_public()
+        req = ParticipantContestRequest(
+            command=PromptType.ANNOUNCER_DESCRIBE_ARENA,
+            data=ContestRequestPayload(contest=contest),
+            message="",
+        )
+        return await self.message_broker.request_job(channel, req.model_dump_json())
+
+    async def handle_describe_arena(self, msg: Msg) -> tuple[bool, str]:
+        """Handle the message from the announcer agent with the arena description."""
+        log = self.log.bind(msg=msg.subject)
+        log.info("Received arena description message", msg=msg.subject)
+        try:
+            description = extract_text_response(
+                decode(msg.data, "utf-8", "unicode_escape")
+            )
+
+            round = self.contest_round
+            if not round:
+                log.error("No round found")
+                return False, "no round found"
+            round.state = ContestRoundState.DESCRIBING_SETUP
+            round.updated_at = int(datetime.now().timestamp())
+            log.info("Setting round narrative", description=description)
+            round.narrative = description
+            self.session.commit()
+
+        except Exception as e:
+            log.error("Failed to parse description", error=e)
+            return False, "bad description"
+
+        return True, ""
+
+    async def get_generate_features(self, arena_agent: Participant) -> Msg:
+        """Generate a list of random features up to count, by sending a job to the message broker"""
+        log = self.log.bind(
+            agent=arena_agent.name, prompt=PromptType.ARENA_GENERATE_FEATURES.value
+        )
+        job_id = self.uuid_service.make_id()
+        channel = arena_agent.channel_prompt(
+            PromptType.ARENA_GENERATE_FEATURES, "request", job_id
+        )
+        log.info("requesting random features from arena agent", channel=channel)
+        contest = self.contest.get_public()
+        req = ParticipantContestRequest(
+            command=PromptType.ARENA_GENERATE_FEATURES,
+            data=ContestRequestPayload(contest=contest),
+            message="",
+        )
+        return await self.message_broker.request_job(channel, req.model_dump_json())
+
+    def parse_generate_features_response(self, msg: Msg) -> tuple[list[dict], bool]:
+        """Parse the response from the arena agent with generated features."""
+        log = self.log.bind(msg=msg.subject)
+        log.info("Received feature generation message", msg=msg)
+        features = []
+        try:
+            job_data = decode(msg.data, "utf-8", "unicode_escape")
+            obj = json.loads(job_data)
+            state = obj.get("state", None)
+
+            while isinstance(obj, dict) and "data" in obj:
+                obj = obj["data"]
+                if isinstance(obj, str) and obj.find('"data"') != -1:
+                    obj = json.loads(obj)
+                if state is None:
+                    state = obj.get("state", None)  # type: ignore
+
+            if state != JobResponseState.COMPLETE.value:
+                log.error("Feature generation job failed", obj=obj)
+                return [], False
+            features = parse_list(obj, log=log)
+            log.info("Parsed feature generation message", features=features)
+        except Exception as e:
+            log.error("Failed to parse feature generation message", error=e)
+            return [], False
+
+        return features, True  # type: ignore
+
+    async def handle_generate_features(self, msg: Msg) -> tuple[bool, str]:
+        """Handle the message from the arena agent with generated features."""
+        log = self.log.bind(msg=msg.subject)
+        features, success = self.parse_generate_features_response(msg)
+        if not success:
+            return False, "bad feature generation message"
+
+        round = self.contest_round
+        assert round, "should have a contest round"
+
+        try:
+            job_data = decode(msg.data, "utf-8", "unicode_escape")
+            obj = json.loads(job_data)
+            state = obj.get("state", None)
+
+            while isinstance(obj, dict) and "data" in obj:
+                obj = obj["data"]
+                if isinstance(obj, str) and obj.find('"data"') != -1:
+                    obj = json.loads(obj)
+                if state is None:
+                    state = obj.get("state", None)  # type: ignore
+
+            if state != JobResponseState.COMPLETE.value:
+                log.error("Feature generation job failed", obj=obj)
+                return False, "job failed"
+            features = parse_list(obj, log=log)
+            log.info("Parsed feature generation message", features=features)
+        except Exception as e:
+            log.error("Failed to parse feature generation message", error=e)
+            return False, "bad feature generation message"
+
+        round = self.contest_round
+        assert round, "should have a contest round"
+        log.info("Copying new random features to round 0")
+        if features:
+            for f in features:
+                feature = Feature(
+                    id="",
+                    name=f["name"],
+                    description=f["description"] if "description" in f else "",
+                    position=f["position"],
+                    origin=FeatureOriginType.RANDOM,
+                )
+                log.debug(f"Adding feature", feature=feature.name)
+                feature, result = await self.feature_service.create(
+                    feature, self.session
+                )
+                if feature and result.success:
+                    round.features.append(feature)
+
+                    if "end_position" in f:
+                        # if a feature has a position of 1,1 and an end_position of 3,3, then we need to fill in the cells 1,2 and 2,1 and 2,2
+                        # and then add a feature for each of those cells
+                        start_pos = f["position"]
+                        end_pos = f["end_position"]
+                        start_x, start_y = start_pos.split(",")
+                        end_x, end_y = end_pos.split(",")
+                        for x in range(start_x, end_x + 1):
+                            for y in range(start_y, end_y + 1):
+                                log.debug(
+                                    "filling in feature cells for ranges", x=x, y=y
+                                )
+                                feature = Feature(
+                                    id="",
+                                    name=f["name"],
+                                    description=(
+                                        f["description"] if "description" in f else ""
+                                    ),
+                                    position=f"{x},{y}",
+                                    origin=FeatureOriginType.RANDOM,
+                                )
+                                feature, result = await self.feature_service.create(
+                                    feature, self.session
+                                )
+                                if feature and result.success:
+                                    round.features.append(feature)
+
+                else:
+                    log.info("could not create feature", result=result)
+
+        self.session.commit()
+        return True, ""

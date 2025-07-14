@@ -2,6 +2,6 @@
   "name": "Saiph",
   "role": "player",
   "description": "Sure he's a player, but he's not sure what he's doing.",
-  "endpoint": "$ACTOR$/api/agent/$ID$",
+  "endpoint": "channel://actor.agent.$AGENT_ID$",
   "api_key": ""
 }

@@ -1,18 +1,38 @@
 import json
+import uuid
 
 from llm.utils import extract_fenced_code_block
+
+BAD_PAYLOAD_DIR = "etc/payloads"
+
+
+def write_bad_payload(payload: str):
+    """
+    Write a bad payload to the bad payload directory.
+    """
+    fname = f"{BAD_PAYLOAD_DIR}/{uuid.uuid4()}.json"
+    with open(fname, "w") as f:
+        f.write(payload)
+    return fname
 
 
 def extract_text_response(job_data: str):
     """
     Extract the text response from a Message's data.
     """
-    rv = json.loads(job_data)
-    if "data" in rv:
-        rv = json.loads(rv["data"])
-    if "data" in rv:
-        rv = rv["data"]
-    return rv
+    try:
+        rv = json.loads(job_data)
+        if "data" in rv and isinstance(rv["data"], str):
+            try:
+                rv = json.loads(rv["data"])
+            except json.JSONDecodeError:
+                pass
+        if "data" in rv:
+            rv = rv["data"]
+        return rv
+    except json.JSONDecodeError as e:
+        fname = write_bad_payload(job_data)
+        raise ValueError(f"Failed to parse job data, written to {fname}")
 
 
 def extract_obj_from_json(raw: str):
@@ -42,8 +62,13 @@ def extract_obj_from_json(raw: str):
             obj = data
             break
 
+    if isinstance(obj, str) and "\\n" in obj:
+        while "\\n" in obj:
+            obj = obj.replace("\\n", "\n")
+        obj = obj.replace("\\", "")
+        return extract_obj_from_json(obj)
+
     if isinstance(obj, str):
-        obj = obj.replace("\\n", "\n").replace("\\", "")
         if obj.find("```") != -1:
             obj = extract_fenced_code_block(obj)
 
@@ -55,6 +80,10 @@ def extract_obj_from_json(raw: str):
 
     if isinstance(obj, dict):
         return obj
+
+    if obj is None:
+        fname = write_bad_payload(raw)
+        raise ValueError(f"Failed to parse object, written to {fname}")
 
     return None
 
@@ -72,7 +101,7 @@ def parse_list(raw, log=None):
             continue
         # If it's a string, try to parse it
         if isinstance(work, str):
-            s = work.strip()
+            s = work.strip().replace("[...]", "")
             if not s:
                 return []
             if not s.startswith("["):
@@ -85,8 +114,15 @@ def parse_list(raw, log=None):
                         work = json.loads(json_str)
                         continue
                     except Exception as e:
+                        fname = write_bad_payload(s)
                         if log:
-                            log.error("Failed to parse list from substring", error=e)
+                            log.error(
+                                f"Failed to parse list from substring, written to {fname}",
+                                error=e,
+                            )
+                        raise ValueError(
+                            f"Failed to parse list from substring, written to {fname}"
+                        )
                         return []
                 # If not found, try fenced code block
                 if s.find("```") != -1:
@@ -97,16 +133,29 @@ def parse_list(raw, log=None):
                     work = json.loads(s)
                     continue
                 except Exception as e:
+                    fname = write_bad_payload(s)
                     if log:
-                        log.error("Failed to parse list as JSON", error=e)
+                        log.error(
+                            f"Failed to parse list as JSON, written to {fname}", error=e
+                        )
+                    raise ValueError(
+                        f"Failed to parse list as JSON, written to {fname}"
+                    )
                     return []
             else:
                 try:
                     work = json.loads(s)
                     continue
                 except Exception as e:
+                    fname = write_bad_payload(s)
                     if log:
-                        log.error("Failed to parse list as JSON", error=e)
+                        log.error(
+                            f"Failed to parse list as JSON, written to {fname}",
+                            error=e,
+                        )
+                    raise ValueError(
+                        f"Failed to parse list as JSON, written to {fname}"
+                    )
                     return []
         break
     return work

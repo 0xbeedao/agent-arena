@@ -14,17 +14,20 @@ from fastapi.responses import JSONResponse
 
 from agentarena.arena.arena_container import ArenaContainer
 from agentarena.core.middleware import add_logging_middleware
-from agentarena.util.files import find_directory_of_file
+from agentarena.util.files import find_file_upwards
 
 better_exceptions.MAX_LENGTH = None
 
+config_file = os.getenv("AGENTARENA_CONFIG_FILE", "agent-arena-config.yaml")
+print(f"Using config file: {config_file}")
+yamlFile = find_file_upwards(config_file)
+if yamlFile is None:
+    raise ValueError(f"Config file {config_file} not found")
+
 # Initialize the container
 container = ArenaContainer()
-project_root = find_directory_of_file("agent-arena-config.yaml")
-assert project_root is not None, "Can't find config"
-
-yamlFile = os.path.join(project_root, "agent-arena-config.yaml")
 container.config.from_yaml(yamlFile)
+
 # Create the FastAPI application
 app = FastAPI(
     title="Agent Arena (Arena) API",
@@ -45,8 +48,6 @@ async def startup_event():
     log = logger.get_logger("arena")
     db = container.db_service()
     db.create_db()
-    with db.get_session() as session:
-        db.add_audit_log("startup", session)
     broker = await container.message_broker()  # type: ignore
     for svc in [
         await container.contest_controller(),  # type: ignore

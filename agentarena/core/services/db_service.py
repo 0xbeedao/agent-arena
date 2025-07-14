@@ -10,7 +10,6 @@ from sqlmodel import SQLModel
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.audit import AuditMessage
 from agentarena.models.dbbase import DbBase
 from agentarena.models.validation import ValidationResponse
 
@@ -51,17 +50,6 @@ class DbService:
             SQLModel.metadata.create_all(self.engine)
             self._created = True
         return self
-
-    def add_audit_log(self, message, session: Session):
-        audit = self.create(
-            AuditMessage(
-                id=self.uuid_service.make_id(),
-                created_at=int(datetime.now().timestamp()),
-                message=message,
-            ),
-            session,
-        )
-        self.log.info("audit", audit=audit)
 
     def create(self, obj, session: Session):
         session.add(obj)

@@ -4,6 +4,7 @@ from typing import List
 
 import llm
 from sqlmodel import Field
+from sqlmodel import Session
 
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.factories.logger_factory import LoggingService
@@ -68,66 +69,56 @@ class LLMService:
         )
         return job
 
-    async def execute_job(self, gen_id: str):
+    async def execute_job(self, gen_id: str, session: Session):
         log = self.log.bind(gen_id=gen_id)
         job = None
         generated = ""
         model = ""
         prompt = ""
 
-        with self.db_service.get_session() as session:
-            job = session.get(GenerateJob, gen_id)
-            if not job:
-                log.warn(f"Invalid GenerateJob")
-                return None
+        job = session.get(GenerateJob, gen_id)
+        if not job:
+            log.warn(f"Invalid GenerateJob")
+            return None
 
-            job.started_at = int(datetime.now().timestamp())
-            job.state = JobState.REQUEST
-            model = job.model
-            prompt = job.prompt
-            session.commit()
-            # Send message that job has started
-            await self.message_broker.publish_model_change(
-                channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.REQUEST.value}",
-                obj_id=job.job_id,
-                detail="Generation job started",
-            )
+        job.started_at = int(datetime.now().timestamp())
+        job.state = JobState.REQUEST
+        model = job.model
+        prompt = job.prompt
+        session.flush()
+        # Send message that job has started
+        await self.message_broker.publish_model_change(
+            channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.REQUEST.value}",
+            obj_id=job.job_id,
+            detail="Generation job started",
+        )
 
         log.debug("start generation")
         try:
             generated = self.generate(model, prompt)
         except llm.UnknownModelError:
             log.error(f"Invalid model {model}")
-            with self.db_service.get_session() as session:
-                job = session.get(GenerateJob, gen_id)
-                if job:
-                    job.state = JobState.FAIL
-                    job.finished_at = int(datetime.now().timestamp())
-                    session.commit()
-                    # Send message that job has failed
-                    await self.message_broker.publish_model_change(
-                        channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.FAIL.value}",
-                        obj_id=job.job_id,
-                        detail="Generation job failed due to invalid model",
-                    )
+            job.state = JobState.FAIL
+            job.finished_at = int(datetime.now().timestamp())
+            session.flush()
+            # Send message that job has failed
+            await self.message_broker.publish_model_change(
+                channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.FAIL.value}",
+                obj_id=job.job_id,
+                detail="Generation job failed due to invalid model",
+            )
             return job  # Return early as the job failed
         log.debug("end generation")
 
-        with self.db_service.get_session() as session:
-            job = session.get(GenerateJob, gen_id)
-            if not job:
-                log.warn(f"Invalid GenerateJob")
-                return None
-
-            job.state = JobState.COMPLETE
-            job.generated = generated
-            job.finished_at = int(datetime.now().timestamp())
-            session.commit()
-            # Send message that job has completed
-            await self.message_broker.publish_model_change(
-                channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.COMPLETE.value}",
-                obj_id=job.job_id,
-                detail="Generation job completed successfully",
-            )
+        job.state = JobState.COMPLETE
+        job.generated = generated
+        job.finished_at = int(datetime.now().timestamp())
+        session.flush()
+        # Send message that job has completed
+        await self.message_broker.publish_model_change(
+            channel=f"actor.llm.{job.id}.{job.job_id}.{JobState.COMPLETE.value}",
+            obj_id=job.job_id,
+            detail="Generation job completed successfully",
+        )
 
         return job

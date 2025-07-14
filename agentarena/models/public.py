@@ -37,30 +37,6 @@ class ArenaPublic(BaseModel):
     winning_condition: str = Field(description="winning condition description")
 
 
-class CommandJobPublic(BaseModel):
-    id: str = Field(default="", description="ID")
-    channel: str = Field(description="Channel")
-    data: Optional[str] = Field(default=None, description="Data")
-    method: str = Field(description="Method")
-    priority: int = Field(description="Priority")
-    send_at: int = Field(description="Timestamp")
-    state: JobState = Field(description="Job state")
-    started_at: int = Field(description="Timestamp")
-    finished_at: Optional[int] = Field(default=None, description="Timestamp")
-    parent_id: Optional[str] = Field(default=None, description="Parent job ID")
-    url: str = Field(description="Url")
-    history: List["CommandJobHistoryPublic"] = Field(default=[])
-
-
-class CommandJobHistoryPublic(BaseModel):
-    id: str = Field(default="", description="ID")
-    job_id: str = Field(description="Job ID")
-    from_state: JobState = Field(description="Original Job state")
-    to_state: JobState = Field(description="Updated Job state")
-    message: Optional[str] = Field(default=None, description="Message")
-    data: Optional[str] = Field(default=None, description="Data")
-
-
 class ContestPublic(BaseModel):
     id: str = Field(default="", description="ID")
     arena: ArenaPublic = Field()
@@ -102,35 +78,18 @@ class GenerateJobPublic(BaseModel):
     finished_at: Optional[int] = Field(default=None, description="Timestamp")
 
 
-class UrlJobRequest(BaseModel):
-    channel: str = Field(
-        default="job.url.request",
-        description="job command - this will be published as the subject on NATS",
-    )
+class JobResponse(BaseModel):
     data: Optional[str] = Field(
         default=None,
-        description="optional payload to send to Url",
+        description="optional payload from job",
     )
-    delay: Optional[int] = Field(
-        default=0, description="Request delay of x seconds before retry"
-    )
-    method: Optional[str] = Field(default="GET", description="HTTP method")
-    url: Optional[str] = Field(description="Url to Call")
-
-
-class JobResponse(UrlJobRequest):
     job_id: str = Field(description="Job ID")
     message: Optional[str] = Field(
-        default="", description="Message regarding state, e.g. an error"
+        default=None, description="Message regarding state, e.g. an error"
     )
     state: JobResponseState = Field(
         description="JobResponseState field, one of ['completed', 'pending', 'fail']",
     )
-    child_data: Optional[List["JobResponse"]] = Field(
-        default_factory=list,
-        description="child job responses",
-    )
-    url: Optional[str] = Field(default="")
 
 
 class JudgeResultPublic(BaseModel):

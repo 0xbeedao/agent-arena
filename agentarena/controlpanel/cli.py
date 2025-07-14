@@ -25,7 +25,6 @@ from agentarena.util.files import find_file_upwards
 from .clients import ArenaClient
 from .clients import MessageBrokerClient
 from .clients import ParticipantClient
-from .clients import SchedulerClient
 from .markdown_renderer import render_markdown
 
 VERSION = "0.0.1"
@@ -108,12 +107,6 @@ def print_contest_list(contests):
         )
 
 
-def print_job_list(jobs):
-    print_title("Jobs", info=True)
-    for job in jobs:
-        print(HTML(f"  {job['id']} - {job['channel']} - {job['state']}"))
-
-
 def print_generate_job_list(jobs):
     print_title("Generate Jobs", info=True)
     for job in jobs:
@@ -148,9 +141,13 @@ def print_strategy_list(strategies):
 
 
 def read_config():
-    yamlfile = find_file_upwards("agent-arena-config.yaml")
-    assert yamlfile, "Where is my config file?"
-    with open(yamlfile, "r") as f:
+    config_file = os.getenv("AGENTARENA_CONFIG_FILE", "agent-arena-config.yaml")
+    print(f"Using config file: {config_file}")
+    yamlFile = find_file_upwards(config_file)
+    if yamlFile is None:
+        raise ValueError(f"Config file {config_file} not found")
+
+    with open(yamlFile, "r") as f:
         yaml_data = yaml.safe_load(f)
     return yaml_data
 
@@ -159,6 +156,10 @@ BASE_COMMANDS = {
     "arena": {
         "description": "load an arena",
         "commands": {
+            "list": {
+                "description": "list all arenas",
+                "commands": {},
+            },
             "load": {
                 "description": "load an arena",
                 "commands": {
@@ -187,10 +188,6 @@ BASE_COMMANDS = {
         "description": "clear the loaded data",
         "commands": {},
     },
-    "arenas": {
-        "description": "list all arenas",
-        "commands": {},
-    },
     "contest": {
         "description": "Contest Control",
         "commands": {
@@ -209,6 +206,10 @@ BASE_COMMANDS = {
             },
             "create": {
                 "description": "create a contest",
+                "commands": {},
+            },
+            "list": {
+                "description": "list all contests",
                 "commands": {},
             },
             "load": {
@@ -239,10 +240,6 @@ BASE_COMMANDS = {
             },
         },
     },
-    "contests": {
-        "description": "list all contests",
-        "commands": {},
-    },
     "listen": {
         "description": "listen to a channel",
         "commands": {
@@ -269,61 +266,13 @@ BASE_COMMANDS = {
             },
         },
     },
-    "jobs": {
-        "description": "list all jobs",
-        "commands": {},
-    },
-    "job": {
-        "description": "Job Control",
-        "commands": {
-            "create": {
-                "description": "create a job",
-                "commands": {},
-            },
-            "load": {
-                "description": "load a job by id",
-                "commands": {
-                    "latest": {
-                        "description": "load the latest job",
-                        "commands": {},
-                    },
-                    "$job_ids": {
-                        "description": "Job IDs",
-                        "commands": {},
-                    },
-                },
-            },
-            "clone": {
-                "description": "clone a job",
-                "commands": {
-                    "latest": {
-                        "description": "Clone the latest job",
-                        "commands": {},
-                    },
-                    "$job_ids": {
-                        "description": "Job IDs",
-                        "commands": {},
-                    },
-                },
-            },
-            "requeue": {
-                "description": "requeue a job",
-                "commands": {
-                    "latest": {
-                        "description": "Requeue the latest job",
-                        "commands": {},
-                    },
-                    "$job_ids": {
-                        "description": "Job IDs",
-                        "commands": {},
-                    },
-                },
-            },
-        },
-    },
     "generatejob": {
         "description": "Generate Job Control",
         "commands": {
+            "list": {
+                "description": "list all generate jobs",
+                "commands": {},
+            },
             "load": {
                 "description": "load a generate job by id",
                 "commands": {
@@ -352,13 +301,13 @@ BASE_COMMANDS = {
             },
         },
     },
-    "generatejobs": {
-        "description": "list all generate jobs",
-        "commands": {},
-    },
     "participant": {
         "description": "Participant Control",
         "commands": {
+            "list": {
+                "description": "list all participants",
+                "commands": {},
+            },
             "create": {
                 "description": "create a participant",
                 "commands": {},
@@ -369,13 +318,13 @@ BASE_COMMANDS = {
             },
         },
     },
-    "participants": {
-        "description": "list all participants",
-        "commands": {},
-    },
     "strategy": {
         "description": "Strategy Control",
         "commands": {
+            "list": {
+                "description": "list all strategies",
+                "commands": {},
+            },
             "create": {
                 "description": "create a strategy",
                 "commands": {},
@@ -385,10 +334,6 @@ BASE_COMMANDS = {
                 "commands": {},
             },
         },
-    },
-    "strategies": {
-        "description": "list all strategies",
-        "commands": {},
     },
 }
 
@@ -487,7 +432,6 @@ class ArenaCommander:
         self.arena_client = ArenaClient(config["arena"])
         self.message_broker = MessageBrokerClient(config["messagebroker"])
         self.participant_client = ParticipantClient(config["actor"])
-        self.scheduler_client = SchedulerClient(config["scheduler"])
         self.config = config
         self.loaded: Dict[str, Dict[str, Any]] = {}
         self.command_completer = CommandCompleter()
@@ -571,7 +515,10 @@ class ArenaCommander:
 
         cmd = args.pop(0)
 
-        if cmd == "load":
+        if cmd == "list":
+            await self.cmd_arenas(args)
+            return True
+        elif cmd == "load":
             arena_id = await self.cmd_arena_load(args)
         elif cmd == "create":
             arena_id = await self.cmd_arena_create(args)
@@ -691,7 +638,10 @@ class ArenaCommander:
 
         cmd = args.pop(0)
 
-        if cmd == "load":
+        if cmd == "list":
+            await self.cmd_contests(args)
+            return True
+        elif cmd == "load":
             contest_id = await self.cmd_contest_load(args)
         elif cmd == "start":
             contest_id = await self.cmd_contest_start(args)
@@ -765,7 +715,10 @@ class ArenaCommander:
         cmd = args.pop(0)
         show_md = True
 
-        if cmd == "load":
+        if cmd == "list":
+            await self.cmd_generatejobs(args)
+            return True
+        elif cmd == "load":
             job_id = await self.cmd_generatejob_load(args)
         elif cmd == "repeat":
             job_id = await self.cmd_generatejob_repeat(args)
@@ -841,90 +794,6 @@ class ArenaCommander:
         print_title("Help", info=True)
         return True
 
-    async def cmd_job(self, args: list[str]):
-        job_id = self.safe_get_id(args, "job", "jobs")
-        if len(args) == 0 and job_id:
-            args = ["load", job_id]
-
-        if len(args) == 0:
-            return True
-
-        cmd = args.pop(0)
-
-        if cmd == "load":
-            job_id = await self.cmd_job_load(args)
-        elif cmd == "create":
-            job_id = await self.cmd_job_create(args)
-        elif cmd == "clone":
-            job_id = await self.cmd_job_clone(args)
-        elif cmd == "restart":
-            job_id = await self.cmd_job_restart(args)
-        else:
-            job_id = cmd
-
-        if job_id and job_id != "":
-            body = await self.scheduler_client.get(f"/api/job/{job_id}.md")
-            print(render_markdown(body.content.decode("utf-8")))
-
-        return True
-
-    async def cmd_job_clone(self, args: list[str]):
-        job_id = self.safe_get_id(args, "job", "jobs")
-        if not job_id:
-            return None
-
-        r = await self.scheduler_client.post(f"/api/job/{job_id}/clone", {})
-        r.raise_for_status()
-        data = r.json()
-        self.loaded["job"] = data
-        print_title(f"Job {data['id']} cloned", success=True)
-        return data["id"]
-
-    async def cmd_job_restart(self, args: list[str]):
-        job_id = self.safe_get_id(args, "job", "jobs")
-        if not job_id:
-            return None
-
-        r = await self.scheduler_client.post(f"/api/job/{job_id}/requeue", {})
-        r.raise_for_status()
-
-    async def cmd_job_load(self, args: list[str]):
-        job_id = self.safe_get_id(args, "job", "jobs")
-        if not job_id:
-            return None
-
-        r = await self.scheduler_client.get(f"/api/job/{job_id}")
-        r.raise_for_status()
-        self.loaded["job"] = r.json()
-        return job_id
-
-    async def cmd_job_create(self, args: list[str]):
-        data = {}
-        print_title("Create Job", info=True)
-        data["channel"] = await prompt_str("Channel", default="default")
-        data["method"] = await prompt_str(
-            "Method", default="POST", words=["POST", "GET", "PUT", "DELETE"]
-        )
-        data["url"] = await prompt_str(
-            "URL", default="http://localhost:8000/api/debug/health"
-        )
-        data["priority"] = await prompt_int("Priority", default=50)
-        data["data"] = await prompt_str("Data (json)", default="{}")
-
-        r = await self.scheduler_client.post("/api/job", data)
-        r.raise_for_status()
-        data = r.json()
-        self.loaded["job"] = data
-        print_title(f"Job {data['id']} created", success=True)
-        return data["id"]
-
-    async def cmd_jobs(self, args: list[str]):
-        r = await self.scheduler_client.get("/api/job")
-        jobs = r.json()
-        self.add_loaded("jobs", jobs)
-        print_job_list(jobs)
-        return True
-
     async def cmd_listen(self, args: list[str]):
         if not args:
             print_title("No channel provided", error=True)
@@ -939,20 +808,13 @@ class ArenaCommander:
         if channel == "all":
             await self.subscribe("arena.>")
             await self.subscribe("actor.>")
-            await self.subscribe("scheduler.>")
-        elif channel == "most":
-            await self.subscribe("arena.>")
-            await self.subscribe("actor.>")
         elif channel == "none":
             await self.unsubscribe("arena.>")
             await self.unsubscribe("actor.>")
-            await self.unsubscribe("scheduler.>")
         elif channel == "arena":
             await self.subscribe("arena.>")
         elif channel == "actor":
             await self.subscribe("actor.>")
-        elif channel == "scheduler":
-            await self.subscribe("scheduler.>")
         else:
             await self.subscribe(channel)
         return True
@@ -966,6 +828,9 @@ class ArenaCommander:
             return True
 
         cmd = args.pop(0)
+        if cmd == "list":
+            await self.cmd_participants(args)
+            return True
         if cmd == "load":
             participant_id = await self.cmd_participant_load(args)
         elif cmd == "create":
@@ -1038,7 +903,10 @@ class ArenaCommander:
             return None
 
         cmd = args.pop(0)
-        if cmd == "load":
+        if cmd == "list":
+            await self.cmd_strategies(args)
+            return True
+        elif cmd == "load":
             strategy_id = await self.cmd_strategy_load(args)
         elif cmd == "create":
             strategy_id = await self.cmd_strategy_create(args)
@@ -1113,7 +981,6 @@ class ArenaCommander:
             ("strategies", self.participant_client, "/api/strategy"),
             ("participants", self.participant_client, "/api/agent"),
             ("generatejobs", self.participant_client, "/api/generatejob"),
-            ("jobs", self.scheduler_client, "/api/job"),
         ]
         with ProgressBar(title=title) as pb:
             for key, client, path in pb(fetches, total=len(fetches)):
@@ -1131,34 +998,20 @@ class ArenaCommander:
             await self.cmd_help(args)
         elif cmd == "arena":
             await self.cmd_arena(args)
-        elif cmd == "arenas":
-            await self.cmd_arenas(args)
         elif cmd == "clear":
             await self.cmd_clear(args)
-        elif cmd == "contests":
-            await self.cmd_contests(args)
         elif cmd == "contest":
             await self.cmd_contest(args)
         elif cmd == "exit":
             await self.cmd_exit(args)
-        elif cmd == "generatejobs":
-            await self.cmd_generatejobs(args)
         elif cmd == "generatejob":
             await self.cmd_generatejob(args)
-        elif cmd == "jobs":
-            await self.cmd_jobs(args)
-        elif cmd == "job":
-            await self.cmd_job(args)
         elif cmd == "listen":
             await self.cmd_listen(args)
         elif cmd == "participant":
             await self.cmd_participant(args)
-        elif cmd == "participants":
-            await self.cmd_participants(args)
         elif cmd == "strategy":
             await self.cmd_strategy(args)
-        elif cmd == "strategies":
-            await self.cmd_strategies(args)
         else:
             print_title(f"Unknown command: {cmd}", error=True)
 

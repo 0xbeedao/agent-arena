@@ -3,15 +3,12 @@ The Contest State Machine
 """
 
 import asyncio
-import json
 from codecs import decode
 from datetime import datetime
 from typing import Any
 from typing import Dict
-from typing import List
 
 from nats.aio.msg import Msg
-from statemachine import Event
 from statemachine import State
 from statemachine import StateMachine
 
@@ -35,10 +32,6 @@ from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import Subscriber
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import JobState
-from agentarena.models.job import CommandJob
-from agentarena.models.job import CommandJobBatchRequest
-from agentarena.models.public import UrlJobRequest
 
 from .round_machine import RoundMachine
 from .setup_machine import SetupMachine
@@ -67,21 +60,27 @@ class ContestMachine(StateMachine):
     fail = State("fail", final=True)
     complete = State("complete", final=True)
 
-    # Transitions
-    start_contest = starting.to(role_call)
-    setup_done = setup_arena.to(in_round)
-    setup_error = setup_arena.to(fail)
-    round_created = create_round.to(in_round)
-    round_complete = in_round.to(
-        check_end, unless="current_round_failed"
-    ) | in_round.to(fail)
-    round_error = in_round.to(fail)
-    contest_complete = check_end.to(complete)
-    more_rounds = check_end.to(create_round)
+    cycle = (
+        starting.to(role_call)
+        | role_call.to(setup_arena)
+        | create_round.to(in_round)
+        | in_round.to(check_end, unless="current_round_failed")
+        | in_round.to(fail, cond="current_round_failed")
+        | check_end.to(complete, cond="has_winner")
+        | check_end.to(create_round, unless="has_winner")
+    )
+
+    setup_complete = setup_arena.to(in_round)
+
+    round_complete = in_round.to(check_end)
 
     # Explicit Event definitions
-    roles_present = Event(role_call.to(setup_arena))
-    roles_error = Event(role_call.to(fail))
+    step_failed = (
+        role_call.to(fail)
+        | setup_arena.to(fail)
+        | in_round.to(fail)
+        | check_end.to(fail)
+    )
 
     def __init__(
         self,
@@ -107,9 +106,7 @@ class ContestMachine(StateMachine):
         self.uuid_service = uuid_service
         self.view_service = view_service
         self.judge_result_service = judge_result_service
-        self.completion_channel = (
-            f"arena.contest.{contest_id}.contestflow.setup.complete"
-        )
+        self.completion_channel = f"arena.contest.{contest_id}.contestmachine.complete"
         self.session = self.round_service.get_session()
         contest = self.session.get(Contest, contest_id)
         assert contest is not None, "Contest not found"
@@ -117,7 +114,7 @@ class ContestMachine(StateMachine):
 
         state = ContestState.STARTING.value
         if contest.rounds:
-            round = contest.rounds[0]
+            round = contest.rounds[-1]
             if round.state == ContestRoundState.SETUP_COMPLETE.value:
                 state = ContestState.IN_ROUND.value
             elif round.state == ContestRoundState.SETUP_FAIL.value:
@@ -133,113 +130,42 @@ class ContestMachine(StateMachine):
         Check if the current round has failed.
         """
         if self._round_machine is None:
+            if self.contest.rounds:
+                round = self.contest.rounds[-1]
+                if round.state == ContestRoundState.SETUP_FAIL.value:
+                    return True
             return False
         return (
             self._round_machine.current_state.id == ContestRoundState.ROUND_FAIL.value
         )
 
-    async def handle_role_call(self, msg: Msg):
+    def has_winner(self) -> bool:
         """
-        Handle the role call message.
-
-        This method is called when a role call message is received.
-        It processes the message and transitions to the next state if needed.
+        Check if the contest has a winner.
         """
-        self.log.info("Handling role call message", msg=msg)
-        await self.subscriber.unsubscribe(msg.subject, self.log)
-        obj = None
-        if not msg.data:
-            self.log.error("Received empty role call message", msg=msg)
-            return
-        try:
-            obj = json.loads(decode(msg.data, "utf-8", "unicode_escape"))
-        except json.JSONDecodeError as e:
-            self.log.error("Failed to decode role call message", error=str(e), msg=msg)
-            return
-
-        job_state = obj.get("state", None)
-        if job_state is None:
-            self.log.error("Role call message does not contain a state", msg=msg)
-            return
-        job_id = obj.get("job_id", "unknown job Id")
-        if job_state == JobState.COMPLETE.value:
-            self.log.info("Role call complete, transitioning to setup arena")
-            try:
-                asyncio.create_task(self.roles_present(job_id=job_id))  # type: ignore
-            except Exception as e:
-                self.log.error(
-                    "Failed to transition from role_call to setup_arena",
-                    error=str(e),
-                    exc_info=True,
-                    job_id=job_id,
-                    contest_id=self.contest.id,
-                    current_state=self.current_state.id,
-                )
-                self.roles_error(job_id=job_id, error_type=type(e).__name__)
-        elif job_state == JobState.FAIL.value:
-            self.log.error("Role call failed, transitioning to fail state")
-            self.roles_error(job_id=job_id, error_type="JobFailed")
-        else:
-            self.log.warn(
-                f"Role call message in unexpected state: {job_state}, ignoring message"
-            )
-            # Optionally, you could handle other states or log them
-            return
-
-    async def handle_round_complete(self, msg: Msg):
-        """Handle the round complete message."""
-        self.log.info("Handling round complete message", msg=msg)
-        await self.subscriber.unsubscribe(msg.subject, self.log)
-        asyncio.create_task(self.round_complete(""))  # type: ignore
-
-    async def handle_setup_complete(self, msg: Msg):
-        """Handle the setup complete message."""
-        self.log.info("Handling setup complete message", msg=msg)
-        await self.subscriber.unsubscribe(msg.subject, self.log)
-        final_state = decode(msg.data, "utf-8", "unicode_escape")
-        if final_state == ContestRoundState.SETUP_COMPLETE.value:
-            self.log.info("Setup complete, transitioning to in_round")
-            asyncio.create_task(self.setup_done(""))  # type: ignore
-        elif final_state == ContestRoundState.SETUP_FAIL.value:
-            self.log.warn(f"Setup machine in fail state: {final_state}")
-            asyncio.create_task(self.setup_error(""))  # type: ignore
-        else:
-            self.log.warn(f"Setup machine in unexpected state: {final_state}")
-            asyncio.create_task(self.setup_error(""))  # type: ignore
+        return self.contest.winner_id is not None
 
     async def on_enter_role_call(self):
         """Called when entering the InSetup state."""
-        job_id = self.uuid_service.make_id()
-        channel = f"arena.contest.{self.contest.id}.role_call"
-        await self.subscriber.subscribe(
-            self.message_broker.client, channel, self.log, cb=self.handle_role_call
-        )
-
-        batchJob = CommandJob(
-            id=job_id,
-            channel=channel,
-            method="FINAL",
-            send_at=0,
-            priority=5,
-            state=JobState.IDLE,
-            url="",
-        )
-        children: List[UrlJobRequest] = []
+        self.log.info("starting role call")
+        healthy = True
+        missing = []
         for p in self.contest.participants:
-            url = p.url("health")
-            self.log.debug(f"Creating child job for participant {p.id} with URL {url}")
-            data = {"contest_id": self.contest.id}
-            ur = UrlJobRequest(
-                url=url,
-                method="GET",
-                channel=f"{channel}.{p.id}",
-                data=json.dumps(data),
-            )
-            children.append(ur)
-
-        batch = CommandJobBatchRequest(batch=batchJob, children=children)
-
-        await self.message_broker.send_batch(batch)
+            log = self.log.bind(participant=p.name, role=p.role)
+            job_id = self.uuid_service.make_id()
+            channel = p.channel(f"request.health.{job_id}")
+            log.info("requesting health from participant", channel=channel)
+            msg: Msg = await self.message_broker.request_job(channel, self.contest.id)
+            if msg.data:
+                log.info("Participant is healthy")
+            else:
+                missing.append(p.name)
+                log.error("Participant is not healthy")
+                healthy = False
+        if healthy:
+            await self.cycle("roles present")  # type: ignore
+        else:
+            await self.roles_error("failed to get", missing=missing)  # type: ignore
 
     async def on_enter_setup_arena(self):
         """Called when entering the SetupArena state."""
@@ -282,13 +208,13 @@ class ContestMachine(StateMachine):
         created, result = await self.round_service.create(rc, self.session)
         if not created or not result.success:
             self.log.error("Failed to create round", error=result)
-            asyncio.create_task(self.round_error(""))  # type: ignore
+            await self.step_failed("round creation failed")  # type: ignore
             return
         self.log.info("Round created", round=created.id)
-        self.contest.current_round = len(self.contest.rounds)
+        self.contest.current_round = len(self.contest.rounds) - 1
         self.contest.rounds.append(created)
         self.session.commit()
-        asyncio.create_task(self.round_created(""))  # type: ignore
+        await self.cycle("round created")  # type: ignore
 
     async def on_enter_in_round(self):
         """Called when entering the InRound state.
@@ -316,39 +242,26 @@ class ContestMachine(StateMachine):
         )
         await self._round_machine.activate_initial_state()  # type: ignore
 
-    def on_enter_check_end(self):
+    async def on_enter_check_end(self):
         """Called when entering the CheckEnd state."""
         # We could check using an LLM, but for now we'll just check the scores
         round = self.contest.rounds[-1]
+        has_winner = False
         for state in round.player_states:
             if state.score > 100:
                 self.log.info("Player has won", player=state.participant.name)
-                asyncio.create_task(self.contest_complete(state.participant))  # type: ignore
-                return
-        self.log.info("No player has won, continuing to next round")
-        asyncio.create_task(self.more_rounds(""))  # type: ignore
+                self.contest.winner_id = state.participant.id
+                self.contest.updated_at = int(datetime.now().timestamp())
+                self.session.commit()
+                has_winner = True
+        else:
+            self.log.info("No player has won, continuing to next round")
+        await self.cycle("winner found" if has_winner else "no winner found")  # type: ignore
 
-    def on_enter_complete(self, winner: Participant):
+    async def on_enter_complete(self, winner: Participant):
         """Called when entering the Complete state."""
         self.log.info("Contest complete")
-        self.contest.winner_id = winner.id
-        self.contest.updated_at = int(datetime.now().timestamp())
-        self.session.commit()
-        asyncio.create_task(self.subscriber.unsubscribe_all(self.log))
-
-    def check_setup_done(self) -> bool:
-        """
-        Check if setup is done.
-
-        Returns:
-            bool: True if setup is done, False otherwise.
-        """
-        if self._setup_machine is None:
-            return False
-        return (
-            self._setup_machine.current_state.id
-            == ContestRoundState.DESCRIBING_SETUP.value
-        )
+        await self.subscriber.unsubscribe_all(self.log)
 
     def get_state_dict(self) -> Dict[str, Any]:
         """
@@ -363,14 +276,16 @@ class ContestMachine(StateMachine):
 
         if self._setup_machine is not None:
             result["setup_state"] = self._setup_machine.current_state.id
+        if self._round_machine is not None:
+            result["round_state"] = self._round_machine.current_state.id
         return result
 
-    async def after_transition(self, event, source, target):
-        self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
-        await self.message_broker.send_message(
-            f"arena.contest.{self.contest.id}.contestflow.{source.id}.{target.id}",
-            json.dumps(self.get_state_dict()),
-        )
+    # async def after_transition(self, event, source, target):
+    #     self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
+    #     await self.message_broker.send_message(
+    #         f"arena.contest.{self.contest.id}.contestmachine.{source.id}.{target.id}",
+    #         json.dumps(self.get_state_dict()),
+    #     )
 
     async def on_enter_state(self, target, event):
         self.contest.state = target.id
@@ -382,3 +297,29 @@ class ContestMachine(StateMachine):
             await self.subscriber.unsubscribe_all(self.log)
         else:
             self.log.debug(f"{self.name} enter: {target.id} from {event}")
+
+    # message handlers
+
+    async def handle_round_complete(self, msg: Msg):
+        """Handle the round complete message."""
+        state = decode(msg.data, "utf-8", "unicode_escape")
+        self.log.info("Handling round complete message", msg=msg.subject, state=state)
+        await self.subscriber.unsubscribe(msg.subject, self.log)
+        task = (
+            self.round_complete
+            if state == ContestRoundState.ROUND_COMPLETE.value
+            else self.step_failed
+        )
+        asyncio.create_task(task("from round machine completion message"))  # type: ignore
+
+    async def handle_setup_complete(self, msg: Msg):
+        """Handle the setup complete message."""
+        state = decode(msg.data, "utf-8", "unicode_escape")
+        self.log.info("Handling setup complete message", msg=msg.subject, state=state)
+        await self.subscriber.unsubscribe(msg.subject, self.log)
+        task = (
+            self.setup_complete
+            if state == ContestRoundState.SETUP_COMPLETE.value
+            else self.step_failed
+        )
+        asyncio.create_task(task("from setup machine completion message"))  # type: ignore

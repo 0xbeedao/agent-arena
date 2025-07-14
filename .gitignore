@@ -6,7 +6,7 @@
 
 # Temporary files
 *~
-bad_req_*.json
+etc/payloads/
 
 # local environment
 .env

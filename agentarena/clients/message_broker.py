@@ -1,4 +1,5 @@
 from codecs import encode
+from typing import Coroutine
 
 import nats
 from nats.aio.client import Client as NatsClient
@@ -7,9 +8,6 @@ from sqlmodel import Field
 
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import JobState
-from agentarena.models.job import CommandJob
-from agentarena.models.job import CommandJobBatchRequest
 from agentarena.models.public import JobResponse
 from agentarena.models.public import ModelChangeMessage
 
@@ -39,6 +37,11 @@ class MessageBroker:
         self.uuid_service = uuid_service
         self.log = logging.get_logger("factory")
 
+    async def nats(self) -> NatsClient:
+        if isinstance(self.client, Coroutine):
+            self.client = await self.client
+        return self.client
+
     async def publish_model_change(self, channel: str, obj_id: str, detail=""):
         """
         Publish a model change to the message broker.
@@ -51,49 +54,42 @@ class MessageBroker:
             action=channel.split(".")[-1],
         )
         json = encode(payload.model_dump_json(), "utf-8", "unicode_escape")
-        await self.client.publish(channel, json)
 
-    async def publish_response(self, msg: Msg, response: JobResponse):
+        client = await self.nats()
+        await client.publish(channel, json)  # type: ignore
+
+    async def publish_response(self, channel: str, response: JobResponse):
         """
         Publish a response to the message broker.
         """
-        #  always directly reply to the sender, if given a "reply" param, per standard NATs rules
-        channel = msg.reply or response.channel
         log = self.log.bind(job_id=response.job_id, channel=channel)
         if not channel:
             log.warn("No channel specified for response", job_id=response.job_id)
             return
-        log.debug("Publishing response", job_id=response.job_id)
         json = encode(response.model_dump_json(), "utf-8", "unicode_escape")
 
         log.debug("Publishing response to channel", channel=channel, response=json)
-        await self.client.publish(channel, json)
+        client = await self.nats()
+        await client.publish(channel, json)  # type: ignore
 
-    async def send_job(self, req: CommandJob):
+    async def request_job(
+        self, channel: str, payload: str | bytes, timeout: float = 60.0
+    ) -> Msg:
         """
-        sends a job to the scheduler
+        Request a job from the message broker.
         """
-        obj_id = self.uuid_service.ensure_id(req)
-        obj = req.model_copy()
-        obj.id = obj_id
-        json = encode(obj.model_dump_json(), "utf-8", "unicode_escape")
-
-        await self.send_message("arena.request.job", json)
-
-    async def send_batch(self, req: CommandJobBatchRequest):
-        """
-        Sends a batch to the scheduler
-        """
-        batch_id = self.uuid_service.ensure_id(req.batch)
-        batch: CommandJob = req.batch.model_copy()
-        batch.id = batch_id
-        # batch should not get picked up until complete
-        batch.state = JobState.REQUEST
-        await self.send_job(batch)
-        jobs = [batch.make_child(req) for req in req.children]
-
-        for job in jobs:
-            await self.send_job(job)
+        if isinstance(payload, str):
+            payload = encode(payload, "utf-8", "unicode_escape")
+        elif isinstance(payload, bytes):
+            pass
+        else:
+            self.log.error("Invalid payload type", channel=channel, payload=payload)
+            raise ValueError(f"Invalid payload type: {type(payload)}")
+        self.log.info("Requesting job", channel=channel, payload=f"{payload[:50]}...")
+        client = await self.nats()
+        response = await client.request(channel, payload, timeout=timeout)  # type: ignore
+        self.log.debug("Received response", channel=channel, response=response)
+        return response
 
     async def send_message(self, channel: str, payload: str | bytes):
         self.log.debug("Sending message", channel=channel, payload=payload)
@@ -103,7 +99,8 @@ class MessageBroker:
             to_send = payload
         else:
             raise ValueError(f"Invalid payload type: {type(payload)}")
-        await self.client.publish(channel, to_send)
+        client = await self.nats()
+        await client.publish(channel, to_send)  # type: ignore
 
     async def send_response(self, channel: str, res: JobResponse):
         """

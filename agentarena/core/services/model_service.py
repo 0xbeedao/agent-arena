@@ -153,7 +153,6 @@ class ModelService(Generic[T, MC]):
         await self.message_broker.publish_model_change(
             f"{self.message_prefix}.{self.model_name}.{created.id}.create", created.id
         )
-        self.db_service.add_audit_log(f"Added {self.model_name}: {created.id}", session)
         return created, ModelResponse(
             success=True, id=created.id, validation=validation
         )
@@ -255,13 +254,6 @@ class ModelService(Generic[T, MC]):
         Returns:
             True if the instance was deleted, False if not found
         """
-        if obj_id is None:
-            return ModelResponse(
-                success=False,
-                id=obj_id,
-                error=f"{self.model_name} with ID {obj_id} not found",
-            )
-
         existing = session.get(self.model_class, obj_id)
 
         if existing is None:
@@ -275,7 +267,6 @@ class ModelService(Generic[T, MC]):
         session.flush()
 
         self.log.info(f"Deleted {obj_id}")
-        self.db_service.add_audit_log(f"Deleted {self.model_name}: {obj_id}", session)
         await self.message_broker.publish_model_change(
             f"{self.message_prefix}.{self.model_name}.{obj_id}.delete", obj_id
         )

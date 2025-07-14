@@ -2,6 +2,6 @@
   "name": "Taygeta",
   "role": "player",
   "description": "Extremely competitive player",
-  "endpoint": "$ACTOR$/api/agent/$ID$",
+  "endpoint": "channel://actor.agent.$AGENT_ID$",
   "api_key": ""
 }

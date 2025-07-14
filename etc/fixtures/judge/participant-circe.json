@@ -2,6 +2,6 @@
   "name": "Circe",
   "role": "judge",
   "description": "Circe is the judge for the game, providing wise overwatch.",
-  "endpoint": "$ACTOR$/api/agent/$ID$",
+  "endpoint": "channel://actor.agent.$AGENT_ID$",
   "api_key": ""
 }

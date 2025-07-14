@@ -3,11 +3,9 @@ ContestDTO controller for the Agent Arena application.
 Handles HTTP requests for contest operations.
 """
 
-from codecs import decode
 from datetime import datetime
 from typing import Dict
 from typing import List
-from typing import Tuple
 
 from fastapi import APIRouter
 from fastapi import Body
@@ -43,13 +41,12 @@ from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.subscribing_service import SubscribingService
 from agentarena.models.constants import ContestRoundState
-from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
-from agentarena.models.public import JobResponse
-from agentarena.models.requests import ActionRequestPayload, ContestRequestPayload
+from agentarena.models.job import JobLock
+from agentarena.models.requests import ActionRequestPayload
+from agentarena.models.requests import ContestRequestPayload
 from agentarena.models.requests import ContestRoundPayload
-from agentarena.models.requests import ControllerRequest
 from agentarena.models.requests import ParticipantActionRequest
 from agentarena.models.requests import ParticipantContestRequest
 from agentarena.models.requests import ParticipantContestRoundRequest
@@ -97,8 +94,10 @@ class ContestController(
         self.view_service = view_service
         self.judge_result_service = judge_result_service
         to_subscribe = [
-            ("arena.contest.request", self.handle_request),
-            ("arena.contest.*.contestflow.*", self.handle_flow),
+            (
+                "arena.contest.*.contestflow.*.*",
+                self.handle_flow,
+            ),  # arena.contest.contest_id.contestflow.state.job_id
         ]
         super().__init__(
             base_path=base_path,
@@ -270,118 +269,57 @@ class ContestController(
 
         Args:
             msg: The message containing the flow data
+
+        channel is arena.contest.<contest_id>.contestflow.<state>.<job_id>
         """
-        self.log.info("Handling contest flow message", msg=msg)
-        if not msg.data:
-            self.log.error("No data in message, ignoring")
-            return
+        parts = msg.subject.split(".")
+        contest_id = parts[2]
+        state = parts[4]
+        lock = msg.subject
 
-        try:
-            parts = msg.subject.split(".")
-            contest_id = parts[2]
-            state = parts[4]
+        log = self.log.bind(
+            contest=contest_id, state=state, method="handle_flow", msg=msg.subject
+        )
 
-            log = self.log.bind(contest=contest_id, state=state, method="handle_flow")
-            if state == ContestState.STARTING.value:
+        with self.model_service.get_session() as session:
+            job_lock = session.get(JobLock, lock)
+            if job_lock:
+                self.log.debug("Job is locked, ignoring", job_id=lock)
+                return
 
-                log.info("Contest starting flow message received")
-                with self.model_service.get_session() as session:
+            job_lock = JobLock(id=lock)
+            try:
+                session.add(job_lock)
+                session.commit()
+                log.info("Job lock acquired", job_id=lock)
+            except Exception as e:
+                log.debug("Failed to acquire job lock", error=str(e))
+                return
+
+            log.info("Handling contest flow message", msg=msg)
+            try:
+                if state == ContestState.STARTING.value:
+                    log.info("Contest starting flow message received")
                     contest, response = await self.model_service.get(
                         contest_id, session
                     )
                     if not response.success:
                         log.error("Failed to get contest", error=response.validation)
-                        return
 
                     if not contest:
                         log.error("Contest not found")
+
+                    if not contest or not response.success:
                         return
 
-                # Create and run the contest machine in the current event loop
-                await self.run_contest_machine(contest_id, log)
+                    # Create and run the contest machine in the current event loop
+                    try:
+                        await self.run_contest_machine(contest_id, log)
+                    except Exception as e:
+                        log.error("Failed to run contest machine", error=str(e))
 
-        except Exception as e:
-            self.log.error("Failed to handle contest flow message", error=str(e))
-
-    async def handle_request(self, msg: Msg):
-        """
-        Handle incoming messages for contest requests.
-
-        Args:
-            msg: The message containing the request data
-        """
-        self.log.info("Handling contest request", msg=msg)
-        sane = True
-        message = ""
-        request = None
-        contest_id = ""
-        if not msg.data:
-            self.log.error("No data in message, ignoring")
-            sane = False
-        else:
-            try:
-                request: ControllerRequest | None = (
-                    ControllerRequest.model_validate_json(
-                        decode(msg.data, "utf-8", "unicode_escape")
-                    )
-                )
             except Exception as e:
-                self.log.error(
-                    "Failed to parse request data", error=str(e), data=msg.data
-                )
-                sane = False
-
-        if sane and request:
-            contest_id = request.target_id
-            if not contest_id:
-                message = "No contest_id in request"
-                sane = False
-            else:
-                log = self.log.bind(contest=contest_id, action=request.action)
-                action = request.action
-                if action == "start":
-                    sane, message = await self.handle_start_message(
-                        msg, contest_id, log
-                    )
-                else:
-                    message = "Ignoring request"
-                    sane = False
-
-        if sane and contest_id:
-            response = JobResponse(
-                job_id=contest_id,
-                message=message,
-                state=JobResponseState.COMPLETE,
-                url=f"/api/contest/{contest_id}",
-            )
-        else:
-            response = JobResponse(
-                job_id=contest_id or "unknown",
-                message=message or "Unknown error",
-                state=JobResponseState.FAIL,
-                url=f"/api/contest/{contest_id or 'unknown'}",
-            )
-
-        await self.message_broker.publish_response(msg, response)
-
-    async def handle_start_message(
-        self, msg: Msg, contest_id: str, log: ILogger
-    ) -> Tuple[bool, str]:
-        log.info("Contest start request received", msg=msg)
-        with self.model_service.get_session() as session:
-            try:
-                result = await self.start_contest(contest_id, session)
-                message = "Contest started successfully"
-                log.info(message, result=result)
-                # await msg.ack()
-                return True, (
-                    result.model_dump_json()
-                    if isinstance(result, ContestPublic)
-                    else result
-                )
-            except HTTPException as e:
-                log.error("Failed to start contest", error=str(e))
-                return False, e.detail
+                log.error("Failed to handle contest flow message", error=str(e))
 
     async def prompt_announcer_describe_arena(
         self, contest_id: str, session: Session
@@ -535,7 +473,7 @@ class ContestController(
         log = log.bind(state=machine.current_state.id)
         if machine.current_state.initial:
             log.info("Machine is in initial state, starting contest")
-            await machine.start_contest("start_contest")
+            await machine.cycle("start_contest")
         else:
             log.info("Machine already started, not restarting")
 
@@ -592,9 +530,10 @@ class ContestController(
         if contest.state == ContestState.STARTING:
             contest.start_time = int(datetime.now().timestamp())
         await self.model_service.update(contest_id, contest, session)
+        job_id = self.model_service.uuid_service.make_id()
         await self.message_broker.send_message(
             # should be STARTING, so that the machine starts
-            f"arena.contest.{contest_id}.contestflow.{ContestState.STARTING.value}",
+            f"arena.contest.{contest_id}.contestflow.{ContestState.STARTING.value}.{job_id}",
             contest_id,
         )
 

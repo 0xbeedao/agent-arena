@@ -15,6 +15,7 @@ from sqlmodel import SQLModel
 
 from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import ContestState
+from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.dbbase import DbBase
 from agentarena.models.public import ArenaPublic
@@ -438,8 +439,20 @@ class Participant(ParticipantBase, DbBase, table=True):
     Maps agents to arenas
     """
 
+    def channel(self, suffix: str = ""):
+        if self.endpoint.startswith("channel://"):
+            # strip channel://
+            cleaned = self.endpoint[10:].replace("$AGENT_ID$", self.id or "unknown")
+            if not cleaned.endswith("."):
+                cleaned += "."
+            return f"{cleaned}{suffix}"
+        return self.url(suffix)
+
+    def channel_prompt(self, prompt: PromptType, action: str = "", job_id: str = ""):
+        return self.channel(f"{action}.{prompt.value}.{job_id}")
+
     def url(self, path: str = ""):
-        cleaned = self.endpoint.replace("$ID$", self.id or "unknown")
+        cleaned = self.endpoint.replace("$AGENT_ID$", self.id or "unknown")
         if not cleaned.endswith("/"):
             cleaned += "/"
         return f"{cleaned}{path}"

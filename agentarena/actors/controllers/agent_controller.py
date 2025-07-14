@@ -2,11 +2,8 @@
 Responder controller for Agent Response endpoints
 """
 
-from codecs import decode
 from typing import Optional
-from typing import Tuple
 
-from fastapi import BackgroundTasks
 from fastapi import Body
 from fastapi import HTTPException
 from fastapi import Response
@@ -33,11 +30,21 @@ from agentarena.models.constants import JobState
 from agentarena.models.constants import PromptType
 from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
+from agentarena.models.job import JobLock
 from agentarena.models.public import JobResponse
 from agentarena.models.requests import HealthStatus
 from agentarena.models.requests import ParticipantActionRequest
 from agentarena.models.requests import ParticipantContestRequest
 from agentarena.models.requests import ParticipantContestRoundRequest
+
+PROMPT_TO_REQUEST = {
+    PromptType.ANNOUNCER_DESCRIBE_ARENA: ParticipantContestRequest,
+    PromptType.ANNOUNCER_DESCRIBE_RESULTS: ParticipantContestRoundRequest,
+    PromptType.ARENA_GENERATE_FEATURES: ParticipantContestRequest,
+    PromptType.JUDGE_APPLY_EFFECTS: ParticipantContestRequest,
+    PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT: ParticipantActionRequest,
+    PromptType.PLAYER_PLAYER_ACTION: ParticipantContestRequest,
+}
 
 
 class AgentController(
@@ -69,8 +76,9 @@ class AgentController(
             template_service=template_service,
             logging=logging,
         )
+        # actor.agent.Bridge-arable-MATURE-Vanish-Sheet.request.health.some-job-id
         to_subscribe = [
-            ("actor.agent.health.request", self.healthcheck_message),
+            (f"actor.agent.*.request.>", self.agent_request_message),
         ]
         # Initialize the SubscribingService with the subscriptions
         SubscribingService.__init__(self, to_subscribe, self.log)
@@ -83,12 +91,21 @@ class AgentController(
     async def healthcheck_message(self, msg: Msg) -> None:
         """
         Handle healthcheck requests for agents.
+
+        actor.agent.<participant_id>.request.health
         """
-        self.log.info("healthcheck message received", msg=msg)
-        participant_id = decode(msg.data, "utf-8", "unicode_escape")
+        parts = msg.subject.split(".")
+        participant_id = parts[2]
+        self.log.info(
+            "healthcheck message received", msg=msg, participant_id=participant_id
+        )
         with self.model_service.db_service.get_session() as session:
             response = await self.healthcheck(participant_id, session)
-            await self.message_broker.publish_response(msg, response)  # type: ignore
+            channel = (
+                msg.reply
+                or f"actor.agent.{participant_id}.response.health.{response.job_id}"
+            )
+            await self.message_broker.publish_response(channel, response)  # type: ignore
 
     async def healthcheck(self, participant_id: str, session: Session) -> JobResponse:
         stmt = select(Agent).where(Agent.participant_id == participant_id)
@@ -105,7 +122,6 @@ class AgentController(
 
         if not agent:
             return JobResponse(
-                channel="",
                 state=JobResponseState.FAIL,
                 message=f"no such responder: {participant_id}",
                 job_id=uuid,
@@ -114,21 +130,18 @@ class AgentController(
                     state="FAIL",
                     version="1",
                 ).model_dump_json(),
-                url="",
             )
 
         self.log.info("healthcheck complete", uuid=uuid)
 
-        channel = f"actor.agent.health.response.{participant_id}"
+        channel = f"actor.agent.{participant_id}.response.health"
         response = JobResponse(
-            channel=channel,
             state=JobResponseState.COMPLETE,
             message="OK",
             job_id=uuid,
             data=HealthStatus(
                 name=agent.name, state="OK", version="1"
             ).model_dump_json(),
-            url=f"{self.base_path}/{participant_id}/health",
         )
         return response
 
@@ -150,148 +163,122 @@ class AgentController(
         raw = await self.template_service.expand_prompt(agent, job_id, req, session)
         return Response(content=raw, media_type="text/markdown")
 
+    async def agent_request_message(self, msg: Msg) -> None:
+        """
+        Handle agent request messages.
+
+        actor.agent.<agent_id>.request.<prompt_type>.<job_id>
+        """
+        parts = msg.subject.split(".")
+        agent_id = parts[2]
+        prompt_type = parts[4]
+        job_id = parts[-1]
+
+        log = self.log.bind(
+            agent=agent_id, prompt_type=prompt_type, job_id=job_id, channel=msg.subject
+        )
+
+        with self.model_service.get_session() as session:
+            job_lock = session.get(JobLock, job_id)
+            if job_lock:
+                log.debug("Job is locked, ignoring")
+                return
+            job_lock = JobLock(id=job_id)
+            try:
+                session.add(job_lock)
+                session.commit()
+                log.info("Job lock acquired")
+            except Exception as e:
+                errstr = "already locked" if "IntegrityError" in str(e) else str(e)
+                log.debug("Failed to acquire job lock", error=errstr)
+                return
+
+            if prompt_type == "health":
+                await self.healthcheck_message(msg)
+            else:
+                log.info("agent request message received", msg=msg)
+                participant_id = agent_id  # we always look up using the id the arena has, not our internal ID
+
+                try:
+                    pt = PromptType(prompt_type)
+                    req = PROMPT_TO_REQUEST[pt].model_validate_json(msg.data)
+                    reply_channel = (
+                        msg.reply
+                        or f"actor.agent.{participant_id}.response.{pt.value}.{job_id}"
+                    )
+                    await self.agent_request(
+                        participant_id,
+                        job_id,
+                        pt,
+                        req,
+                        reply_channel,
+                        session,
+                    )
+                except ValueError:
+                    log.error("invalid prompt type", prompt_type=prompt_type)
+                    return
+
     async def agent_request(
         self,
         participant_id: str,
         job_id: str,
+        prompt_type: PromptType,
         req: (
             ParticipantContestRequest
             | ParticipantContestRoundRequest
             | ParticipantActionRequest
         ),
+        channel: str,
         session: Session,
-        background_tasks: BackgroundTasks,
     ):
         """
         Handle a request for prompting an agent.
-        This will either create a new job or return a pending job.
         """
+        if job_id == "":
+            job_id = self.uuid_service.make_id()
+
         stmt = select(Agent).where(Agent.participant_id == participant_id)
         agent = session.exec(stmt).one_or_none()
         log = self.log.bind(job=job_id, cmd=req.command, participant=participant_id)
-        url = f"{self.base_path}/agent/{participant_id}/request"
-        if not agent:
+        response = None
+        job = None
+        if agent is None:
             log.info("No such agent")
-            return JobResponse(
-                channel="",
+            response = JobResponse(
                 state=JobResponseState.FAIL,
                 message=f"no such responder: {participant_id}",
                 job_id=job_id,
-                url=url,
             )
+        else:
+            job = await self.make_generate_job(agent, job_id, req, session, log)
 
-        # do we already have this job?
-        stmt = select(GenerateJob).where(GenerateJob.job_id == job_id)
-        job = session.exec(stmt).one_or_none()
         if job:
-            response_state = JobResponseState.PENDING
-            if job.state == JobState.COMPLETE:
-                response_state = JobResponseState.COMPLETE
-            elif job.state == JobState.FAIL:
-                response_state = JobResponseState.FAIL
+            req.command = prompt_type
+            gen_job = await self.llm_service.execute_job(job.id, session)
+            if not gen_job or gen_job.state != JobState.COMPLETE:
+                log.error("Error executing job", gen_job=gen_job)
+                response = JobResponse(
+                    state=JobResponseState.FAIL,
+                    message="Error executing job",
+                    job_id=job_id,
+                )
+            else:
 
-            log.info("responding", state=response_state.value)
-            return JobResponse(
+                log.info("Job completed", gen_job=gen_job)
+                response = JobResponse(
+                    state=JobResponseState.COMPLETE,
+                    data=gen_job.generated,
+                    job_id=job_id,
+                )
+        if not response:
+            log.warn("Error creating job")
+            response = JobResponse(
+                state=JobResponseState.FAIL,
+                message="Error creating job",
                 job_id=job_id,
-                channel="",
-                delay=3 if response_state == JobResponseState.PENDING else 0,
-                state=response_state,
-                data=job.generated,
             )
-
-        log.info("new job")
-
-        job = None
-        response = None
-        if req.command in PromptType:
-            job, response = await self.make_generate_job(
-                agent, job_id, req, session, log
-            )
-
-        if job and response:
-            session.commit()
-            gen_id = job.id
-            log.info(f"adding generate job to background tasks {gen_id}")
-            background_tasks.add_task(self.llm_service.execute_job, gen_id)
-            return response
-
-        session.rollback()
-        log.warn("no handler for command")
-        raise HTTPException(
-            status_code=404, detail=f"Command not recognized: {req.command}"
-        )
-
-    async def announcer_describe_arena(
-        self,
-        agent_id: str,
-        job_id: str,
-        req: ParticipantContestRequest,
-        session: Session,
-        background_tasks: BackgroundTasks,
-    ) -> JobResponse:
-        return await self.agent_request(
-            agent_id, job_id, req, session, background_tasks
-        )
-
-    async def announcer_describe_results(
-        self,
-        agent_id: str,
-        job_id: str,
-        req: ParticipantContestRoundRequest,
-        session: Session,
-        background_tasks: BackgroundTasks,
-    ) -> JobResponse:
-        return await self.agent_request(
-            agent_id, job_id, req, session, background_tasks
-        )
-
-    async def arena_generate_features(
-        self,
-        agent_id: str,
-        job_id: str,
-        req: ParticipantContestRequest,
-        session: Session,
-        background_tasks: BackgroundTasks,
-    ) -> JobResponse:
-        return await self.agent_request(
-            agent_id, job_id, req, session, background_tasks
-        )
-
-    async def judge_apply_effects(
-        self,
-        agent_id: str,
-        job_id: str,
-        req: ParticipantContestRequest,
-        session: Session,
-        background_tasks: BackgroundTasks,
-    ) -> JobResponse:
-        return await self.agent_request(
-            agent_id, job_id, req, session, background_tasks
-        )
-
-    async def judge_player_action_judgement(
-        self,
-        agent_id: str,
-        job_id: str,
-        req: ParticipantActionRequest,
-        session: Session,
-        background_tasks: BackgroundTasks,
-    ) -> JobResponse:
-        return await self.agent_request(
-            agent_id, job_id, req, session, background_tasks
-        )
-
-    async def player_player_action(
-        self,
-        agent_id: str,
-        job_id: str,
-        req: ParticipantContestRequest,
-        session: Session,
-        background_tasks: BackgroundTasks,
-    ) -> JobResponse:
-        return await self.agent_request(
-            agent_id, job_id, req, session, background_tasks
-        )
+        session.commit()
+        await self.message_broker.publish_response(channel, response)
 
     async def make_generate_job(
         self,
@@ -304,7 +291,7 @@ class AgentController(
         ),
         session: Session,
         log: ILogger,
-    ) -> Tuple[Optional[GenerateJob], JobResponse]:
+    ) -> Optional[GenerateJob]:
         prompt = await self.template_service.expand_prompt(agent, job_id, req, session)
         prompt_type = req.command
         self.log.debug(f"prompt:\n{prompt}", command=prompt_type.value)
@@ -314,23 +301,10 @@ class AgentController(
         job, response = await self.job_service.create(gc, session)
         if not response.success or not job:
             self.log.error("error", response=response)
-            return None, JobResponse(
-                channel="",
-                state=JobResponseState.FAIL,
-                message="Error creating job",
-                job_id=job_id,
-                url=f"{self.base_path}/agent/{agent.participant_id}/request",
-            )
-        session.commit()
+            return None
+        session.flush()
         log.info("Created generate job")
-        return job, JobResponse(
-            channel="",
-            state=JobResponseState.PENDING,
-            delay=2,
-            message=prompt,
-            job_id=job_id,
-            url=f"{self.base_path}/agent/{agent.participant_id}/request",
-        )
+        return job
 
     def get_router(self):
         router = super().get_router()
@@ -348,21 +322,6 @@ class AgentController(
                 return await self.healthcheck(agent_id, session)
 
         @router.post(
-            "/{agent_id}/{job_id}/" + PromptType.ANNOUNCER_DESCRIBE_ARENA.value,
-            response_model=JobResponse,
-        )
-        async def announcer_describe_arena(
-            agent_id: str,
-            job_id: str,
-            background_tasks: BackgroundTasks,
-            req: ParticipantContestRequest = Body(...),
-        ):
-            with self.model_service.get_session() as session:
-                return await self.announcer_describe_arena(
-                    agent_id, job_id, req, session, background_tasks
-                )
-
-        @router.post(
             "/{agent_id}/{job_id}/"
             + PromptType.ANNOUNCER_DESCRIBE_ARENA.value
             + "/prompt",
@@ -375,21 +334,6 @@ class AgentController(
         ):
             with self.model_service.get_session() as session:
                 return await self.agent_prompt(agent_id, job_id, req, session)
-
-        @router.post(
-            "/{agent_id}/{job_id}/" + PromptType.ANNOUNCER_DESCRIBE_RESULTS.value,
-            response_model=JobResponse,
-        )
-        async def announcer_describe_results(
-            agent_id: str,
-            job_id: str,
-            background_tasks: BackgroundTasks,
-            req: ParticipantContestRoundRequest = Body(...),
-        ):
-            with self.model_service.get_session() as session:
-                return await self.announcer_describe_results(
-                    agent_id, job_id, req, session, background_tasks
-                )
 
         @router.post(
             "/{agent_id}/{job_id}/"
@@ -406,21 +350,6 @@ class AgentController(
                 return await self.agent_prompt(agent_id, job_id, req, session)
 
         @router.post(
-            "/{agent_id}/{job_id}/" + PromptType.ARENA_GENERATE_FEATURES.value,
-            response_model=JobResponse,
-        )
-        async def arena_generate_features(
-            agent_id: str,
-            job_id: str,
-            background_tasks: BackgroundTasks,
-            req: ParticipantContestRequest = Body(...),
-        ):
-            with self.model_service.get_session() as session:
-                return await self.arena_generate_features(
-                    agent_id, job_id, req, session, background_tasks
-                )
-
-        @router.post(
             "/{agent_id}/{job_id}/"
             + PromptType.ARENA_GENERATE_FEATURES.value
             + "/prompt",
@@ -435,21 +364,6 @@ class AgentController(
                 return await self.agent_prompt(agent_id, job_id, req, session)
 
         @router.post(
-            "/{agent_id}/{job_id}/" + PromptType.JUDGE_APPLY_EFFECTS.value,
-            response_model=JobResponse,
-        )
-        async def judge_apply_effects(
-            agent_id: str,
-            job_id: str,
-            background_tasks: BackgroundTasks,
-            req: ParticipantContestRequest = Body(...),
-        ):
-            with self.model_service.get_session() as session:
-                return await self.judge_apply_effects(
-                    agent_id, job_id, req, session, background_tasks
-                )
-
-        @router.post(
             "/{agent_id}/{job_id}/" + PromptType.JUDGE_APPLY_EFFECTS.value + "/prompt",
             response_model=str,
         )
@@ -460,21 +374,6 @@ class AgentController(
         ):
             with self.model_service.get_session() as session:
                 return await self.agent_prompt(agent_id, job_id, req, session)
-
-        @router.post(
-            "/{agent_id}/{job_id}/" + PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value,
-            response_model=JobResponse,
-        )
-        async def judge_player_action_judgement(
-            agent_id: str,
-            job_id: str,
-            background_tasks: BackgroundTasks,
-            req: ParticipantActionRequest = Body(...),
-        ):
-            with self.model_service.get_session() as session:
-                return await self.judge_player_action_judgement(
-                    agent_id, job_id, req, session, background_tasks
-                )
 
         @router.post(
             "/{agent_id}/{job_id}/"
@@ -489,21 +388,6 @@ class AgentController(
         ):
             with self.model_service.get_session() as session:
                 return await self.agent_prompt(agent_id, job_id, req, session)
-
-        @router.post(
-            "/{agent_id}/{job_id}/" + PromptType.PLAYER_PLAYER_ACTION.value,
-            response_model=JobResponse,
-        )
-        async def player_player_action(
-            agent_id: str,
-            job_id: str,
-            background_tasks: BackgroundTasks,
-            req: ParticipantContestRequest = Body(...),
-        ):
-            with self.model_service.get_session() as session:
-                return await self.player_player_action(
-                    agent_id, job_id, req, session, background_tasks
-                )
 
         @router.post(
             "/{agent_id}/{job_id}/" + PromptType.PLAYER_PLAYER_ACTION.value + "/prompt",

@@ -2,6 +2,6 @@
   "name": "Telemachus",
   "role": "arena",
   "description": "Telemachus is the arena participant in the game.",
-  "endpoint": "$ACTOR$/api/agent/$ID$",
+  "endpoint": "channel://actor.agent.$AGENT_ID$",
   "api_key": ""
 }

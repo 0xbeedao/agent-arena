@@ -86,9 +86,7 @@ class ModelController(Generic[T, MC, MU, MP]):
         Convert the model to a public model
         """
         if hasattr(obj, "get_public"):
-            self.log.debug("converting to public", obj=obj.id)
             return obj.get_public()  # type: ignore
-        self.log.debug("no get_public method", obj=obj.id)
         return self.model_public.model_validate(obj)
 
     async def get_model(self, obj_id: str, session: Session) -> MP:

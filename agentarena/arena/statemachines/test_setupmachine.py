@@ -2,12 +2,15 @@
 Tests for the SetupMachine class.
 """
 
+from multiprocessing.heap import Arena
 from unittest.mock import AsyncMock
 
 import pytest
 
+from agentarena.arena.models import Arena
+from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
-from agentarena.arena.models import ContestState
+from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import PlayerState
 from agentarena.arena.models import PlayerStateCreate
 from agentarena.arena.services.round_service import RoundService
@@ -18,18 +21,6 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-
-
-@pytest.fixture()
-def contest():
-    """Create a mock Contest object for testing."""
-    return Contest(
-        id="contest1",
-        arena_id="arena1",
-        current_round=1,
-        player_positions="1,2;3,4",
-        state=ContestState.CREATED,
-    )
 
 
 @pytest.fixture()
@@ -72,6 +63,60 @@ def db_service(uuid_service, logging):
 
 
 @pytest.fixture
+def arena_service(db_service, uuid_service, message_broker, logging):
+    """Fixture to create an ArenaService for Arena"""
+    return ModelService[Arena, ArenaCreate](
+        model_class=Arena,
+        message_broker=message_broker,
+        db_service=db_service,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture
+def arena(arena_service):
+    """Fixture to create an Arena object for testing."""
+    ac = ArenaCreate(
+        name="Test Arena",
+        description="Test Arena",
+        width=10,
+        height=10,
+        rules="Test Rules",
+        winning_condition="Test Winning Condition",
+        max_random_features=10,
+        features=[],
+    )
+    with arena_service.get_session() as session:
+        arena, _ = arena_service.create(ac, session=session)
+        return arena
+
+
+@pytest.fixture
+def contest_service(db_service, uuid_service, message_broker, logging):
+    """Fixture to create a FeatureService for Feature"""
+
+    return ModelService[Contest, ContestCreate](
+        model_class=Contest,
+        message_broker=message_broker,
+        db_service=db_service,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture()
+def contest(contest_service, arena):
+    cc = ContestCreate(
+        arena_id=arena.id,
+        participant_ids=[],
+    )
+    with contest_service.get_session() as session:
+        contest, _ = contest_service.create(cc, session=session)
+        return contest
+
+
+@pytest.fixture
 def playerstate_service(db_service, uuid_service, message_broker, logging):
     """Fixture to create a PlayerStateService for PlayerState"""
     return ModelService[PlayerState, PlayerStateCreate](
@@ -94,6 +139,7 @@ def round_service(
         db_service=db_service,
         uuid_service=uuid_service,
         logging=logging,
+        message_prefix="test",
     )
 
 
