@@ -67,7 +67,7 @@ class GenerateJobController(
         self.log.info("cloned job", cloned=cloned.id, model=cloned.model)
         session.commit()
 
-        background_tasks.add_task(self.llm_service.execute_job, cloned.id)
+        background_tasks.add_task(self.llm_service.execute_job, cloned.id, session)
 
         return cloned.get_public()
 

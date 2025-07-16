@@ -90,6 +90,7 @@ async def setup_routers():
         await container.agent_controller(),  # type: ignore
         await container.strategy_controller(),  # type: ignore
         await container.generatejob_controller(),  # type: ignore
+        await container.llmmodel_controller(),  # type: ignore
         # (await container.debug_controller())
     ]
     for router in routers:

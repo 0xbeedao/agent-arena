@@ -1,6 +1,6 @@
 {
   "name": "Fun player",
-  "model": "drummer",
+  "model": "unslop-nemo",
   "personality": "While you understand that this is a game, and you are playing to win, you are also playing to have fun and be creative, if a little goofy sometimes.",
   "prompts": [
     {

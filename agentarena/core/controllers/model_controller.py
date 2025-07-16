@@ -189,12 +189,14 @@ class ModelController(Generic[T, MC, MU, MP]):
             raise HTTPException(status_code=422, detail=response.model_dump())
         return {"success": response.success}
 
-    def get_router(self):
+    def get_router(self) -> APIRouter:
         prefix = self.base_path
         self.log.info("setting up routes", path=prefix)
+        router = APIRouter(prefix=self.base_path, tags=[self.model_name])
+        router = self.add_routes(router)
+        return router
 
-        router = APIRouter(prefix=prefix, tags=[self.model_name])
-
+    def add_routes(self, router: APIRouter):
         # Use a factory function to properly create routes with correct types
         def create_endpoint():
             @router.post("/", response_model=MP)

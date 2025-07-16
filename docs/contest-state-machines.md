@@ -3,7 +3,7 @@ stateDiagram-v2
   %% Top‐level Contest machine
   [*] --> Starting
   Starting --> Role_Call           : Start Contest
-  Role_Call --> Setup_Arena        : Batch complete
+  Role_Call --> Setup_Arena        : Role call complete
   Role_Call --> Fail               : Error checking in
   Setup_Arena --> Check_Setup      : Review results
   Check_Setup --> In_Round         : Start Round

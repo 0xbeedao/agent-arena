@@ -5,6 +5,7 @@ from dependency_injector import providers
 
 from agentarena.actors.controllers.agent_controller import AgentController
 from agentarena.actors.controllers.generatejob_controller import GenerateJobController
+from agentarena.actors.controllers.llmmodel_controller import LlmModelController
 from agentarena.actors.controllers.strategy_controller import StrategyController
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
@@ -25,6 +26,12 @@ from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
+from agentarena.models.llm import (
+    LlmModel,
+    LlmModelCreate,
+    LlmModelPrice,
+    LlmModelPriceCreate,
+)
 
 
 def get_wordlist(
@@ -134,6 +141,26 @@ class ActorContainer(containers.DeclarativeContainer):
         logging=logging,
     )
 
+    llmmodelpricing_service = providers.Singleton(
+        ModelService[LlmModelPrice, LlmModelPriceCreate],
+        model_class=LlmModelPrice,
+        db_service=db_service,
+        message_broker=message_broker,
+        message_prefix="sys.actor",
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+    llmmodel_service = providers.Singleton(
+        ModelService[LlmModel, LlmModelCreate],
+        model_class=LlmModel,
+        db_service=db_service,
+        message_broker=message_broker,
+        message_prefix="sys.actor",
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
     template_service = providers.Singleton(
         TemplateService,
         strategy_service=strategy_service,
@@ -159,6 +186,14 @@ class ActorContainer(containers.DeclarativeContainer):
         model_service=generatejob_service,
         template_service=template_service,
         uuid_service=uuid_service,
+        logging=logging,
+    )
+
+    llmmodel_controller = providers.Singleton(
+        LlmModelController,
+        configured_models=config.llm,
+        model_service=llmmodel_service,
+        pricing_service=llmmodelpricing_service,
         logging=logging,
     )
 

@@ -1,6 +1,6 @@
 # Misteragent Arena
 
-The Arena is a system that orchestrates a contest between AI agents. It is responsible for:
+The Arena is a system that orchestrates a contest between AI agents using an actor-agent architecture. It is responsible for:
 
 - Coordinating the contest between the AI agents
 - Sending the responses to the Judge
@@ -8,6 +8,10 @@ The Arena is a system that orchestrates a contest between AI agents. It is respo
 - Displaying the results to the Observer
 - Repeating the process for each round
 - Determining the winner of the contest by applying the winning criteria set in the rules
+
+The system operates with two main processes:
+- **Actor**: Handles the contest orchestration and communication
+- **Agent**: Manages AI agent interactions and responses
 
 ## Assumptions
 

@@ -99,6 +99,36 @@ class JudgeResultPublic(BaseModel):
     narration: str = Field(description="Narration to share with other players")
 
 
+class LlmModelPublic(BaseModel):
+    name: str = Field(description="Model name")
+    model_id: str = Field(description="Model key")
+    canonical_id: Optional[str] = Field(
+        default="", description="Model canonical identifier"
+    )
+    supports_json: bool = Field(description="Whether the model can output JSON")
+    supports_schema: bool = Field(description="Whether the model can handle schemas")
+    score: int = Field(description="Suitability score for the model")
+
+
+class LlmModelPricePublic(BaseModel):
+    prompt_price: float = Field(description="Price per token")
+    completion_price: float = Field(description="Price per token")
+    request_price: float = Field(description="Price per token")
+    image_price: float = Field(description="Price per token")
+    web_search_price: float = Field(description="Price per token")
+    internal_reasoning_price: float = Field(description="Price per token")
+    context_length: int = Field(description="Context length")
+
+
+class LlmModelStatsPublic(BaseModel):
+    id: str = Field(description="Model ID")
+    name: str = Field(description="Model name")
+    key: str = Field(description="Model key")
+    supports_json: bool = Field(description="Whether the model can output JSON")
+    supports_schema: bool = Field(description="Whether the model can handle schemas")
+    score: int = Field(description="Suitability score for the model")
+
+
 class ModelChangeMessage(BaseModel):
     """
     Message sent to the controller when a model changes.

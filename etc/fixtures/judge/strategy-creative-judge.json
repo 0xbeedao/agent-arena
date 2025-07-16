@@ -1,6 +1,6 @@
 {
   "name": "Creative Judge",
-  "model": "sorcerer",
+  "model": "minimax",
   "personality": "Imaginative, appreciative of originality, and balanced in assessment. Fair, yet fun",
   "prompts": [
     {
