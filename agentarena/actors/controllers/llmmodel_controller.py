@@ -1,25 +1,40 @@
-from fastapi import APIRouter, Query
+import json
+from typing import Any
+from typing import List
+
 import httpx
-from sqlmodel import select
-from typing import Any, List
-from sqlmodel import Session
+from fastapi import APIRouter
+from fastapi import Query
+from nats.aio.msg import Msg
 from sqlmodel import Field
+from sqlmodel import Session
+from sqlmodel import select
+
+from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.model_service import ModelService
-from agentarena.models.llm import LlmModel, LlmModelPrice, LlmModelPriceCreate
+from agentarena.core.services.subscribing_service import SubscribingService
+from agentarena.models.job import JobLock
+from agentarena.models.llm import LlmModel
 from agentarena.models.llm import LlmModelCreate
+from agentarena.models.llm import LlmModelPrice
+from agentarena.models.llm import LlmModelPriceCreate
 from agentarena.models.llm import LlmModelUpdate
 from agentarena.models.public import LlmModelPublic
 
 
 class LlmModelController(
-    ModelController[LlmModel, LlmModelCreate, LlmModelUpdate, LlmModelPublic]
+    ModelController[LlmModel, LlmModelCreate, LlmModelUpdate, LlmModelPublic],
+    SubscribingService,
 ):
 
     def __init__(
         self,
         base_path: str = "/api",
+        message_broker: MessageBroker = Field(
+            description="Message broker client for publishing messages"
+        ),
         model_service: ModelService[LlmModel, LlmModelCreate] = Field(),
         pricing_service: ModelService[LlmModelPrice, LlmModelPriceCreate] = Field(),
         configured_models: List[dict[str, Any]] = Field(),
@@ -27,6 +42,7 @@ class LlmModelController(
     ):
 
         self.configured_models = configured_models
+        self.message_broker = message_broker
         self.pricing_service = pricing_service
         super().__init__(
             base_path=base_path,
@@ -37,6 +53,36 @@ class LlmModelController(
             model_service=model_service,
             logging=logging,
         )
+
+        to_subscribe = [
+            # actor.eval.<prompt_type>.request.job_id
+            (f"actor.eval.*.request.*", self.handle_eval_request),
+        ]
+        SubscribingService.__init__(self, to_subscribe, self.log)
+
+    async def handle_eval_request(self, msg: Msg):
+        parts = msg.subject.split(".")
+        prompt_type = parts[2]
+        job_id = parts[-1]
+        log = self.log.bind(prompt_type=prompt_type, job_id=job_id, channel=msg.subject)
+        log.info("Eval request received", msg=msg)
+        with self.model_service.get_session() as session:
+            job_lock = session.get(JobLock, job_id)
+            if job_lock:
+                log.debug("Job is locked, ignoring")
+                return
+            job_lock = JobLock(id=job_id)
+            try:
+                session.add(job_lock)
+                session.commit()
+                log.info("Job lock acquired")
+            except Exception as e:
+                errstr = "already locked" if "IntegrityError" in str(e) else str(e)
+                log.debug("Failed to acquire job lock", error=errstr)
+                return
+
+            req = json.loads(msg.data)
+            strategies = req["strategies"]
 
     async def get_model_list(self, session: Session) -> List[LlmModelPublic]:
         db_models = session.exec(select(LlmModel)).all()

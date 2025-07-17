@@ -310,3 +310,15 @@ Probably several will need template adjustments.
 ## 2025-06-30
 
 After refactor into different payloads, need to update the urls called.
+
+## 2025-07-17
+
+I'm working on getting evals set up. It's a bit logically tricky, so let me write out what I need to do:
+
+- Be able to get a payload for any PromptType
+- Use that payload to generate a response using any model
+- evaluate the response and add to the llm eval table
+
+Side goals:
+
+- be able to reset the db without losing the pricing/eval info

@@ -26,12 +26,10 @@ from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
-from agentarena.models.llm import (
-    LlmModel,
-    LlmModelCreate,
-    LlmModelPrice,
-    LlmModelPriceCreate,
-)
+from agentarena.models.llm import LlmModel
+from agentarena.models.llm import LlmModelCreate
+from agentarena.models.llm import LlmModelPrice
+from agentarena.models.llm import LlmModelPriceCreate
 
 
 def get_wordlist(

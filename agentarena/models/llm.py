@@ -1,8 +1,11 @@
 from typing import Optional
-from sqlmodel import Field, SQLModel
+
+from sqlmodel import Field
+from sqlmodel import SQLModel
 
 from agentarena.models.dbbase import DbBase
-from agentarena.models.public import LlmModelPricePublic, LlmModelPublic
+from agentarena.models.public import LlmModelPricePublic
+from agentarena.models.public import LlmModelPublic
 
 
 class LlmModelBase(SQLModel):

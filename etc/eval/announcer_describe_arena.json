@@ -1,0 +1,60 @@
+{
+  "data": {
+    "contest": {
+      "id": "contest-gamma-1",
+      "arena": {
+        "id": "arena-gamma-1",
+        "name": "Lush Arena",
+        "description": "A lush arena with a lot of trees and plants",
+        "max_random_features": 2,
+        "height": 10,
+        "width": 10,
+        "rules": "The player must navigate the arena and avoid the trees and plants, finding the treasure",
+        "winning_condition": "The player must find the treasure"
+      },
+      "end_time": 0,
+      "participants": [
+        {
+          "id": "$AUTO_ID$",
+          "endpoint": "channel://actor.agent.$AGENT_ID$",
+          "name": "Taygeta",
+          "role": "player",
+          "description": "Extremely competitive player"
+        },
+        {
+          "id": "$AUTO_ID$",
+          "name": "Rigel",
+          "role": "player",
+          "description": "An energetic player",
+          "endpoint": "channel://actor.agent.$AGENT_ID$"
+        },
+        {
+          "id": "$AUTO_ID$",
+          "name": "Telemachus",
+          "role": "arena",
+          "description": "Telemachus is the arena participant in the game.",
+          "endpoint": "channel://actor.agent.$AGENT_ID$"
+        },
+        {
+          "id": "$AUTO_ID$",
+          "name": "Circe",
+          "role": "judge",
+          "description": "Circe is the judge for the game, providing wise overwatch.",
+          "endpoint": "channel://actor.agent.$AGENT_ID$"
+        },
+        {
+          "id": "$AUTO_ID$",
+          "name": "Odysseus",
+          "role": "announcer",
+          "description": "Odysseus is the announcer for the game, providing updates and commentary.",
+          "endpoint": "channel://actor.agent.$AGENT_ID$"
+        }
+      ],
+      "rounds": [],
+      "start_time": 0,
+      "state": "setup_arena",
+      "winner_id": null
+    }
+  },
+  "model": "$MODEL$"
+}
