@@ -1,10 +1,12 @@
 import asyncio
+import json
 import os
 from datetime import datetime
 from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+import uuid
 
 import yaml
 from nats.aio.msg import Msg
@@ -20,6 +22,7 @@ from prompt_toolkit.shortcuts import print_container
 from prompt_toolkit.widgets import Frame
 from prompt_toolkit.widgets import TextArea
 
+from agentarena.models.constants import PromptType
 from agentarena.util.files import find_file_upwards
 
 from .clients import ArenaClient
@@ -91,6 +94,12 @@ def print_title(title, error=False, success=False, info=False):
         print(HTML(f"<bold>{title}</bold>"))
 
 
+def print_agent_list(agents):
+    print_title("Agents", info=True)
+    for agent in agents:
+        print(HTML(f"  {agent['id']} - {agent['name']}"))
+
+
 def print_arena_list(arenas):
     print_title("Arenas", info=True)
     for arena in arenas:
@@ -120,11 +129,9 @@ def print_generate_job_list(jobs):
 def print_participant_list(participants):
     print_title("participants", info=True)
     for participant in participants:
-        strat = participant.get("strategy")
-        strat_str = f" (strategy: {strat['name']})" if strat else ""
         print(
             HTML(
-                f"  {participant['id']} - {participant['name']}{strat_str} (participant: {participant['participant_id']})"
+                f"  {participant['name']} - {participant['role']} [{participant['id']}]"
             )
         )
 
@@ -153,6 +160,57 @@ def read_config():
 
 
 BASE_COMMANDS = {
+    "agent": {
+        "description": "Agent Control",
+        "commands": {
+            "eval": {
+                "description": "evaluate an agent",
+                "commands": {
+                    "announcer_describe_arena": {
+                        "description": "Evaluate the prompt for the announcer to describe the arena",
+                        "commands": {},
+                    },
+                    "announcer_describe_results": {
+                        "description": "Evaluate the prompt for the announcer to describe the results",
+                        "commands": {},
+                    },
+                    "arena_generate_features": {
+                        "description": "Evaluate the prompt for the arena to generate features",
+                        "commands": {},
+                    },
+                    "judge_apply_effects": {
+                        "description": "Evaluate the prompt for the judge to apply effects",
+                        "commands": {},
+                    },
+                    "judge_player_action_judgement": {
+                        "description": "Evaluate the prompt for the judge to judge a player action",
+                        "commands": {},
+                    },
+                    "player_player_action": {
+                        "description": "Evaluate the prompt for the player to take an action",
+                        "commands": {},
+                    },
+                },
+            },
+            "list": {
+                "description": "list all agents",
+                "commands": {},
+            },
+            "load": {
+                "description": "load an agent",
+                "commands": {
+                    "latest": {
+                        "description": "load the latest agent",
+                        "commands": {},
+                    },
+                    "$agent_ids": {
+                        "description": "Agent IDs",
+                        "commands": {},
+                    },
+                },
+            },
+        },
+    },
     "arena": {
         "description": "load an arena",
         "commands": {
@@ -222,6 +280,64 @@ BASE_COMMANDS = {
                     "$contest_ids": {
                         "description": "Contest IDs",
                         "commands": {},
+                    },
+                },
+            },
+            "participants": {
+                "description": "Participant Load",
+                "commands": {
+                    "player": {
+                        "description": "Load a player",
+                        "commands": {
+                            "$player_ids": {
+                                "description": "Player IDs",
+                                "commands": {},
+                            },
+                        },
+                    },
+                    "judge": {"description": "Load the judge", "commands": {}},
+                    "announcer": {"description": "Load the announcer", "commands": {}},
+                    "arena": {
+                        "description": "Load the arena",
+                    },
+                },
+            },
+            "prompt": {
+                "description": "Get the prompt for the loaded contest",
+                "commands": {
+                    "announcer_describe_arena": {
+                        "description": "Get the prompt for the announcer to describe the arena",
+                        "commands": {},
+                    },
+                    "announcer_describe_results": {
+                        "description": "Get the prompt for the announcer to describe the results",
+                        "commands": {},
+                    },
+                    "arena_generate_features": {
+                        "description": "Get the prompt for the arena to generate features",
+                        "commands": {},
+                    },
+                    "judge_apply_effects": {
+                        "description": "Get the prompt for the judge to apply effects",
+                        "commands": {},
+                    },
+                    "judge_player_action_judgement": {
+                        "description": "Get the prompt for the judge to judge a player action",
+                        "commands": {
+                            "$player_ids": {
+                                "description": "Player IDs",
+                                "commands": {},
+                            },
+                        },
+                    },
+                    "player_player_action": {
+                        "description": "Get the prompt for the player to take an action",
+                        "commands": {
+                            "$player_ids": {
+                                "description": "Player IDs",
+                                "commands": {},
+                            },
+                        },
                     },
                 },
             },
@@ -395,7 +511,13 @@ class CommandCompleter(Completer):
         rv = {}
         for key, value in commands.items():
             if key.startswith("$"):
-                if key == "$arena_ids" and "arenas" in self.loaded:
+                if key == "$agent_ids" and "agents" in self.loaded:
+                    for a in self.loaded["agents"]:
+                        rv[a["id"]] = {
+                            "description": f"Agent {a['name']}",
+                            "commands": {},
+                        }
+                elif key == "$arena_ids" and "arenas" in self.loaded:
                     for a in self.loaded["arenas"]:
                         rv[a["id"]] = {
                             "description": f"Arena {a['name']}",
@@ -417,6 +539,17 @@ class CommandCompleter(Completer):
                     for g in self.loaded["generatejobs"]:
                         rv[g["id"]] = {
                             "description": f"Generate Job {g['job_id']} {g['model']}",
+                            "commands": {},
+                        }
+                elif key == "$player_ids" and "contest" in self.loaded:
+                    players = [
+                        p["id"]
+                        for p in self.loaded["contest"]["participants"]
+                        if p["role"] == "player"
+                    ]
+                    for p in players:
+                        rv[p] = {
+                            "description": f"Player {p}",
                             "commands": {},
                         }
             else:
@@ -504,6 +637,97 @@ class ArenaCommander:
                 return None
             args = [obj["id"]]
         return self.clean_id(args[0], groupkey)
+
+    async def cmd_agent(self, args: list[str]):
+        agent_id = self.safe_get_id(args, "agent", "agents")
+        if len(args) == 0 and agent_id:
+            args = ["load", agent_id]
+
+        if len(args) == 0:
+            return True
+
+        cmd = args.pop(0)
+
+        if cmd == "list":
+            await self.cmd_agents(args)
+            return True
+        elif cmd == "load":
+            agent_id = await self.cmd_agent_load(args)
+        elif cmd == "eval":
+            response = await self.cmd_agent_eval(args)
+            print(response)
+            return True
+        else:
+            agent_id = cmd
+
+        if agent_id and agent_id != "":
+            body = await self.participant_client.get(f"/api/agent/{agent_id}.md")
+            print(render_markdown(body.content.decode("utf-8")))
+        return True
+
+    async def cmd_agents(self, args: list[str]):
+        r = await self.participant_client.get("/api/agent")
+        agents = r.json()
+        self.add_loaded("agents", agents)
+        print_agent_list(agents)
+        return True
+
+    async def cmd_agent_eval(self, args: list[str]):
+        if not "agent" in self.loaded:
+            print_title("No agent loaded", error=True)
+            return None
+        if not "contest" in self.loaded:
+            print_title("No contest loaded", error=True)
+            return None
+        contest = self.loaded["contest"]
+        agent = self.loaded["agent"]
+
+        if len(args) == 0:
+            prompt_type = await prompt_str(
+                "Prompt Type",
+                default=PromptType.ANNOUNCER_DESCRIBE_ARENA.value,
+                words=[p.value for p in PromptType],
+            )
+        else:
+            prompt_type = args.pop(0)
+
+        print_title(
+            f"Evaluating agent {agent['id']} with prompt {prompt_type}", info=True
+        )
+        if prompt_type not in self.loaded:
+            print_title(f"No {prompt_type} loaded", error=True)
+            return None
+        prompt = self.loaded[prompt_type]
+        job_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+        url = f"/api/agent/{agent['participant_id']}/{job_id}/{prompt_type}/prompt"
+
+        model_map = {m["name"]: m["key"] for m in self.config["llm"]}
+        model_key = agent["model"]
+        if len(args) > 0:
+            model_key = args.pop(0)
+        else:
+            words = [m["name"] for m in self.config["llm"]]
+            model_key = await prompt_str("Model", default=model_key, words=words)
+
+        if model_key not in model_map:
+            print_title(f"Invalid model: {model_key}", error=True)
+            return None
+        model = model_map[model_key]
+
+        prompt["model"] = model
+
+        r = await self.participant_client.post(url, prompt)
+        r.raise_for_status()
+        return r.content.decode("utf-8")
+
+    async def cmd_agent_load(self, args: list[str]):
+        agent_id = self.safe_get_id(args, "agent", "agents")
+        if not agent_id:
+            return None
+        r = await self.participant_client.get(f"/api/agent/{agent_id}")
+        r.raise_for_status()
+        self.loaded["agent"] = r.json()
+        return agent_id
 
     async def cmd_arena(self, args: list[str]):
         arena_id = self.safe_get_id(args, "arena", "arenas")
@@ -647,6 +871,12 @@ class ArenaCommander:
             contest_id = await self.cmd_contest_start(args)
         elif cmd == "clone":
             contest_id = await self.cmd_contest_clone(args)
+        elif cmd == "participants":
+            await self.cmd_contest_participants(args)
+            return True
+        elif cmd == "prompt":
+            await self.cmd_contest_prompt(args)
+            return True
         else:
             contest_id = cmd
 
@@ -682,6 +912,98 @@ class ArenaCommander:
         self.loaded["contest"] = r.json()
 
         return contest_id
+
+    def load_participant_with_agent(self, contest: dict, role, index=0):
+        participant = [p for p in contest["participants"] if p["role"] == role]
+        if not len(participant) > index - 1:
+            print_title(f"No {role} found", error=True)
+            return True
+        participant = participant[index]
+        self.loaded["participant"] = participant
+        agents = [
+            a
+            for a in self.loaded.get("agents", [])
+            if a["participant_id"] == participant["id"]
+        ]
+        if len(agents) == 0:
+            print_title("No agent found for participant", error=True)
+            return True
+        self.loaded["agent"] = agents[0]
+        print_title(f"{role} {index} loaded", success=True)
+        return True
+
+    async def cmd_contest_participants(self, args: list[str]):
+        contest = self.loaded.get("contest", None)
+        if not contest:
+            print_title("No contest loaded", error=True)
+            return True
+        if len(args) == 0:
+            print_participant_list(contest["participants"])
+            return True
+
+        cmd = args.pop(0)
+        if cmd in ["announcer", "arena", "judge"]:
+            return self.load_participant_with_agent(contest, cmd)
+        elif cmd == "player":
+            if args:
+                index = int(args[0])
+            else:
+                index = await prompt_int(
+                    "Player index",
+                    min_value=0,
+                    max_value=len(
+                        [p for p in contest["participants"] if p["role"] == "player"]
+                    )
+                    - 1,
+                    default=0,
+                )
+            return self.load_participant_with_agent(contest, cmd, index)
+
+        print_title(f"Invalid participant: {cmd}", error=True)
+        return True
+
+    async def cmd_contest_prompt(self, args: list[str]):
+        contest = self.loaded.get("contest", None)
+        if not contest:
+            print_title("No contest loaded", error=True)
+            return True
+
+        if len(args) == 0:
+            return True
+
+        which_prompt = args[0]
+        if not which_prompt.split("_")[0] in ["arena", "judge", "player", "announcer"]:
+            print_title(f"Invalid prompt type: {which_prompt}", error=True)
+            return True
+
+        url = f"/api/contest/{contest['id']}/prompt/{which_prompt}"
+        if which_prompt in [
+            PromptType.ANNOUNCER_DESCRIBE_ARENA.value,
+            PromptType.ANNOUNCER_DESCRIBE_RESULTS.value,
+            PromptType.ARENA_GENERATE_FEATURES.value,
+            PromptType.JUDGE_APPLY_EFFECTS.value,
+        ]:
+            pass  # url is already set
+        elif which_prompt in [
+            PromptType.JUDGE_PLAYER_ACTION_JUDGEMENT.value,
+            PromptType.PLAYER_PLAYER_ACTION.value,
+        ]:
+            players = [
+                p["id"] for p in contest["participants"] if p["role"] == "player"
+            ]
+            player_id = await prompt_str("Player", default=players[0], words=players)
+            url += f"/{player_id}"
+        else:
+            print_title(f"Invalid prompt type: {which_prompt}", error=True)
+            return True
+
+        r = await self.arena_client.post(url, {})
+        r.raise_for_status()
+        data = r.json()
+        self.loaded[which_prompt] = data
+
+        print(json.dumps(data, indent=2))
+        return True
 
     async def cmd_contest_start(self, args: list[str]):
         contest_id = self.safe_get_id(args, "contest", "contests")
@@ -976,6 +1298,7 @@ class ArenaCommander:
     async def load_all(self):
         title = HTML("<ansiblue>Loading data...</ansiblue>")
         fetches = [
+            ("agents", self.participant_client, "/api/agent"),
             ("arenas", self.arena_client, "/api/arena"),
             ("contests", self.arena_client, "/api/contest"),
             ("strategies", self.participant_client, "/api/strategy"),
@@ -987,6 +1310,7 @@ class ArenaCommander:
                 r = await client.get(path)
                 r.raise_for_status()
                 self.add_loaded(key, r.json())
+        await self.cmd_contest_load(["latest"])
 
     async def process_command(self, text: str):
         words = text.split()
@@ -996,6 +1320,8 @@ class ArenaCommander:
         args = words[1:]
         if cmd == "help":
             await self.cmd_help(args)
+        elif cmd == "agent":
+            await self.cmd_agent(args)
         elif cmd == "arena":
             await self.cmd_arena(args)
         elif cmd == "clear":
@@ -1022,8 +1348,10 @@ class ArenaCommander:
             value = self.loaded[key]
             if isinstance(value, list):
                 print(HTML(f"<ansiblue>{key}:</ansiblue> {len(value)}"))
-            else:
+            elif isinstance(value, dict) and "id" in value:
                 print(HTML(f"<ansiblue>{key}:</ansiblue> {value['id']}"))
+            else:
+                print(HTML(f"<ansiblue>{key}:</ansiblue> [loaded]"))
         return await self.session.prompt_async(
             text,
             completer=self.command_completer,

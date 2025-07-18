@@ -157,8 +157,16 @@ class AgentController(
         session: Session,
     ) -> Response:
         stmt = select(Agent).where(Agent.participant_id == agent_id)
+        log = self.log.bind(participant_id=agent_id, job_id=job_id)
+        log.debug("agent_prompt", req=req)
         agent = session.exec(stmt).one_or_none()
         if not agent:
+            self.log.error(
+                "no such agent with participant_id",
+                participant_id=agent_id,
+                job_id=job_id,
+                req=req,
+            )
             raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
         raw = await self.template_service.expand_prompt(agent, job_id, req, session)
         return Response(content=raw, media_type="text/markdown")

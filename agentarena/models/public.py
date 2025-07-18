@@ -21,6 +21,7 @@ class AgentPublic(BaseModel):
     """
 
     id: str = Field(description="Unique identifier for the Agent")
+    model: str = Field(description="Model name")
     name: str = Field(description="Agent name")
     strategy: Optional["StrategyPublic"] = Field(default=None)
     participant_id: str = Field(description="Participant ID")

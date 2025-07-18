@@ -44,6 +44,7 @@ class Agent(AgentBase, DbBase, table=True):
         return AgentPublic(
             id=self.id,
             name=self.name,
+            model=self.model,
             strategy=self.strategy.get_public() if self.strategy else None,
             participant_id=self.participant_id,
         )
