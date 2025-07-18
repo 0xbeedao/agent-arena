@@ -30,9 +30,13 @@ Use creative and vivid language when naming and describing these features.
 
 ## Players are:
 
+{% if contest.rounds and contest.rounds|length > 0 and contest.rounds[0].players %}
 {% for p in contest.rounds[0].players %}
 - {{p.name}} - at {{p.position}}
 {% endfor %}
+{% else %}
+- No players have been positioned yet for this round
+{% endif %}
 
 ## Output Requirement
 

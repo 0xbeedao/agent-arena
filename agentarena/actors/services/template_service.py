@@ -10,6 +10,8 @@ from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
 from agentarena.core.exceptions import InvalidTemplateException
+from agentarena.core.exceptions import TemplateRenderingException
+from agentarena.core.exceptions import TemplateDataException
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
@@ -70,12 +72,59 @@ class TemplateService(JinjaRenderer):
             log.info("Rendering template for prompt")
             try:
                 return self.render_template(key, data)
+            except (TemplateRenderingException, TemplateDataException) as e:
+                # Log the structured error information
+                log.error(
+                    "Template rendering error",
+                    error_type=type(e).__name__,
+                    error_message=e.message,
+                    template=key,
+                    error_details=getattr(e, "error_details", None),
+                    missing_field=getattr(e, "missing_field", None),
+                    data_context=getattr(e, "data_context", {}),
+                    data_keys=list(data.keys()),
+                )
+
+                # Save error data for debugging
+                try:
+                    with open("error_data.json", "w") as f:
+                        json.dump(
+                            {
+                                "error_type": type(e).__name__,
+                                "error_message": e.message,
+                                "template": key,
+                                "error_details": getattr(e, "error_details", None),
+                                "missing_field": getattr(e, "missing_field", None),
+                                "data_context": getattr(e, "data_context", {}),
+                                "data": data,
+                            },
+                            f,
+                            indent=2,
+                            default=str,
+                        )
+                except Exception as save_error:
+                    log.error("Failed to save error data", save_error=save_error)
+
+                # Re-raise the exception to be handled by the controller
+                raise e
             except Exception as e:
-                log.error("Error rendering template", error=e, data=data)
-                with open("req.json", "w") as f:
-                    json.dumps(data)
-                with open("error_data.json", "w") as f:
-                    json.dump(data, f)
+                # Handle any other unexpected errors
+                log.error("Unexpected error rendering template", error=e, data=data)
+                try:
+                    with open("error_data.json", "w") as f:
+                        json.dump(
+                            {
+                                "error_type": "UnexpectedError",
+                                "error_message": str(e),
+                                "template": key,
+                                "data": data,
+                            },
+                            f,
+                            indent=2,
+                            default=str,
+                        )
+                except Exception as save_error:
+                    log.error("Failed to save error data", save_error=save_error)
                 raise e
         else:
             log.info("Returning raw prompt")

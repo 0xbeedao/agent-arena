@@ -17,9 +17,13 @@ You always carry out your task in a way consistent with your personality:
 {%- block task_body %}
 ## Arena Details to describe
 
+{% if contest.rounds and contest.rounds|length > 0 and contest.rounds[0].features %}
 {% for feature in contest.rounds[0].features %}
 - {{feature.name}} at "{{feature.position}}"
 {% endfor %}
+{% else %}
+- No features have been generated yet for this round
+{% endif %}
 {%- endblock %}
 
 ## Output Format

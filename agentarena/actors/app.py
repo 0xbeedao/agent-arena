@@ -102,20 +102,44 @@ async def setup_routers():
 async def http_exception_handler(request, exc):
     """Handle HTTP exceptions."""
     detail = exc.detail
-    if isinstance(detail, ModelResponse):
+    if isinstance(detail, dict):
+        # Already a structured error response
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=detail,
+        )
+    elif hasattr(detail, "model_dump"):
         detail = detail.model_dump()
+
     return JSONResponse(
         status_code=exc.status_code,
-        content={"message": exc.detail},
+        content={"message": detail},
     )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
     """Handle general exceptions."""
+    # Log the full exception for debugging
+    import traceback
+    import sys
+
+    logger = container.logging()
+    log = logger.get_logger("actors")
+    log.error(
+        "Unhandled exception",
+        exception_type=type(exc).__name__,
+        exception_message=str(exc),
+        traceback=traceback.format_exc(),
+    )
+
     return JSONResponse(
         status_code=500,
-        content={"message": f"Internal server error: {str(exc)}"},
+        content={
+            "error": "internal_server_error",
+            "message": "An unexpected error occurred",
+            "details": "Please check the server logs for more information",
+        },
     )
 
 

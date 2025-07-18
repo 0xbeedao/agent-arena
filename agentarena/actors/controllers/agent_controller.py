@@ -19,6 +19,8 @@ from agentarena.actors.models import AgentUpdate
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
+from agentarena.core.exceptions import TemplateRenderingException
+from agentarena.core.exceptions import TemplateDataException
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.llm_service import LLMService
@@ -168,8 +170,54 @@ class AgentController(
                 req=req,
             )
             raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
-        raw = await self.template_service.expand_prompt(agent, job_id, req, session)
-        return Response(content=raw, media_type="text/markdown")
+
+        try:
+            raw = await self.template_service.expand_prompt(agent, job_id, req, session)
+            return Response(content=raw, media_type="text/markdown")
+        except TemplateDataException as e:
+            # Handle template data errors (missing fields, empty lists, etc.)
+            log.error(
+                "Template data error",
+                error_type="TemplateDataException",
+                error_message=e.message,
+                missing_field=e.missing_field,
+                data_context=e.data_context,
+            )
+            error_response = {
+                "error": "template_data_error",
+                "message": e.message,
+                "template": e.data_context.get("template", "unknown"),
+                "missing_field": e.missing_field,
+                "details": f"Template requires data that is not available: {e.message}",
+                "suggestion": "Ensure all required data fields are present and non-empty",
+            }
+            raise HTTPException(status_code=422, detail=error_response)
+        except TemplateRenderingException as e:
+            # Handle general template rendering errors
+            log.error(
+                "Template rendering error",
+                error_type="TemplateRenderingException",
+                error_message=e.message,
+                template_name=e.template_name,
+                error_details=e.error_details,
+            )
+            error_response = {
+                "error": "template_rendering_error",
+                "message": e.message,
+                "template": e.template_name,
+                "details": e.error_details,
+                "suggestion": "Check template syntax and data structure",
+            }
+            raise HTTPException(status_code=422, detail=error_response)
+        except Exception as e:
+            # Handle any other unexpected errors
+            log.error("Unexpected error in agent_prompt", error=e)
+            error_response = {
+                "error": "internal_error",
+                "message": f"Unexpected error: {str(e)}",
+                "details": "An unexpected error occurred during template processing",
+            }
+            raise HTTPException(status_code=500, detail=error_response)
 
     async def agent_request_message(self, msg: Msg) -> None:
         """
