@@ -2,12 +2,12 @@ from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import TemplateNotFound
 from jinja2 import select_autoescape
-from jinja2.exceptions import UndefinedError
 from jinja2.exceptions import TemplateError
+from jinja2.exceptions import UndefinedError
 
 from agentarena.core.exceptions import InvalidTemplateException
-from agentarena.core.exceptions import TemplateRenderingException
 from agentarena.core.exceptions import TemplateDataException
+from agentarena.core.exceptions import TemplateRenderingException
 from agentarena.util.jinja_helpers import datetimeformat_filter
 from agentarena.util.jinja_helpers import find_obj_by_id
 from agentarena.util.jinja_helpers import get_attr_by_id

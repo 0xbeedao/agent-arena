@@ -19,8 +19,8 @@ from agentarena.actors.models import AgentUpdate
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.core.controllers.model_controller import ModelController
-from agentarena.core.exceptions import TemplateRenderingException
 from agentarena.core.exceptions import TemplateDataException
+from agentarena.core.exceptions import TemplateRenderingException
 from agentarena.core.factories.logger_factory import ILogger
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.llm_service import LLMService

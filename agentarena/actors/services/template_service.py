@@ -10,8 +10,8 @@ from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
 from agentarena.core.exceptions import InvalidTemplateException
-from agentarena.core.exceptions import TemplateRenderingException
 from agentarena.core.exceptions import TemplateDataException
+from agentarena.core.exceptions import TemplateRenderingException
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService

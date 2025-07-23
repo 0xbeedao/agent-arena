@@ -79,12 +79,12 @@ class RoundMachine(StateMachine):
         player_state_service: ModelService[PlayerState, PlayerStateCreate],
         view_service: ViewService,
         log: ILogger,
+        auto_advance: bool = True,
     ):
         """Initialize the round machine."""
         assert isinstance(contest_round, ContestRound)
         assert message_broker is not None, "Message broker is not set"
         self.action_service = player_action_service
-        self.completion_channel = f"arena.contest.{contest_round.contest.id}.round.{contest_round.round_no}.complete"
         self.contest_round = contest_round
         self.feature_service = feature_service
         self.uuid_service = feature_service.uuid_service
@@ -94,11 +94,21 @@ class RoundMachine(StateMachine):
         self.session = session
         self.log = log.bind(contest_round=contest_round.id)
         self.judge_result_service = judge_result_service
+        self.auto_advance = auto_advance
         super().__init__(start_value=contest_round.state.value)
+
+    async def cycle_or_pause(self, event: str):
+        if self.auto_advance:
+            await self.cycle(event)
+        else:
+            self.log.info(
+                "Pausing state machine",
+                state=self.current_state_value,
+            )
 
     async def on_enter_in_progress(self):
         """Called when entering the InProgress state."""
-        await self.cycle("in_progress")
+        await self.cycle_or_pause("in_progress")
 
     async def on_enter_round_prompting(self):
         """Called when entering the RoundPrompting state."""
@@ -106,7 +116,7 @@ class RoundMachine(StateMachine):
 
         if not players:
             self.log.error("No players found for round prompting")
-            await self.cycle("round_fail")
+            await self.cycle_or_pause("round_fail")
             return
 
         success = True
@@ -124,7 +134,7 @@ class RoundMachine(StateMachine):
             self.log.info(
                 "all player actions received, transitioning to judging actions"
             )
-            await self.cycle("round_prompting_done")
+            await self.cycle_or_pause("round_prompting_done")
         else:
             await self.step_failed(error)
 
@@ -137,7 +147,7 @@ class RoundMachine(StateMachine):
         judges = self.contest_round.contest.get_role(RoleType.JUDGE)
         if not judges:
             self.log.error("No judges found for judging action prompt")
-            await self.cycle("round_fail")
+            await self.cycle_or_pause("round_fail")
             return
         judge = judges[0]
 
@@ -155,7 +165,7 @@ class RoundMachine(StateMachine):
             self.log.info(
                 "all judging actions received, transitioning to applying effects"
             )
-            await self.cycle("judging_actions_done")
+            await self.cycle_or_pause("judging_actions_done")
         else:
             await self.step_failed(error)
 
@@ -177,7 +187,7 @@ class RoundMachine(StateMachine):
             self.log.error("Failed to apply effects", error=error)
             await self.step_failed(error)
             return
-        await self.cycle("applying_effects_done")
+        await self.cycle_or_pause("applying_effects_done")
 
     async def on_enter_describing_results(self):
         """Called when entering the DescribingResults state."""
@@ -193,7 +203,7 @@ class RoundMachine(StateMachine):
             self.log.error("Failed to describe results", error=error)
             await self.step_failed(error)
             return
-        await self.cycle("describing_results_done")
+        await self.cycle_or_pause("describing_results_done")
 
     async def on_enter_round_fail(self, message: str):
         """Called when entering the RoundFail state."""
@@ -472,6 +482,5 @@ class RoundMachine(StateMachine):
 
         if target.final:
             self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
-            await self.message_broker.send_message(self.completion_channel, target.id)
         else:
             self.log.debug(f"{self.name} enter: {target.id} from {event}")

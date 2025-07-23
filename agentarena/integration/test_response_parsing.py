@@ -9,7 +9,7 @@ from agentarena.integration.test_helpers import make_contest
 from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import RoleType
 
-from .conftest import CONTEST_CONFIG
+from ..conftest import CONTEST_CONFIG
 
 
 @pytest.mark.usefixtures("nats_container")

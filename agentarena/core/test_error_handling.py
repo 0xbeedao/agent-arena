@@ -2,11 +2,12 @@
 Tests for error handling improvements in template rendering
 """
 
-import json
 import pytest
-from jinja2 import ChoiceLoader, PackageLoader
+from jinja2 import ChoiceLoader
+from jinja2 import PackageLoader
 
-from agentarena.core.exceptions import TemplateDataException, TemplateRenderingException
+from agentarena.core.exceptions import TemplateDataException
+from agentarena.core.exceptions import TemplateRenderingException
 from agentarena.core.services.jinja_renderer import JinjaRenderer
 
 

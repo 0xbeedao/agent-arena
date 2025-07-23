@@ -6,7 +6,6 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
-import uuid
 
 import yaml
 from nats.aio.msg import Msg
@@ -657,6 +656,11 @@ class ArenaCommander:
             response = await self.cmd_agent_eval(args)
             print(response)
             return True
+        elif cmd == "prompt":
+            response = await self.cmd_agent_prompt(args)
+            if response:
+                print(render_markdown(response))
+            return True
         else:
             agent_id = cmd
 
@@ -672,14 +676,10 @@ class ArenaCommander:
         print_agent_list(agents)
         return True
 
-    async def cmd_agent_eval(self, args: list[str]):
+    async def _get_prompt_vars(self, args: list[str]):
         if not "agent" in self.loaded:
             print_title("No agent loaded", error=True)
-            return None
-        if not "contest" in self.loaded:
-            print_title("No contest loaded", error=True)
-            return None
-        contest = self.loaded["contest"]
+            return None, None, None, None, None
         agent = self.loaded["agent"]
 
         if len(args) == 0:
@@ -696,10 +696,9 @@ class ArenaCommander:
         )
         if prompt_type not in self.loaded:
             print_title(f"No {prompt_type} loaded", error=True)
-            return None
+            return None, None, None, None, None
         prompt = self.loaded[prompt_type]
         job_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-        url = f"/api/agent/{agent['participant_id']}/{job_id}/{prompt_type}/prompt"
 
         model_map = {m["name"]: m["key"] for m in self.config["llm"]}
         model_key = agent["model"]
@@ -711,8 +710,30 @@ class ArenaCommander:
 
         if model_key not in model_map:
             print_title(f"Invalid model: {model_key}", error=True)
-            return None
+            return None, None, None, None, None
         model = model_map[model_key]
+
+        return agent, job_id, model, prompt, prompt_type
+
+    async def cmd_agent_eval(self, args: list[str]):
+        """
+        Run the generate job for the agent.
+        """
+        agent, job_id, model, req, prompt_type = await self._get_prompt_vars(args)
+        if not agent or not job_id or not req or not prompt_type:
+            return None
+
+        # send nats message to actor
+
+    async def cmd_agent_prompt(self, args: list[str]):
+        """
+        Get a prompt for a payload on the Actor side, from the agent.
+        """
+        agent, job_id, model, prompt, prompt_type = await self._get_prompt_vars(args)
+        if not agent or not job_id or not prompt or not prompt_type:
+            return None
+
+        url = f"/api/agent/{agent['participant_id']}/{job_id}/{prompt_type}/prompt"
 
         prompt["model"] = model
 

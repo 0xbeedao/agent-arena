@@ -47,7 +47,11 @@ class RoundService(ModelService[ContestRound, ContestRoundCreate]):
         )
 
     async def create_round(
-        self, contest_id: str, round_no: int, session: Session
+        self,
+        contest_id: str,
+        round_no: int,
+        session: Session,
+        state=ContestRoundState.CREATING_ROUND,
     ) -> ContestRound:
         """
         Create a new round for a contest.
@@ -59,7 +63,7 @@ class RoundService(ModelService[ContestRound, ContestRoundCreate]):
             contest_id=contest_id,
             round_no=round_no,
             narrative="",
-            state=ContestRoundState.IDLE,
+            state=state,
         )
         contest = session.get(Contest, contest_id)
         assert contest is not None, "Contest not found"

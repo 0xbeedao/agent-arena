@@ -7,11 +7,25 @@ import requests
 from nats.aio.client import Client as NATS
 from testcontainers.core.container import DockerContainer
 
+from agentarena.actors.models import Agent
+from agentarena.actors.models import AgentCreate
+from agentarena.actors.models import Strategy
+from agentarena.actors.models import StrategyCreate
 from agentarena.arena.arena_container import get_wordlist
+from agentarena.arena.models import (
+    Arena,
+    JudgeResult,
+    JudgeResultCreate,
+    PlayerAction,
+    PlayerActionCreate,
+)
+from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
+from agentarena.arena.models import Participant
+from agentarena.arena.models import ParticipantCreate
 from agentarena.arena.models import PlayerState
 from agentarena.arena.models import PlayerStateCreate
 from agentarena.arena.services.round_service import RoundService
@@ -285,6 +299,29 @@ def message_broker(nats_client, uuid_service, logging):
 
 
 @pytest.fixture(scope="session")
+def arena_service(arena_db_service, uuid_service, message_broker, logging):
+    """Fixture to create an ArenaService for Arena"""
+    return ModelService[Arena, ArenaCreate](
+        model_class=Arena,
+        message_broker=message_broker,
+        db_service=arena_db_service,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture(scope="session")
+def agent_service(arena_db_service, message_broker, uuid_service, logging):
+    return ModelService[Agent, AgentCreate](
+        model_class=Agent,
+        db_service=arena_db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture(scope="session")
 def contest_service(arena_db_service, message_broker, uuid_service, logging):
     return ModelService[Contest, ContestCreate](
         model_class=Contest,
@@ -299,6 +336,61 @@ def contest_service(arena_db_service, message_broker, uuid_service, logging):
 def feature_service(arena_db_service, message_broker, uuid_service, logging):
     return ModelService[Feature, FeatureCreate](
         model_class=Feature,
+        db_service=arena_db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture(scope="session")
+def judge_result_service(arena_db_service, message_broker, uuid_service, logging):
+    return ModelService[JudgeResult, JudgeResultCreate](
+        model_class=JudgeResult,
+        db_service=arena_db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture(scope="session")
+def player_action_service(arena_db_service, message_broker, uuid_service, logging):
+    return ModelService[PlayerAction, PlayerActionCreate](
+        model_class=PlayerAction,
+        db_service=arena_db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture(scope="session")
+def player_state_service(arena_db_service, message_broker, uuid_service, logging):
+    return ModelService[PlayerState, PlayerStateCreate](
+        model_class=PlayerState,
+        db_service=arena_db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture(scope="session")
+def participant_service(arena_db_service, message_broker, uuid_service, logging):
+    return ModelService[Participant, ParticipantCreate](
+        model_class=Participant,
+        db_service=arena_db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture(scope="session")
+def strategy_service(arena_db_service, message_broker, uuid_service, logging):
+    return ModelService[Strategy, StrategyCreate](
+        model_class=Strategy,
         db_service=arena_db_service,
         message_broker=message_broker,
         uuid_service=uuid_service,

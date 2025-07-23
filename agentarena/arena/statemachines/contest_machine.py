@@ -193,7 +193,7 @@ class ContestMachine(StateMachine):
             self.message_broker.client, channel, self.log, cb=self.handle_setup_complete
         )
         await setup_machine.activate_initial_state()  # type: ignore
-        await setup_machine.start_generating_features("from contest machine")
+        await setup_machine.cycle("from contest machine")
 
     async def on_enter_create_round(self):
         """Called when entering the CreateRound state, which happens for all rounds after the first."""

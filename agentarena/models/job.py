@@ -64,4 +64,4 @@ class GenerateJobCreate(GenerateJobBase, table=False):
 
 
 class JobLock(DbBase, table=True):
-    pass
+    ttl: int = Field(default=600, description="Time to live in seconds")

@@ -13,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from agentarena.core.middleware import add_logging_middleware
-from agentarena.models.validation import ModelResponse
 from agentarena.util.files import find_file_upwards
 
 from .actor_container import ActorContainer
@@ -122,7 +121,6 @@ async def general_exception_handler(request, exc):
     """Handle general exceptions."""
     # Log the full exception for debugging
     import traceback
-    import sys
 
     logger = container.logging()
     log = logger.get_logger("actors")

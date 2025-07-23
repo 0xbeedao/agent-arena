@@ -4,6 +4,7 @@ FastAPI server for the Agent Arena application.
 
 import os
 import sys
+from datetime import datetime
 
 import better_exceptions
 import uvicorn
@@ -11,9 +12,11 @@ from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlmodel import select
 
 from agentarena.arena.arena_container import ArenaContainer
 from agentarena.core.middleware import add_logging_middleware
+from agentarena.models.job import JobLock
 from agentarena.util.files import find_file_upwards
 
 better_exceptions.MAX_LENGTH = None
@@ -48,6 +51,7 @@ async def startup_event():
     log = logger.get_logger("arena")
     db = container.db_service()
     db.create_db()
+    await delete_expired_joblocks()
     broker = await container.message_broker()  # type: ignore
     for svc in [
         await container.contest_controller(),  # type: ignore
@@ -116,7 +120,6 @@ async def general_exception_handler(request, exc):
     """Handle general exceptions."""
     # Log the full exception for debugging
     import traceback
-    import sys
 
     logger = container.logging()
     log = logger.get_logger("arena")
@@ -142,6 +145,37 @@ async def general_exception_handler(request, exc):
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+def get_current_unix_time() -> int:
+    """Get the current time as a unix timestamp (seconds)."""
+    return int(datetime.now().timestamp())
+
+
+async def delete_expired_joblocks():
+    """Delete all JobLock objects whose TTL has expired."""
+    db_service = container.db_service()
+    now = get_current_unix_time()
+    with db_service.get_session() as session:
+        # Fetch all JobLocks
+        all_locks = session.exec(select(JobLock)).all()
+        # Filter for valid created_at and expired
+        expired_locks = [
+            lock
+            for lock in all_locks
+            if (
+                lock.created_at is not None
+                and isinstance(lock.created_at, int)
+                and lock.created_at > 0
+                and lock.ttl is not None
+                and isinstance(lock.ttl, int)
+                and (lock.created_at + lock.ttl) < now
+            )
+        ]
+        for lock in expired_locks:
+            session.delete(lock)
+        if expired_locks:
+            session.commit()
 
 
 # Run the server if this file is executed directly

@@ -5,7 +5,6 @@ from datetime import datetime
 from nats.aio.msg import Msg
 from sqlmodel import Field
 from sqlmodel import Session
-from sqlmodel import select
 from statemachine import State
 from statemachine import StateMachine
 
@@ -48,15 +47,6 @@ class SetupMachine(StateMachine):
     setup_complete = State(ContestRoundState.SETUP_COMPLETE.value, final=True)
     setup_fail = State(ContestRoundState.SETUP_FAIL.value, final=True)
 
-    # Transitions
-    start_generating_features = idle.to(
-        creating_round,
-        unless="has_opening_round",
-    ) | idle.to(
-        adding_fixed_features,
-        cond="has_opening_round",
-    )
-
     step_failed = (
         creating_round.to(setup_fail)
         | adding_fixed_features.to(setup_fail)
@@ -65,7 +55,9 @@ class SetupMachine(StateMachine):
     )
 
     cycle = (
-        creating_round.to(adding_fixed_features)
+        idle.to(creating_round, unless="has_opening_round")
+        | idle.to(adding_fixed_features, cond="has_opening_round")
+        | creating_round.to(adding_fixed_features)
         | adding_fixed_features.to(generating_features)
         | generating_features.to(describing_setup)
         | describing_setup.to(setup_complete)
@@ -80,33 +72,47 @@ class SetupMachine(StateMachine):
         view_service: ViewService = Field(description="View Service"),
         session: Session = Field(description="Session"),
         log: ILogger = Field(description="Log"),
+        auto_advance: bool = Field(
+            description="Auto advance to next state", default=True
+        ),
     ):
         """Initialize the setup machine."""
         self.contest = contest
         self.contest_public = contest.get_public()
-        self.contest_round: ContestRound | None = None
+        self.contest_round: ContestRound | None = (
+            contest.rounds[0] if contest.rounds else None
+        )
         self.feature_service = feature_service
         self.uuid_service = feature_service.uuid_service
         self.message_broker = message_broker
         self.round_service = round_service
         self.view_service = view_service
         self.session = session
-        self.completion_channel = f"arena.contest.{contest.id}.setupmachine.complete"
+        self.pending_channel = f"arena.contest.{contest.id}.setupmachine.pending"
         self.log = log.bind(contest_id=contest.id)
-        stmt = (
-            select(ContestRound)
-            .where(ContestRound.round_no == 0)
-            .where(ContestRound.contest_id == contest.id)
-        )
-        round = session.exec(stmt).one_or_none()
-        self.contest_round = round
+        self.auto_advance = auto_advance
         super().__init__(
-            start_value=round.state if round else ContestRoundState.IDLE.value
+            start_value=(
+                self.contest_round.state
+                if self.contest_round
+                else ContestRoundState.IDLE.value
+            )
         )
 
     def has_opening_round(self) -> bool:
         """Check if the contest has an opening round."""
-        return self.contest_round is not None and self.contest_round.round_no == 0
+        return self.contest_round is not None
+
+    async def cycle_or_pause(self, event: str):
+        if self.auto_advance:
+            await self.cycle(event)
+        else:
+            self.log.info(
+                "Pausing state machine",
+                state=self.current_state_value,
+            )
+            state = self.current_state_value or "ERROR - NO STATE"
+            await self.message_broker.send_message(self.pending_channel, state)
 
     async def on_enter_creating_round(self):
         """Called when entering the CreatingRound state."""
@@ -121,7 +127,7 @@ class SetupMachine(StateMachine):
             self.log = self.log.bind(round_id=round.id)
             log.info("Round 0 created successfully")
 
-        await self.cycle("from creating round")  # type: ignore
+        await self.cycle_or_pause("from creating round")  # type: ignore
 
     async def on_enter_adding_fixed_features(self):
         """Called when entering the AddingFixedFeatures state."""
@@ -145,7 +151,7 @@ class SetupMachine(StateMachine):
         self.session.commit()
 
         log.info(f"{ct} Fixed features added successfully")
-        await self.cycle("added fixed features")  # type: ignore
+        await self.cycle_or_pause("added fixed features")  # type: ignore
 
     async def on_enter_generating_features(self):
         """Called when entering the GeneratingFeatures state, which adds the random features."""
@@ -160,14 +166,14 @@ class SetupMachine(StateMachine):
         needed = self.contest_public.arena.max_random_features
         if needed <= 0:
             self.log.info("No random features to generate, skipping")
-            self.send("cycle", "from generating features")
+            await self.cycle_or_pause("from generating features")  # type: ignore
             return
         if (
             len([f for f in round.features if f.origin == FeatureOriginType.RANDOM])
             >= 1
         ):
             self.log.info("Already have features, skipping")
-            await self.cycle("from generating features")  # type: ignore
+            await self.cycle_or_pause("from generating features")  # type: ignore
             return
 
         agents = self.contest.get_role(RoleType.ARENA)
@@ -186,7 +192,7 @@ class SetupMachine(StateMachine):
             self.log.error("Failed to handle feature generation message", error=error)
             await self.step_failed("from generating features")  # type: ignore
             return
-        await self.cycle("from generating features")  # type: ignore
+        await self.cycle_or_pause("from generating features")  # type: ignore
 
     async def on_enter_describing_setup(self):
         """Called when entering the DescribingSetup state."""
@@ -204,16 +210,7 @@ class SetupMachine(StateMachine):
             self.log.error("Failed to handle describe setup message", error=error)
             await self.step_failed("from describing setup")  # type: ignore
             return
-        await self.cycle("from describing setup")  # type: ignore
-
-    # async def after_transition(self, event, source, target):
-    #     self.log.debug(f"{self.name} after: {source.id}--({event})-->{target.id}")
-    #     state = self.current_state.id
-    #     self.log = self.log.bind(state=state)
-    #     await self.message_broker.send_message(
-    #         f"arena.contest.{self.contest_public.id}.setup.{source.id}.{target.id}",
-    #         state,
-    #     )
+        await self.cycle_or_pause("from describing setup")  # type: ignore
 
     async def on_enter_state(self, target, event):
         if self.contest_round:
@@ -224,7 +221,6 @@ class SetupMachine(StateMachine):
 
         if target.final:
             self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
-            await self.message_broker.send_message(self.completion_channel, target.id)
         else:
             self.log.debug(f"{self.name} enter: {target.id} from {event}")
 
@@ -304,13 +300,13 @@ class SetupMachine(StateMachine):
         try:
             job_data = decode(msg.data, "utf-8", "unicode_escape")
             obj = json.loads(job_data)
-            state = obj.get("state", None)
+            state = obj["state"] if isinstance(obj, dict) and "state" in obj else None
 
             while isinstance(obj, dict) and "data" in obj:
                 obj = obj["data"]
                 if isinstance(obj, str) and obj.find('"data"') != -1:
                     obj = json.loads(obj)
-                if state is None:
+                if state is None and isinstance(obj, dict):
                     state = obj.get("state", None)  # type: ignore
 
             if state != JobResponseState.COMPLETE.value:
@@ -337,13 +333,13 @@ class SetupMachine(StateMachine):
         try:
             job_data = decode(msg.data, "utf-8", "unicode_escape")
             obj = json.loads(job_data)
-            state = obj.get("state", None)
+            state = obj["state"] if isinstance(obj, dict) and "state" in obj else None
 
             while isinstance(obj, dict) and "data" in obj:
                 obj = obj["data"]
                 if isinstance(obj, str) and obj.find('"data"') != -1:
                     obj = json.loads(obj)
-                if state is None:
+                if state is None and isinstance(obj, dict):
                     state = obj.get("state", None)  # type: ignore
 
             if state != JobResponseState.COMPLETE.value:
@@ -381,8 +377,8 @@ class SetupMachine(StateMachine):
                         end_pos = f["end_position"]
                         start_x, start_y = start_pos.split(",")
                         end_x, end_y = end_pos.split(",")
-                        for x in range(start_x, end_x + 1):
-                            for y in range(start_y, end_y + 1):
+                        for x in range(int(start_x), int(end_x) + 1):
+                            for y in range(int(start_y), int(end_y) + 1):
                                 log.debug(
                                     "filling in feature cells for ranges", x=x, y=y
                                 )
