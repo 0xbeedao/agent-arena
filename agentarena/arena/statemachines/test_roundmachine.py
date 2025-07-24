@@ -1,7 +1,12 @@
 import json
 import pytest
 
-from agentarena.arena.models import Arena, PlayerActionCreate
+from agentarena.arena.models import (
+    Arena,
+    JudgeResultCreate,
+    PlayerActionCreate,
+    PlayerStateCreate,
+)
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestState
 from agentarena.arena.models import Participant
@@ -107,6 +112,8 @@ async def test_round_prompting(
         round = await round_service.create_round(
             test_contest.id, 0, session, state=ContestRoundState.ROUND_PROMPTING
         )
+        round.features.append(base_feature)
+        round.features.append(flag_feature)
         round.narrative = "This is the first round, the arena has been set up with a base at 8,8 and a flag at 1,9, player1 is at 1,1 and player2 is at 5,5"
         session.commit()
 
@@ -235,6 +242,10 @@ async def test_judging_actions(
         round = await round_service.create_round(
             test_contest.id, 0, session, state=ContestRoundState.JUDGING_ACTIONS
         )
+        round.features.append(base_feature)
+        round.features.append(flag_feature)
+        session.commit()
+
         round.narrative = "This is the first round, the arena has been set up with a base at 8,8 and a flag at 1,9, player1 is at 1,1 and player2 is at 5,5"
         ac1 = PlayerActionCreate(
             participant_id=agents["player1"].id,
@@ -326,3 +337,319 @@ async def test_judging_actions(
         assert round.judge_results[1].reason == "simple success"
         assert round.judge_results[1].narration == "a successful move!"
         assert round.judge_results[1].memories == "player started at 5,5"
+
+
+@pytest.mark.asyncio
+async def test_applying_effects(
+    contest_service,
+    agent_service,
+    participant_service,
+    strategy_service,
+    uuid_service,
+    arena_service,
+    feature_service,
+    round_service,
+    judge_result_service,
+    player_action_service,
+    player_state_service,
+    view_service,
+    message_broker,
+    logger,
+):
+    with round_service.get_session() as session:
+        base_feature = await make_feature(
+            session, feature_service, "base", position="8,8"
+        )
+        flag_feature = await make_feature(
+            session, feature_service, "flag", position="1,9"
+        )
+        test_arena = await make_arena(
+            session, arena_service, features=[base_feature, flag_feature]
+        )
+        test_contest = await make_contest(
+            session,
+            contest_service,
+            test_arena,
+            player_positions='["1,1", "5,5"]',
+            player_inventories="[[], []]",
+        )
+        agents = await add_contest_agents_to_contest(
+            session,
+            test_contest,
+            agent_service,
+            participant_service,
+            strategy_service,
+            uuid_service,
+        )
+
+        round = await round_service.create_round(
+            test_contest.id, 0, session, state=ContestRoundState.APPLYING_EFFECTS
+        )
+        round.narrative = "This is the first round, the arena has been set up with a base at 8,8 and a flag at 1,9, player1 is at 1,1 and player2 is at 5,5"
+        round.features.append(base_feature)
+        round.features.append(flag_feature)
+        session.commit()
+
+        ac1 = PlayerActionCreate(
+            participant_id=agents["player1"].id,
+            contestround_id=round.id,
+            action="move",
+            narration="I'm moving to 1,2",
+            memories="I'm moving to 1,2",
+            target="1,2",
+        )
+        action1, success = await player_action_service.create(ac1, session)
+        assert success
+        ac2 = PlayerActionCreate(
+            participant_id=agents["player2"].id,
+            contestround_id=round.id,
+            action="move",
+            narration="Woohoo!",
+            memories="",
+            target="5,6",
+        )
+        action2, success = await player_action_service.create(ac2, session)
+        assert success
+        round.player_actions.append(action1)
+        round.player_actions.append(action2)
+
+        jc1 = JudgeResultCreate(
+            participant_id=agents["player1"].id,
+            contestround_id=round.id,
+            result="player successfully moved to 1,2, score: 10",
+            reason="simple success",
+            narration="a successful move!",
+            memories="player started at 1,1",
+        )
+        judgement1, success = await judge_result_service.create(jc1, session)
+        assert success
+        jc2 = JudgeResultCreate(
+            participant_id=agents["player2"].id,
+            contestround_id=round.id,
+            result="player successfully moved to 5,6, score: 10",
+            reason="simple success",
+            narration="a successful move!",
+            memories="player started at 5,5",
+        )
+        judgement2, success = await judge_result_service.create(jc2, session)
+        assert success
+        round.judge_results.append(judgement1)
+        round.judge_results.append(judgement2)
+        session.commit()
+
+        judge_called = False
+        judge_channel = agents["judge"].channel_prompt(
+            PromptType.JUDGE_APPLY_EFFECTS, "request", "*"
+        )
+
+        async def judge_responder(msg: Msg):
+            nonlocal judge_called
+            judge_called = True
+            result = {
+                "players": [
+                    {
+                        "id": agents["player1"].id,
+                        "position": "1,2",
+                        "health": "winded",
+                        "score": 10,
+                        "inventory": [],
+                    },
+                    {
+                        "id": agents["player2"].id,
+                        "position": "5,6",
+                        "health": "winded",
+                        "score": 10,
+                        "inventory": [],
+                    },
+                ]
+            }
+            response = JobResponse(
+                job_id=msg.subject.split(".")[-1],
+                state=JobResponseState.COMPLETE,
+                data=json.dumps(result),
+            )
+            await message_broker.send_response(msg.reply, response)
+
+        sub = await message_broker.client.subscribe(judge_channel, cb=judge_responder)
+
+        machine = RoundMachine(
+            round,
+            feature_service=feature_service,
+            judge_result_service=judge_result_service,
+            message_broker=message_broker,
+            session=session,
+            player_action_service=player_action_service,
+            player_state_service=player_state_service,
+            view_service=view_service,
+            log=logger,
+            auto_advance=False,
+        )
+        await machine.activate_initial_state()  # type: ignore
+        await sub.unsubscribe()
+        assert machine.current_state.id == ContestRoundState.APPLYING_EFFECTS
+
+        # check that player states were updated
+
+        assert len(round.player_states) == 2
+        assert round.player_states[0].participant_id == agents["player1"].id
+        assert round.player_states[0].position == "1,2"
+        assert round.player_states[0].health == "winded"
+        assert round.player_states[0].score == 10
+        assert round.player_states[0].inventory == []
+        assert round.player_states[1].participant_id == agents["player2"].id
+        assert round.player_states[1].position == "5,6"
+        assert round.player_states[1].health == "winded"
+
+        # check that the features are still there, since they are not affected by the effects
+        assert len(round.features) == 2
+
+
+@pytest.mark.asyncio
+async def test_describing_results(
+    contest_service,
+    agent_service,
+    participant_service,
+    strategy_service,
+    uuid_service,
+    arena_service,
+    feature_service,
+    round_service,
+    judge_result_service,
+    player_action_service,
+    player_state_service,
+    view_service,
+    message_broker,
+    logger,
+):
+    with round_service.get_session() as session:
+        base_feature = await make_feature(
+            session, feature_service, "base", position="8,8"
+        )
+        flag_feature = await make_feature(
+            session, feature_service, "flag", position="1,9"
+        )
+        test_arena = await make_arena(
+            session, arena_service, features=[base_feature, flag_feature]
+        )
+        test_contest = await make_contest(
+            session,
+            contest_service,
+            test_arena,
+            player_positions='["1,1", "5,5"]',
+            player_inventories="[[], []]",
+        )
+        agents = await add_contest_agents_to_contest(
+            session,
+            test_contest,
+            agent_service,
+            participant_service,
+            strategy_service,
+            uuid_service,
+        )
+
+        round = await round_service.create_round(
+            test_contest.id, 0, session, state=ContestRoundState.DESCRIBING_RESULTS
+        )
+        round.features.append(base_feature)
+        round.features.append(flag_feature)
+        session.commit()
+
+        round.narrative = "This is the first round, the arena has been set up with a base at 8,8 and a flag at 1,9, player1 is at 1,1 and player2 is at 5,5"
+        ac1 = PlayerActionCreate(
+            participant_id=agents["player1"].id,
+            contestround_id=round.id,
+            action="move",
+            narration="I'm moving to 1,2",
+            memories="I'm moving to 1,2",
+            target="1,2",
+        )
+        action1, success = await player_action_service.create(ac1, session)
+        assert success
+        ac2 = PlayerActionCreate(
+            participant_id=agents["player2"].id,
+            contestround_id=round.id,
+            action="move",
+            narration="Woohoo!",
+            memories="",
+            target="5,6",
+        )
+        action2, success = await player_action_service.create(ac2, session)
+        assert success
+        round.player_actions.append(action1)
+        round.player_actions.append(action2)
+
+        jc1 = JudgeResultCreate(
+            participant_id=agents["player1"].id,
+            contestround_id=round.id,
+            result="player successfully moved to 1,2, score: 10",
+            reason="simple success",
+            narration="a successful move!",
+            memories="player started at 1,1",
+        )
+        judgement1, success = await judge_result_service.create(jc1, session)
+        assert success
+        jc2 = JudgeResultCreate(
+            participant_id=agents["player2"].id,
+            contestround_id=round.id,
+            result="player successfully moved to 5,6, score: 10",
+            reason="simple success",
+            narration="a successful move!",
+            memories="player started at 5,5",
+        )
+        judgement2, success = await judge_result_service.create(jc2, session)
+        assert success
+        round.judge_results.append(judgement1)
+        round.judge_results.append(judgement2)
+
+        for playerstate in round.player_states:
+            if playerstate.participant_id == agents["player1"].id:
+                playerstate.health = "winded"
+                playerstate.position = "1,2"
+                playerstate.score = 10
+                playerstate.inventory = []
+            elif playerstate.participant_id == agents["player2"].id:
+                playerstate.health = "winded"
+                playerstate.position = "5,6"
+                playerstate.score = 10
+                playerstate.inventory = []
+        session.commit()
+
+        announcer_called = False
+        announcer_channel = agents["announcer"].channel_prompt(
+            PromptType.ANNOUNCER_DESCRIBE_RESULTS, "request", "*"
+        )
+
+        async def announcer_responder(msg: Msg):
+            nonlocal announcer_called
+            announcer_called = True
+            result = "It was a *great round*!"
+            response = JobResponse(
+                job_id=msg.subject.split(".")[-1],
+                state=JobResponseState.COMPLETE,
+                data=json.dumps(result),
+            )
+            await message_broker.send_response(msg.reply, response)
+
+        sub = await message_broker.client.subscribe(
+            announcer_channel, cb=announcer_responder
+        )
+
+        machine = RoundMachine(
+            round,
+            feature_service=feature_service,
+            judge_result_service=judge_result_service,
+            message_broker=message_broker,
+            session=session,
+            player_action_service=player_action_service,
+            player_state_service=player_state_service,
+            view_service=view_service,
+            log=logger,
+            auto_advance=False,
+        )
+        await machine.activate_initial_state()  # type: ignore
+        await sub.unsubscribe()
+        assert machine.current_state.id == ContestRoundState.DESCRIBING_RESULTS.value
+        assert announcer_called
+        assert round.ending_narrative == "It was a *great round*!"
+        assert round.updated_at is not None
+        assert round.updated_at > round.created_at

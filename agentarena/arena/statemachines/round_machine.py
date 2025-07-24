@@ -29,7 +29,10 @@ from agentarena.models.requests import ContestRoundPayload
 from agentarena.models.requests import ParticipantActionRequest
 from agentarena.models.requests import ParticipantContestRequest
 from agentarena.models.requests import ParticipantContestRoundRequest
-from agentarena.util.response_parsers import extract_obj_from_json
+from agentarena.util.response_parsers import (
+    extract_obj_from_json,
+    extract_text_response,
+)
 
 
 class RoundMachine(StateMachine):
@@ -453,17 +456,9 @@ class RoundMachine(StateMachine):
         log.info("received describing results message", msg=msg)
         try:
             raw = decode(msg.data, "utf-8", "unicode_escape")
-            result = extract_obj_from_json(raw)
-            if not result:
-                log.error("No result in describing results message")
-                return False, "no result in describing results message"
-            narrative = (
-                result.get("narrative")
-                or result.get("description")
-                or result.get("text")
-            )
+            narrative = extract_text_response(raw)
             if not narrative:
-                log.error("No narrative in describing results message", result=result)
+                log.error("No narrative in describing results message")
                 return False, "no narrative in describing results message"
             self.contest_round.ending_narrative = narrative
             self.contest_round.updated_at = int(datetime.now().timestamp())
