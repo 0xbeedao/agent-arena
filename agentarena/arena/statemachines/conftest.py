@@ -6,14 +6,15 @@ from sqlmodel import Session
 from agentarena.actors.models import AgentCreate
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
-from agentarena.arena.models import ArenaCreate
+from agentarena.arena.models import ArenaCreate, Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
 from agentarena.arena.models import FeatureOriginType
 from agentarena.arena.models import ParticipantCreate
+from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import PromptType
+from agentarena.models.constants import ContestState, PromptType
 from agentarena.models.constants import RoleType
 
 ONE_FEATURE = json.dumps(
@@ -29,11 +30,12 @@ ONE_FEATURE = json.dumps(
 
 async def make_contest(
     session: Session,
-    contest_service,
+    contest_service: ModelService[Contest, ContestCreate],
     test_arena,
     player_positions: str = "[]",
     player_inventories: str = "[]",
-):
+    state: ContestState = ContestState.STARTING,
+) -> Contest:
     cc = ContestCreate(
         arena_id=test_arena.id,
         participant_ids=[],
@@ -41,7 +43,9 @@ async def make_contest(
         player_inventories=player_inventories,
     )
     contest, result = await contest_service.create(cc, session=session)
-    assert result.success
+    assert result.success and contest is not None
+    contest.state = state
+    session.commit()
     return contest
 
 

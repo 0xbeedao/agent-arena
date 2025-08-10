@@ -12,20 +12,18 @@ from agentarena.actors.models import AgentCreate
 from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.arena.arena_container import get_wordlist
-from agentarena.arena.models import (
-    Arena,
-    JudgeResult,
-    JudgeResultCreate,
-    PlayerAction,
-    PlayerActionCreate,
-)
+from agentarena.arena.models import Arena
 from agentarena.arena.models import ArenaCreate
 from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
+from agentarena.arena.models import JudgeResult
+from agentarena.arena.models import JudgeResultCreate
 from agentarena.arena.models import Participant
 from agentarena.arena.models import ParticipantCreate
+from agentarena.arena.models import PlayerAction
+from agentarena.arena.models import PlayerActionCreate
 from agentarena.arena.models import PlayerState
 from agentarena.arena.models import PlayerStateCreate
 from agentarena.arena.services.round_service import RoundService

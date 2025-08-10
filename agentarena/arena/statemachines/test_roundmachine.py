@@ -1,31 +1,18 @@
 import json
-import pytest
 
-from agentarena.arena.models import (
-    Arena,
-    JudgeResultCreate,
-    PlayerActionCreate,
-    PlayerStateCreate,
-)
-from agentarena.arena.models import Contest
-from agentarena.arena.models import ContestState
-from agentarena.arena.models import Participant
-from agentarena.arena.statemachines.conftest import (
-    make_contest,
-    add_contest_agents_to_contest,
-    make_feature,
-)
-from agentarena.arena.statemachines.round_machine import RoundMachine
-from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.models.constants import (
-    ContestRoundState,
-    JobResponseState,
-    PromptType,
-    RoleType,
-)
-from agentarena.arena.statemachines.conftest import make_arena
+import pytest
 from nats.aio.msg import Msg
 
+from agentarena.arena.models import JudgeResultCreate
+from agentarena.arena.models import PlayerActionCreate
+from agentarena.arena.statemachines.conftest import add_contest_agents_to_contest
+from agentarena.arena.statemachines.conftest import make_arena
+from agentarena.arena.statemachines.conftest import make_contest
+from agentarena.arena.statemachines.conftest import make_feature
+from agentarena.arena.statemachines.round_machine import RoundMachine
+from agentarena.models.constants import ContestRoundState
+from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import PromptType
 from agentarena.models.public import JobResponse
 
 
@@ -653,3 +640,7 @@ async def test_describing_results(
         assert round.ending_narrative == "It was a *great round*!"
         assert round.updated_at is not None
         assert round.updated_at > round.created_at
+
+        await machine.cycle("complete?")
+        assert machine.current_state.id == ContestRoundState.ROUND_COMPLETE.value
+        assert round.state == ContestRoundState.ROUND_COMPLETE.value

@@ -29,10 +29,8 @@ from agentarena.models.requests import ContestRoundPayload
 from agentarena.models.requests import ParticipantActionRequest
 from agentarena.models.requests import ParticipantContestRequest
 from agentarena.models.requests import ParticipantContestRoundRequest
-from agentarena.util.response_parsers import (
-    extract_obj_from_json,
-    extract_text_response,
-)
+from agentarena.util.response_parsers import extract_obj_from_json
+from agentarena.util.response_parsers import extract_text_response
 
 
 class RoundMachine(StateMachine):

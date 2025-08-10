@@ -14,13 +14,11 @@ from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.public import JobResponse
 
-from .conftest import (
-    make_arena,
-    make_contest,
-    make_feature,
-    make_agent_set,
-    ONE_FEATURE,
-)
+from .conftest import ONE_FEATURE
+from .conftest import make_agent_set
+from .conftest import make_arena
+from .conftest import make_contest
+from .conftest import make_feature
 
 
 @pytest.mark.asyncio

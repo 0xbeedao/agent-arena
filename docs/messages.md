@@ -3,6 +3,7 @@
 ## Message Channel/Subject Naming Patterns
 
 ### Arena Contest Channels
+
 | Channel/Pattern                                      | Usage/Context                                                                 | Example/Notes                                                                                  |
 |------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
 | `arena.contest.{contest_id}.role_call`               | Role call for contest participants (ContestMachine)                           | Subscribed to for role call state, children use `{channel}.{p.id}`                            |
@@ -15,6 +16,7 @@
 | `arena.contest.{contest_id}.round.{round_no}.complete` | Round completion notifications                                                | Used by RoundMachine to signal round completion                                               |
 
 ### Actor Agent Channels
+
 | Channel/Pattern                                      | Usage/Context                                                                 | Example/Notes                                                                                  |
 |------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
 | `actor.agent.*.request.>`                           | All agent requests (wildcard subscription)                                   | Used by AgentController to handle all agent requests                                          |
@@ -23,12 +25,14 @@
 | `actor.agent.{participant_id}.response.{prompt_type}.{job_id}` | Prompt response channels                                          | Used for various prompt types (player_action, judge_results, etc.)                            |
 
 ### Participant Request Channels
+
 | Channel/Pattern                                      | Usage/Context                                                                 | Example/Notes                                                                                  |
 |------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
 | `{participant_endpoint}.request.health.{job_id}`     | Health check requests to participants                                         | Constructed from participant endpoint with job ID                                             |
 | `{participant_endpoint}.{action}.{prompt_type}.{job_id}` | Prompt-based requests to participants                                      | E.g., `channel://actor.agent.123.request.player_action.abc456`                                |
 
 ### System Model Change Channels
+
 | Channel/Pattern                                      | Usage/Context                                                                 | Example/Notes                                                                                  |
 |------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
 | `sys.arena.{model_class_name}.create`               | Arena model creation notifications                                            | E.g., `sys.arena.contest.create`                                                              |
@@ -39,6 +43,7 @@
 | `sys.actor.{model_class_name}.delete`               | Actor model deletion notifications                                            | E.g., `sys.actor.participant.delete`                                                          |
 
 ### LLM Service Channels
+
 | Channel/Pattern                                      | Usage/Context                                                                 | Example/Notes                                                                                  |
 |------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
 | `actor.llm.{job_id}.{job_id}.request`               | LLM job started notifications                                                 | Used when LLM jobs are initiated                                                              |
@@ -46,6 +51,7 @@
 | `actor.llm.{job_id}.{job_id}.fail`                  | LLM job failure notifications                                                 | Used when LLM jobs fail                                                                       |
 
 ### Control Panel Monitoring Channels
+
 | Channel/Pattern                                      | Usage/Context                                                                 | Example/Notes                                                                                  |
 |------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
 | `arena.>`                                            | All arena messages (wildcard)                                                | Used by control panel for monitoring all arena activity                                       |
@@ -53,14 +59,15 @@
 | `actor.llm.{gen_id}.>`                              | All LLM messages for specific generation                                     | Used for monitoring specific LLM generation jobs                                              |
 
 ### Common Message Patterns
+
 | Channel/Pattern                                      | Usage/Context                                                                 | Example/Notes                                                                                  |
 |------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
 | `msg.reply`                                          | Used for response channels (MessageBroker.publish_response)                    | If present, used as the reply subject                                                         |
-| `completion_channel`                                 | Used for state machine completion notifications                                | Passed as parameter to state machines for completion signaling                                |
 
 ## Channel Architecture
 
 ### Primary Namespaces
+
 - **`arena.contest.{contest_id}.*`** - All contest-related messaging
 - **`actor.agent.{participant_id}.*`** - Agent-specific communication
 - **`sys.arena.*`** - Arena system model notifications
@@ -70,19 +77,23 @@
 ### Message Flow Patterns
 
 #### Request-Response Flow
+
 1. **Health Checks**: `{participant_endpoint}.request.health.{job_id}` → `actor.agent.{participant_id}.response.health.{job_id}`
 2. **Prompt Requests**: `{participant_endpoint}.{action}.{prompt_type}.{job_id}` → `actor.agent.{participant_id}.response.{prompt_type}.{job_id}`
 
 #### State Machine Flow
+
 1. **Contest Flow**: `arena.contest.{contest_id}.contestflow.{from}.{to}` for state transitions
 2. **Completion Flow**: `arena.contest.{contest_id}.{machine_type}.complete` for state machine completion
 3. **Round Flow**: `arena.contest.{contest_id}.round.{round_no}.complete` for round completion
 
 #### System Event Flow
+
 1. **Model Changes**: `sys.{component}.{model_class_name}.{action}` for CRUD operations
 2. **LLM Jobs**: `actor.llm.{job_id}.{job_id}.{state}` for LLM job lifecycle
 
 ### Wildcard Subscriptions
+
 - **`actor.agent.*.request.>`** - All agent requests (used by AgentController)
 - **`arena.contest.*.contestflow.*.*`** - All contest flow messages (used by ContestController)
 - **`arena.>`** - All arena messages (used by control panel)
@@ -90,6 +101,7 @@
 - **`actor.llm.{gen_id}.>`** - All LLM messages for specific generation
 
 ### Channel Construction
+
 - **Participant Endpoints**: Use `channel://actor.agent.$AGENT_ID$` pattern with `$AGENT_ID$` substitution
 - **Job-Specific Channels**: Append `{job_id}` to track specific request/response pairs
 - **Completion Channels**: Follow `{base_channel}.complete` pattern for state machine completion

@@ -1,411 +1,339 @@
-from unittest.mock import AsyncMock
-
+import json
 import pytest
 
-from agentarena.arena.models import Arena
-from agentarena.arena.models import Contest
-from agentarena.arena.models import ContestState
-from agentarena.arena.models import Feature
-from agentarena.arena.models import FeatureCreate
-from agentarena.arena.models import Participant
-from agentarena.arena.models import PlayerState
-from agentarena.arena.models import PlayerStateCreate
-from agentarena.arena.services.round_service import RoundService
+from agentarena.arena.models import Contest, ContestState
 from agentarena.arena.statemachines.contest_machine import ContestMachine
-from agentarena.core.factories.db_factory import get_engine
-from agentarena.core.factories.environment_factory import get_project_root
-from agentarena.core.factories.logger_factory import LoggingService
-from agentarena.core.services.db_service import DbService
-from agentarena.core.services.model_service import ModelService
-from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import RoleType
-
-
-@pytest.fixture
-def uuid_service():
-    return UUIDService(word_list=[])
-
-
-@pytest.fixture
-def message_broker():
-    """Fixture to create a mock message broker"""
-    broker = AsyncMock()
-    broker.publish_model_change = AsyncMock()
-    broker.publish_response = AsyncMock()
-    return broker
-
-
-@pytest.fixture
-def db_service(uuid_service, logging):
-    """Fixture to create an in-memory DB service"""
-    service = DbService(
-        str(get_project_root()),
-        dbfile="test.db",
-        get_engine=get_engine,
-        memory=True,
-        prod=False,
-        uuid_service=uuid_service,
-        logging=logging,
-    )
-    return service.create_db()
-
-
-@pytest.fixture
-def feature_service(db_service, uuid_service, message_broker, logging):
-    """Fixture to create a ModelService for Features"""
-    return ModelService[Feature, FeatureCreate](
-        model_class=Feature,
-        message_broker=message_broker,
-        db_service=db_service,
-        uuid_service=uuid_service,
-        logging=logging,
-    )
-
-
-@pytest.fixture
-def playerstate_service(db_service, uuid_service, message_broker, logging):
-    """Fixture to create a PlayerStateService for PlayerState"""
-    return ModelService[PlayerState, PlayerStateCreate](
-        model_class=PlayerState,
-        message_broker=message_broker,
-        db_service=db_service,
-        uuid_service=uuid_service,
-        logging=logging,
-    )
-
-
-@pytest.fixture
-def round_service(
-    db_service, uuid_service, message_broker, logging, playerstate_service
-):
-    """Fixture to create a RoundService for ContestRound"""
-    return RoundService(
-        message_broker=message_broker,
-        db_service=db_service,
-        uuid_service=uuid_service,
-        logging=logging,
-        playerstate_service=playerstate_service,
-    )
-
-
-def make_agent(agent_id="agent1", role=RoleType.PLAYER):
-    return Participant(
-        id=agent_id,
-        role=role,
-        name="Test Agent",
-        description="A test agent",
-    )
-
-
-def make_arena():
-    return Arena(
-        name="Test Arena",
-        description="A test arena",
-        height=10,
-        width=10,
-        rules="No rules",
-        max_random_features=0,
-        features=[],
-        winning_condition="",
-    )
-
-
-def make_contest():
-    c = Contest(
-        arena_id="arena1",
-        player_positions="0,0;1,1;2,2",
-    )
-    c.participants = [
-        make_agent("agent1", RoleType.PLAYER),
-        make_agent("agent2", RoleType.PLAYER),
-        make_agent("agent3", RoleType.ARENA),
-        make_agent("agent4", RoleType.ANNOUNCER),
-        make_agent("agent5", RoleType.JUDGE),
-    ]
-    return c
-
-
-@pytest.fixture
-def logging():
-    return LoggingService(True)
-
-
-@pytest.fixture
-def log(logging):
-    return logging.get_logger("test_contest_machine")
+from agentarena.arena.statemachines.conftest import add_contest_agents_to_contest
+from agentarena.arena.statemachines.conftest import make_arena
+from agentarena.arena.statemachines.conftest import make_contest
+from agentarena.arena.statemachines.conftest import make_feature
+from agentarena.models.constants import ContestRoundState
+from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import PromptType
+from agentarena.models.public import JobResponse
+from nats.aio.msg import Msg
 
 
 @pytest.mark.asyncio
 async def test_initial_state(
-    log, message_broker, uuid_service, feature_service, round_service
-):
-    contest = make_contest()
-
-    machine = ContestMachine(
-        contest.id,
-        log=log,
-        feature_service=feature_service,
-        message_broker=message_broker,
-        uuid_service=uuid_service,
-        round_service=round_service,
-    )
-
-    await machine.activate_initial_state()  # type: ignore
-    assert machine.current_state.id == ContestState.STARTING.value
-
-
-@pytest.mark.asyncio
-async def test_start_contest_transition_sends_batch(
-    log,
+    contest_service,
+    arena_service,
+    feature_service,
+    round_service,
+    judge_result_service,
+    player_action_service,
+    player_state_service,
+    view_service,
     message_broker,
     uuid_service,
-    round_service,
+    logger,
+):
+    with contest_service.get_session() as session:
+        test_arena = await make_arena(session, arena_service)
+        test_contest = await make_contest(session, contest_service, test_arena)
+        machine = ContestMachine(
+            test_contest,
+            message_broker,
+            feature_service,
+            judge_result_service,
+            player_action_service,
+            player_state_service,
+            round_service,
+            session,
+            uuid_service,
+            view_service,
+            logger,
+            auto_advance=False,
+        )
+        await machine.activate_initial_state()  # type: ignore
+        assert machine.current_state.id == ContestState.STARTING.value
+        assert len(test_contest.rounds) == 0
+        assert test_contest.state == ContestState.STARTING.value
+        assert test_contest.current_round == 0
+        assert test_contest.winner_id is None
+        assert test_contest.updated_at is not None
+        assert test_contest.created_at is not None
+        assert test_contest.updated_at >= test_contest.created_at
+
+
+@pytest.mark.asyncio
+async def test_role_call(
+    contest_service,
+    arena_service,
+    agent_service,
+    participant_service,
+    strategy_service,
     feature_service,
+    round_service,
+    judge_result_service,
+    player_action_service,
+    player_state_service,
+    view_service,
+    message_broker,
+    uuid_service,
+    logger,
 ):
-    contest = make_contest()
-    machine = ContestMachine(
-        contest.id,
-        log=log,
-        feature_service=feature_service,
-        message_broker=message_broker,
-        uuid_service=uuid_service,
-        round_service=round_service,
-    )
-    await machine.activate_initial_state()  # type: ignore
-    assert machine.current_state.id == ContestState.STARTING.value
-    await machine.start_contest("")
-    # should have send requests to participants
-    message_broker.send_batch.assert_awaited()
+    with contest_service.get_session() as session:
+        test_arena = await make_arena(session, arena_service)
+        test_contest = await make_contest(
+            session, contest_service, test_arena, state=ContestState.ROLE_CALL
+        )
+        agents = await add_contest_agents_to_contest(
+            session,
+            test_contest,
+            agent_service,
+            participant_service,
+            strategy_service,
+            uuid_service,
+        )
+        session.commit()
+        ok = JobResponse(
+            job_id=uuid_service.make_id(),
+            state=JobResponseState.COMPLETE,
+            data=json.dumps({"ok": True}),
+        )
+
+        async def ok_cb(msg: Msg):
+            called.append(msg.subject)
+            await message_broker.send_response(msg.reply, ok)
+
+        channels = [p.channel("request.health.*") for p in test_contest.participants]
+        subs = []
+        called = []
+        for channel in channels:
+            sub = await message_broker.client.subscribe(channel, cb=ok_cb)
+            subs.append(sub)
+
+        machine = ContestMachine(
+            test_contest,
+            message_broker,
+            feature_service,
+            judge_result_service,
+            player_action_service,
+            player_state_service,
+            round_service,
+            session,
+            uuid_service,
+            view_service,
+            logger,
+            auto_advance=False,
+        )
+        await machine.activate_initial_state()  # type: ignore
+        for sub in subs:
+            await sub.unsubscribe()
+            sub = None
+
+        assert machine.current_state.id == ContestState.ROLE_CALL.value
+        assert len(test_contest.rounds) == 0
+        assert len(called) == len(channels), "Expected all channels to be called"
+        assert len(channels) >= 4, "Expected at least 4 participants"
+        # check that all channels in called are unique
+        assert len(set(called)) == len(called), "Expected all channels to be called"
+        assert test_contest.state == ContestState.ROLE_CALL.value
 
 
 @pytest.mark.asyncio
-async def test_start_state(
-    log, message_broker, uuid_service, feature_service, round_service
+async def test_setup_arena(
+    contest_service,
+    arena_service,
+    agent_service,
+    participant_service,
+    strategy_service,
+    feature_service,
+    round_service,
+    judge_result_service,
+    player_action_service,
+    player_state_service,
+    view_service,
+    message_broker,
+    uuid_service,
+    logger,
 ):
-    contest = make_contest()
-    contest.state = ContestState.IN_ROUND
-    machine = ContestMachine(
-        contest.id,
-        log=log,
-        feature_service=feature_service,
-        message_broker=message_broker,
-        uuid_service=uuid_service,
-        round_service=round_service,
-    )
-    await machine.activate_initial_state()  # type: ignore
-    assert machine.current_state.id == ContestState.IN_ROUND.value
-    # should not have send requests to participants, since it skipped the role call
-    message_broker.send_batch.assert_not_awaited()
+    with contest_service.get_session() as session:
+        test_arena = await make_arena(session, arena_service)
+        test_contest = await make_contest(
+            session, contest_service, test_arena, state=ContestState.SETUP_ARENA
+        )
+        test_contest.player_positions = json.dumps(["1,1", "9,9"])
+        agents = await add_contest_agents_to_contest(
+            session,
+            test_contest,
+            agent_service,
+            participant_service,
+            strategy_service,
+            uuid_service,
+        )
+        session.commit()
+
+        machine = ContestMachine(
+            test_contest,
+            message_broker,
+            feature_service,
+            judge_result_service,
+            player_action_service,
+            player_state_service,
+            round_service,
+            session,
+            uuid_service,
+            view_service,
+            logger,
+            auto_advance=False,
+        )
+        await machine.activate_initial_state()  # type: ignore
+        assert machine.current_state.id == ContestState.SETUP_ARENA.value
+        assert len(test_contest.rounds) == 0
+        assert test_contest.state == ContestState.SETUP_ARENA.value
+        assert test_contest.current_round == 0
+        assert machine.has_setup_machine()
+        assert machine._setup_machine is not None
+        assert machine._setup_machine.current_state.id == ContestRoundState.IDLE.value
+
+        # test that if we cycle the setup machine, it advances to the next state in the setup machine
+        # which is "creating_round"
+        await machine.advance_state("test event")
+        assert machine.current_state.id == ContestState.SETUP_ARENA.value
+        assert len(test_contest.rounds) == 1
+        assert test_contest.state == ContestState.SETUP_ARENA.value
+        assert machine.has_setup_machine()
+        assert machine._setup_machine is not None
+        assert (
+            machine._setup_machine.current_state.id
+            == ContestRoundState.CREATING_ROUND.value
+        )
+        assert machine._setup_machine.contest_round is not None
+        assert machine._setup_machine.contest_round.id == test_contest.rounds[0].id
 
 
 @pytest.mark.asyncio
-async def test_roles_present_transition(
-    log, message_broker, uuid_service, round_service, feature_service
+async def test_in_round_0(
+    contest_service,
+    arena_service,
+    agent_service,
+    participant_service,
+    strategy_service,
+    feature_service,
+    round_service,
+    judge_result_service,
+    player_action_service,
+    player_state_service,
+    view_service,
+    message_broker,
+    uuid_service,
+    logger,
 ):
-    contest = make_contest()
-    contest.state = ContestState.ROLE_CALL
-    machine = ContestMachine(
-        contest.id,
-        log=log,
-        feature_service=feature_service,
-        message_broker=message_broker,
-        uuid_service=uuid_service,
-        round_service=round_service,
-    )
-    await machine.activate_initial_state()  # type: ignore
-    assert machine.current_state.id == ContestState.ROLE_CALL.value
-    await machine.roles_present("test")  # type: ignore
-    assert machine.current_state.id == ContestState.SETUP_ARENA.value
-    states = machine.get_state_dict()
-    assert "setup_state" in states
-    assert "contest_state" in states
-    assert states["contest_state"] == ContestState.SETUP_ARENA.value
+    with contest_service.get_session() as session:
+        test_arena = await make_arena(session, arena_service)
+        test_contest = await make_contest(
+            session, contest_service, test_arena, state=ContestState.IN_ROUND
+        )
+        test_contest.player_positions = json.dumps(["1,1", "9,9"])
+        test_round = await round_service.create_round(
+            test_contest.id, 0, session, state=ContestRoundState.SETUP_COMPLETE
+        )
+        test_contest.rounds.append(test_round)
+        agents = await add_contest_agents_to_contest(
+            session,
+            test_contest,
+            agent_service,
+            participant_service,
+            strategy_service,
+            uuid_service,
+        )
+        session.commit()
 
+        machine = ContestMachine(
+            test_contest,
+            message_broker,
+            feature_service,
+            judge_result_service,
+            player_action_service,
+            player_state_service,
+            round_service,
+            session,
+            uuid_service,
+            view_service,
+            logger,
+            auto_advance=False,
+        )
+        await machine.activate_initial_state()  # type: ignore
+        assert machine.current_state.id == ContestState.IN_ROUND.value
+        assert len(test_contest.rounds) == 1
+        assert test_contest.state == ContestState.IN_ROUND.value
+        assert test_contest.current_round == 0
+        assert not machine.has_setup_machine()
+        assert machine.has_round_machine()
+        assert machine._round_machine is not None
+        assert (
+            machine._round_machine.current_state.id
+            == ContestRoundState.IN_PROGRESS.value
+        )
 
-# def test_setup_done_transition(log, message_broker, uuid_service):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     machine.start_contest()
-#     machine.setup_done()
-#     assert machine.current_state.id == "ready"
+        # test that if we cycle the round machine, it advances to the next state in the round machine
+        # which is "round_prompting"
+        # we need to set up the mocks to handle this
 
+        player1_called = False
+        player2_called = False
 
-# def test_start_round_transition_creates_round_machine(
-#     log, message_broker, uuid_service
-# ):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     machine.start_contest()
-#     machine.setup_done()
-#     machine.start_round()
-#     assert machine.current_state.id == "in_round"
-#     # RoundMachine should be created
-#     assert machine._round_machine is not None
-#     assert machine.round_machine is not None
-#     assert machine.round_machine.current_state.id == "round_prompting" or hasattr(
-#         machine.round_machine, "current_state"
-#     )
+        player1_channel = agents["player1"].channel_prompt(
+            PromptType.PLAYER_PLAYER_ACTION, "request", "*"
+        )
+        player2_channel = agents["player2"].channel_prompt(
+            PromptType.PLAYER_PLAYER_ACTION, "request", "*"
+        )
 
+        async def player1_responder(msg: Msg):
+            job_id = msg.subject.split(".")[-1]
+            response = JobResponse(
+                job_id=job_id,
+                state=JobResponseState.COMPLETE,
+                data=json.dumps(
+                    {
+                        "action": "move",
+                        "target": "1,2",
+                        "narration": "I'm moving to 1,2",
+                        "memories": "I'm moving to 1,2",
+                    }
+                ),
+            )
+            await message_broker.send_response(msg.reply, response)
+            nonlocal player1_called
+            player1_called = True
 
-# def test_round_done_transition(log, message_broker, uuid_service):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     machine.start_contest()
-#     machine.setup_done()
-#     machine.start_round()
-#     machine.round_done()
-#     assert machine.current_state.id == "checking_end"
+        async def player2_responder(msg: Msg):
+            job_id = msg.subject.split(".")[-1]
+            response = JobResponse(
+                job_id=job_id,
+                state=JobResponseState.COMPLETE,
+                data=json.dumps({"action": "move", "target": "5,6"}),
+            )
+            await message_broker.send_response(msg.reply, response)
+            nonlocal player2_called
+            player2_called = True
 
+        sub1 = await message_broker.client.subscribe(
+            player1_channel, cb=player1_responder
+        )
+        sub2 = await message_broker.client.subscribe(
+            player2_channel, cb=player2_responder
+        )
 
-# def test_end_condition_met_transition(log, message_broker, uuid_service):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     machine.start_contest()
-#     machine.setup_done()
-#     machine.start_round()
-#     machine.round_done()
-#     machine.end_condition_met()
-#     assert machine.current_state.id == "completed"
-#     assert machine.current_state.final
+        await machine.advance_state("test event")
+        await sub1.unsubscribe()
+        await sub2.unsubscribe()
+        assert machine.current_state.id == ContestState.IN_ROUND.value
+        assert len(test_contest.rounds) == 1
+        assert test_contest.state == ContestState.IN_ROUND.value
+        assert test_contest.current_round == 0
+        assert not machine.has_setup_machine()
+        assert machine.has_round_machine()
+        assert machine._round_machine is not None
+        assert (
+            machine._round_machine.current_state.id
+            == ContestRoundState.ROUND_PROMPTING.value
+        )
+        assert player1_called
+        assert player2_called
+        assert len(test_round.player_actions) == 2
+        # remaining tests for round prompting in `test_roundmachine.py`
 
-
-# def test_more_rounds_remain_transition(log, message_broker, uuid_service):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     machine.start_contest()
-#     machine.setup_done()
-#     machine.start_round()
-#     machine.round_done()
-#     machine.more_rounds_remain()
-#     assert machine.current_state.id == "ready"
-
-
-# def test_full_contest_sequence(log, message_broker, uuid_service):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     assert machine.current_state.id == "idle"
-#     machine.start_contest()
-#     assert machine.current_state.id == "in_setup"
-#     machine.setup_done()
-#     assert machine.current_state.id == "ready"
-#     machine.start_round()
-#     assert machine.current_state.id == "in_round"
-#     machine.round_done()
-#     assert machine.current_state.id == "checking_end"
-#     machine.end_condition_met()
-#     assert machine.current_state.id == "completed"
-#     assert machine.current_state.final
-
-
-# def test_setup_machine_property_none_when_not_in_setup(
-#     log, message_broker, uuid_service
-# ):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     assert machine.setup_machine is None
-#     machine.start_contest()
-#     assert machine.setup_machine is not None
-#     machine.setup_done()
-#     assert machine.setup_machine is None
-
-
-# def test_round_machine_property_none_when_not_in_round(
-#     log, message_broker, uuid_service
-# ):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     assert machine.round_machine is None
-#     machine.start_contest()
-#     machine.setup_done()
-#     assert machine.round_machine is None
-#     machine.start_round()
-#     assert machine.round_machine is not None
-#     machine.round_done()
-#     assert machine.round_machine is None
-
-
-# def test_check_setup_done_and_check_round_done(log, message_broker, uuid_service):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     assert not machine.check_setup_done()
-#     assert not machine.check_round_done()
-#     machine.start_contest()
-#     # SetupMachine created, but not in describing_setup state
-#     assert not machine.check_setup_done()
-#     # Move setup_machine to describing_setup state if possible
-#     if hasattr(machine._setup_machine, "describing_setup"):
-#         # Simulate transition
-#         try:
-#             machine._setup_machine.setup_prompt_sent()
-#             machine._setup_machine.actions_received()
-#             machine._setup_machine.results_ready()
-#         except Exception:
-#             pass
-#         assert machine.check_setup_done() == (
-#             machine._setup_machine.describing_setup.is_active
-#         )
-#     machine.setup_done()
-#     machine.start_round()
-#     # RoundMachine created, but not in presenting_results state
-#     assert not machine.check_round_done()
-#     # Move round_machine to presenting_results state if possible
-#     if hasattr(machine._round_machine, "presenting_results"):
-#         try:
-#             machine._round_machine.prompt_sent()
-#             machine._round_machine.actions_received()
-#             machine._round_machine.raw_results()
-#             machine._round_machine.effects_determined()
-#             machine._round_machine.results_ready()
-#         except Exception:
-#             pass
-#         assert machine.check_round_done() == (
-#             machine._round_machine.presenting_results.is_active
-#         )
-
-
-# def test_get_state_dict(log, message_broker, uuid_service):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     state_dict = machine.get_state_dict()
-#     assert state_dict["contest_state"] == "idle"
-#     machine.start_contest()
-#     state_dict = machine.get_state_dict()
-#     assert state_dict["contest_state"] == "in_setup"
-#     assert "setup_state" in state_dict
-#     machine.setup_done()
-#     machine.start_round()
-#     state_dict = machine.get_state_dict()
-#     assert state_dict["contest_state"] == "in_round"
-#     assert "round_state" in state_dict
-
-
-# def test_on_enter_methods_are_callable(log, message_broker, uuid_service):
-#     contest = make_contest()
-#     machine = ContestMachine(
-#         contest, log=log, message_broker=message_broker, uuid_service=uuid_service
-#     )
-#     # Only test methods that are not just pass
-#     machine.on_enter_in_setup()
-#     machine.on_enter_in_round()
-#     machine.on_enter_checking_end()
-#     machine.on_enter_completed()
