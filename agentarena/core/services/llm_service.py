@@ -46,6 +46,8 @@ class LLMService:
             self.log.debug(f"Using model {model_alias} from map")
         if not model_alias:
             model_alias = DEFAULT_AGENT_MODEL
+        if model_alias.startswith("TEST:"):
+            return model_alias.split(":")[1]
         try:
             model = llm.get_model(model_alias)
             return model.prompt(prompt).text()

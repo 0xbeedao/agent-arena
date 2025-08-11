@@ -80,7 +80,13 @@ def test_parse_list_fenced_code(monkeypatch):
 
 
 def test_parse_list_invalid_json():
-    assert response_parsers.parse_list("not a list") == []
+    errored = False
+    try:
+        response_parsers.parse_list("not a list")
+    except ValueError as e:
+        assert "Failed to parse list as JSON" in str(e)
+        errored = True
+    assert errored, "Expected ValueError"
 
 
 def test_parse_list_json_decode_error(monkeypatch):
@@ -88,7 +94,13 @@ def test_parse_list_json_decode_error(monkeypatch):
     monkeypatch.setattr(
         response_parsers, "extract_obj_from_json", lambda s: "not a list"
     )
-    assert response_parsers.parse_list("not a list") == []
+    errored = False
+    try:
+        response_parsers.parse_list("not a list")
+    except ValueError as e:
+        assert "Failed to parse list as JSON" in str(e)
+        errored = True
+    assert errored, "Expected ValueError"
 
 
 # def test_extract_obj_from_json_real_example():

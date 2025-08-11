@@ -20,6 +20,7 @@ from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
+from agentarena.core.services.jinja_renderer import JinjaRenderer
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import RoleType
@@ -61,6 +62,11 @@ def db_service(uuid_service, logging):
 
 
 @pytest.fixture
+def template_service(logging):
+    return JinjaRenderer()
+
+
+@pytest.fixture
 def playerstate_service(db_service, uuid_service, message_broker, logging):
     """Fixture to create a ModelService for CommandJob"""
     return ModelService[PlayerState, PlayerStateCreate](
@@ -78,7 +84,12 @@ def round_service(
 ):
     """Fixture to create a RoundService"""
     return RoundService(
-        playerstate_service, db_service, uuid_service, message_broker, logging
+        playerstate_service,
+        db_service,
+        uuid_service,
+        message_broker,
+        "sys.arena",
+        logging,
     )
 
 
@@ -97,7 +108,13 @@ def arena_service(db_service, uuid_service, message_broker, logging):
 @pytest.fixture
 def arena_ctrl(arena_service, logging):
     return ModelController[Arena, ArenaCreate, ArenaUpdate, ArenaPublic](
-        model_public=ArenaPublic, model_service=arena_service, logging=logging
+        base_path="/api/arena",
+        model_name="arena",
+        model_create=ArenaCreate,
+        model_update=ArenaUpdate,
+        model_public=ArenaPublic,
+        model_service=arena_service,
+        logging=logging,
     )
 
 
@@ -146,6 +163,7 @@ def contest_ctrl(
     participant_service,
     round_service,
     message_broker,
+    template_service,
     logging,
 ):
     return ContestController(
@@ -154,6 +172,7 @@ def contest_ctrl(
         round_service=round_service,
         message_broker=message_broker,
         model_service=contest_service,
+        template_service=template_service,
         logging=logging,
     )
 

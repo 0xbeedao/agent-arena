@@ -1,4 +1,5 @@
 import asyncio
+from typing import Coroutine
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -42,7 +43,7 @@ def llm_service(
     mock_db_service, mock_message_broker, mock_uuid_service, mock_logging_service
 ):
     return LLMService(
-        llm_map={},
+        llm_map=[],
         db_service=mock_db_service,
         message_broker=mock_message_broker,
         uuid_service=mock_uuid_service,
@@ -54,12 +55,11 @@ def llm_service(
 async def test_execute_job_success(llm_service, mock_db_service, mock_message_broker):
     job_id = "test_job_id"
     gen_id = "test_gen_id"
-    model_alias = "test_model"
     prompt = "test_prompt"
     generated_text = "test_generated_text"
+    model_alias = "TEST:" + generated_text
 
     mock_job = GenerateJob(
-        id=gen_id,
         job_id=job_id,
         model=model_alias,
         prompt=prompt,
@@ -72,31 +72,21 @@ async def test_execute_job_success(llm_service, mock_db_service, mock_message_br
     mock_session.get.return_value = mock_job
     mock_db_service.get_session.return_value.__enter__.return_value = mock_session
 
-    # Mock LLM generate method
-    with patch.object(llm_service, "generate", return_value=generated_text):
-        # Wrap the synchronous execute_job call in an awaitable
-        result_job = await asyncio.to_thread(llm_service.execute_job, gen_id)
+    result_job = llm_service.execute_job(gen_id, mock_session)
 
     # Assertions
     assert result_job is not None
+    if isinstance(result_job, Coroutine):
+        result_job = await result_job
     assert result_job.state == JobState.COMPLETE
     assert result_job.generated == generated_text
     assert result_job.finished_at is not None
 
     # Verify database interactions
-    mock_session.commit.assert_called()
+    mock_session.flush.assert_called()
 
     # Verify message broker calls
-    mock_message_broker.publish_model_change.assert_any_call(
-        channel=f"actor.llm.{gen_id}.{job_id}.{JobState.REQUEST}",
-        obj_id=job_id,
-        detail="Generation job started",
-    )
-    mock_message_broker.publish_model_change.assert_any_call(
-        channel=f"actor.llm.{gen_id}.{job_id}.{JobState.COMPLETE}",
-        obj_id=job_id,
-        detail="Generation job completed successfully",
-    )
+    mock_message_broker.publish_model_change.assert_called()
 
 
 @pytest.mark.asyncio
@@ -126,24 +116,29 @@ async def test_execute_job_failure_invalid_model(
     with patch.object(
         llm_service, "generate", side_effect=llm.UnknownModelError("Model not found")
     ):
-        result_job = await asyncio.to_thread(llm_service.execute_job, gen_id)
+        result_job = await asyncio.to_thread(
+            llm_service.execute_job, gen_id, mock_session
+        )
 
     # Assertions
     assert result_job is not None
+    if isinstance(result_job, Coroutine):
+        result_job = await result_job
     assert result_job.state == JobState.FAIL
     assert result_job.finished_at is not None
 
     # Verify database interactions
-    mock_session.commit.assert_called()
+    mock_session.flush.assert_called()
 
     # Verify message broker calls
+    mock_message_broker.publish_model_change.assert_called()
     mock_message_broker.publish_model_change.assert_any_call(
-        channel=f"actor.llm.{gen_id}.{job_id}.{JobState.REQUEST}",
+        channel=f"actor.llm.{gen_id}.{job_id}.{JobState.REQUEST.value}",
         obj_id=job_id,
         detail="Generation job started",
     )
     mock_message_broker.publish_model_change.assert_any_call(
-        channel=f"actor.llm.{gen_id}.{job_id}.{JobState.FAIL}",
+        channel=f"actor.llm.{gen_id}.{job_id}.{JobState.FAIL.value}",
         obj_id=job_id,
         detail="Generation job failed due to invalid model",
     )

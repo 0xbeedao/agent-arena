@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -20,15 +20,18 @@ from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
 from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
+from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import ContestRoundState
+from agentarena.models.constants import ContestRoundState, JobState
 from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
+from agentarena.models.job import GenerateJob, GenerateJobCreate
 from agentarena.models.public import ArenaPublic
 from agentarena.models.public import ContestPublic
 from agentarena.models.public import ContestRoundPublic
+from agentarena.models.requests import ContestRequestPayload, ParticipantContestRequest
 
 # from agentarena.models.requests import HealthResponse
 # from agentarena.models.requests import HealthStatus
@@ -49,6 +52,17 @@ def message_broker():
 
 
 @pytest.fixture
+def llm_service(db_service, message_broker, uuid_service, logging):
+    return LLMService(
+        llm_map=[],
+        db_service=db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture
 def db_service(uuid_service, logging):
     """Fixture to create an in-memory DB service"""
     service = DbService(
@@ -65,7 +79,7 @@ def db_service(uuid_service, logging):
 
 @pytest.fixture
 def agent_service(db_service, message_broker, uuid_service, logging):
-    return ModelService[Agent, AgentPublic](
+    return ModelService[Agent, AgentCreate](
         model_class=Agent,  # type: ignore
         db_service=db_service,
         message_broker=message_broker,
@@ -75,8 +89,19 @@ def agent_service(db_service, message_broker, uuid_service, logging):
 
 
 @pytest.fixture
+def job_service(db_service, message_broker, uuid_service, logging):
+    return ModelService[GenerateJob, GenerateJobCreate](
+        model_class=GenerateJob,
+        db_service=db_service,
+        message_broker=message_broker,
+        uuid_service=uuid_service,
+        logging=logging,
+    )
+
+
+@pytest.fixture
 def strategy_service(db_service, message_broker, uuid_service, logging):
-    return ModelService[Strategy, StrategyPublic](
+    return ModelService[Strategy, StrategyCreate](
         model_class=Strategy,
         db_service=db_service,
         message_broker=message_broker,
@@ -87,7 +112,7 @@ def strategy_service(db_service, message_broker, uuid_service, logging):
 
 @pytest.fixture
 def prompt_service(db_service, message_broker, uuid_service, logging):
-    return ModelService[StrategyPrompt, StrategyPromptPublic](
+    return ModelService[StrategyPrompt, StrategyPromptCreate](
         model_class=StrategyPrompt,
         db_service=db_service,
         message_broker=message_broker,
@@ -107,12 +132,22 @@ def logging():
 
 
 @pytest.fixture
-def agent_ctrl(agent_service, message_broker, template_service, uuid_service, logging):
+def agent_ctrl(
+    agent_service,
+    message_broker,
+    template_service,
+    uuid_service,
+    llm_service,
+    job_service,
+    logging,
+):
     return AgentController(
         agent_service=agent_service,
         message_broker=message_broker,
         template_service=template_service,
         uuid_service=uuid_service,
+        llm_service=llm_service,
+        job_service=job_service,
         logging=logging,
     )
 
@@ -122,6 +157,7 @@ def strategy_ctrl(
     strategy_service,
     prompt_service,
     uuid_service,
+    message_broker,
     logging,
 ):
     return StrategyController(
@@ -134,7 +170,9 @@ def strategy_ctrl(
 
 
 @pytest.mark.asyncio
-async def test_generate_feature(agent_ctrl, strategy_ctrl, db_service):
+async def test_generate_feature(
+    agent_ctrl, strategy_ctrl, db_service, uuid_service, message_broker
+):
     arena = ArenaPublic(
         id="arena-test-1",
         name="Super Fun Test Arena",
@@ -152,12 +190,14 @@ async def test_generate_feature(agent_ctrl, strategy_ctrl, db_service):
         state=ContestRoundState.GENERATING_FEATURES,
     )
     contest = ContestPublic(
-        arena=arena, round=round, end_time=0, start_time=int(datetime.now().timestamp())
+        arena=arena,
+        rounds=[round],
+        end_time=0,
+        start_time=int(datetime.now().timestamp()),
     )
-    req = ParticipantRequest(
-        job_id="test-id-1",
+    req = ParticipantContestRequest(
         command=PromptType.ARENA_GENERATE_FEATURES,
-        data=contest.model_dump_json(),
+        data=ContestRequestPayload(contest=contest),
         message="test",
     )
 
@@ -192,6 +232,13 @@ async def test_generate_feature(agent_ctrl, strategy_ctrl, db_service):
         assert agent.participant_id == pid
         session.commit()
 
-        response = await agent_ctrl.agent_request(pid, req, session)
-        assert response
-        assert response.state == JobResponseState.PENDING
+        job_id = uuid_service.make_id()
+        await agent_ctrl.agent_request(
+            pid,
+            job_id,
+            PromptType.ARENA_GENERATE_FEATURES,
+            req,
+            "test.arena_generate_features",
+            session,
+        )
+        assert message_broker.publish_response.call_count == 1

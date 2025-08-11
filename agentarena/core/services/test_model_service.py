@@ -10,9 +10,9 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.job import CommandJob
-from agentarena.models.job import CommandJobCreate
-from agentarena.models.job import CommandJobUpdate
+from agentarena.models.constants import JobState, PromptType
+from agentarena.models.job import GenerateJob
+from agentarena.models.job import GenerateJobCreate
 
 
 @pytest.fixture
@@ -51,9 +51,9 @@ def db_service(uuid_service, logging):
 
 @pytest.fixture
 def model_service(db_service, uuid_service, message_broker, logging):
-    """Fixture to create a ModelService for CommandJob"""
-    return ModelService[CommandJob, CommandJobCreate](
-        model_class=CommandJob,
+    """Fixture to create a ModelService for GenerateJob"""
+    return ModelService[GenerateJob, GenerateJobCreate](
+        model_class=GenerateJob,
         message_broker=message_broker,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -65,21 +65,22 @@ def model_service(db_service, uuid_service, message_broker, logging):
 def sample_job_data() -> Dict:
     """Sample job data for testing"""
     return {
-        "channel": "test.channel",
-        "url": "http://example.com",
-        "method": "GET",
-        "priority": 5,
-        "send_at": int(datetime.now().timestamp()),
-        "state": "idle",
+        "job_id": "test_job_id",
+        "prompt_type": PromptType.ANNOUNCER_DESCRIBE_ARENA,
+        "generated": "test_generated",
+        "model": "test_model",
+        "prompt": "test_prompt",
+        "state": JobState.IDLE,
+        "started_at": int(datetime.now().timestamp()),
     }
 
 
 @pytest.mark.asyncio
 async def test_create_job(
-    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
+    model_service: ModelService[GenerateJob, GenerateJobCreate], sample_job_data: Dict
 ):
     """Test creating a job"""
-    job_create = CommandJobCreate(**sample_job_data)
+    job_create = GenerateJobCreate(**sample_job_data)
     with model_service.get_session() as session:
         created_job, response = await model_service.create(job_create, session)
 
@@ -87,15 +88,14 @@ async def test_create_job(
         assert response is not None
         assert response.success is True
         assert created_job.id is not None
-        assert created_job.channel == sample_job_data["channel"]
 
 
 @pytest.mark.asyncio
 async def test_get_job(
-    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
+    model_service: ModelService[GenerateJob, GenerateJobCreate], sample_job_data: Dict
 ):
     """Test getting a job by ID"""
-    job_create = CommandJobCreate(**sample_job_data)
+    job_create = GenerateJobCreate(**sample_job_data)
     with model_service.get_session() as session:
         created_job, _ = await model_service.create(job_create, session)
 
@@ -110,10 +110,10 @@ async def test_get_job(
 
 @pytest.mark.asyncio
 async def test_update_job(
-    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
+    model_service: ModelService[GenerateJob, GenerateJobCreate], sample_job_data: Dict
 ):
     """Test updating a job"""
-    job_create = CommandJobCreate(**sample_job_data)
+    job_create = GenerateJobCreate(**sample_job_data)
     with model_service.get_session() as session:
         created_job, _ = await model_service.create(job_create, session)
         assert created_job is not None
@@ -122,7 +122,7 @@ async def test_update_job(
             "state": "complete",
             "finished_at": int(datetime.now().timestamp()),
         }
-        job_update = CommandJobUpdate(**update_data)
+        job_update = GenerateJobUpdate(**update_data)
 
         updated_job, response = await model_service.update(
             created_job.id, job_update, session
@@ -136,10 +136,10 @@ async def test_update_job(
 
 @pytest.mark.asyncio
 async def test_delete_job(
-    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
+    model_service: ModelService[GenerateJob, GenerateJobCreate], sample_job_data: Dict
 ):
     """Test deleting a job"""
-    job_create = CommandJobCreate(**sample_job_data)
+    job_create = GenerateJobCreate(**sample_job_data)
     with model_service.get_session() as session:
         created_job, _ = await model_service.create(job_create, session)
 
@@ -156,7 +156,7 @@ async def test_delete_job(
 
 @pytest.mark.asyncio
 async def test_list_jobs(
-    model_service: ModelService[CommandJob, CommandJobCreate], sample_job_data: Dict
+    model_service: ModelService[GenerateJob, GenerateJobCreate], sample_job_data: Dict
 ):
     """Test listing jobs"""
     # Create 3 jobs
@@ -164,10 +164,10 @@ async def test_list_jobs(
         for i in range(3):
             data = sample_job_data.copy()
             data["channel"] = f"channel.{i}"
-            job_create = CommandJobCreate(**data)
+            job_create = GenerateJobCreate(**data)
             await model_service.create(job_create, session)
 
         jobs = await model_service.list(session)
         work = [j for j in jobs]
         assert len(work) == 3
-        assert all(isinstance(job, CommandJob) for job in work)
+        assert all(isinstance(job, GenerateJob) for job in work)

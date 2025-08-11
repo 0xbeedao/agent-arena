@@ -11,10 +11,10 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.job import CommandJob
-from agentarena.models.job import CommandJobCreate
-from agentarena.models.job import CommandJobUpdate
-from agentarena.models.public import CommandJobPublic
+from agentarena.models.constants import PromptType
+from agentarena.models.job import GenerateJob
+from agentarena.models.job import GenerateJobCreate
+from agentarena.models.public import GenerateJobPublic
 
 
 @pytest.fixture
@@ -54,8 +54,8 @@ def db_service(uuid_service, logging):
 @pytest.fixture
 def model_service(db_service, uuid_service, message_broker, logging):
     """Fixture to create a ModelService for features"""
-    return ModelService[CommandJob, CommandJobCreate](
-        model_class=CommandJob,
+    return ModelService[GenerateJob, GenerateJobCreate](
+        model_class=GenerateJob,
         message_broker=message_broker,
         db_service=db_service,
         uuid_service=uuid_service,
@@ -66,44 +66,43 @@ def model_service(db_service, uuid_service, message_broker, logging):
 @pytest.fixture
 def ctrl(model_service, logging):
     return ModelController[
-        CommandJob, CommandJobCreate, CommandJobUpdate, CommandJobPublic
-    ](model_public=CommandJobPublic, model_service=model_service, logging=logging)
+        GenerateJob, GenerateJobCreate, GenerateJobCreate, GenerateJobPublic
+    ](
+        base_path="/api/generatejob",
+        model_name="generatejob",
+        model_create=GenerateJobCreate,
+        model_update=GenerateJobCreate,
+        model_public=GenerateJobPublic,
+        model_service=model_service,
+        logging=logging,
+    )
 
 
 @pytest.mark.asyncio
 async def test_create_success(ctrl, db_service):
     with db_service.get_session() as session:
         # Arrange
-        job = CommandJobCreate(id="", channel="test", method="GET", url="/test")
+        job = GenerateJobCreate(
+            job_id="test_job_id",
+            prompt_type=PromptType.ANNOUNCER_DESCRIBE_ARENA,
+            model="test_model",
+            prompt="test_prompt",
+        )
         # Act
         result = await ctrl.create_model(job, session)
         # Assert
-        assert job.channel == result.channel
         assert result.id != ""
-
-
-@pytest.mark.asyncio
-async def test_update_success(ctrl, db_service):
-    with db_service.get_session() as session:
-        # Arrange
-        job = CommandJobCreate(
-            id="testing123", channel="test", method="GET", url="/test"
-        )
-        result = await ctrl.create_model(job, session)
-        fid = result.id
-        update = CommandJobUpdate(channel="foo")
-
-        # Act
-        updated = await ctrl.update_model(fid, update, session)
-        assert updated.id == fid
-        assert updated.method == "GET"
-        assert updated.channel == "foo"
 
 
 @pytest.mark.asyncio
 async def test_delete_success(ctrl, db_service):
     with db_service.get_session() as session:
-        job = CommandJobCreate(id="", channel="test", method="GET", url="/test")
+        job = GenerateJobCreate(
+            job_id="test_job_id",
+            prompt_type=PromptType.ANNOUNCER_DESCRIBE_ARENA,
+            model="test_model",
+            prompt="test_prompt",
+        )
         result = await ctrl.create_model(job, session)
         fid = result.id
         response = await ctrl.delete_model(fid, session)
@@ -118,12 +117,15 @@ async def test_delete_success(ctrl, db_service):
 @pytest.mark.asyncio
 async def test_get_success(ctrl, db_service):
     with db_service.get_session() as session:
-        job = CommandJobCreate(channel="test", method="GET", url="/test")
-        jid = ulid.ULID().hex
-        job.id = jid
+        job = GenerateJobCreate(
+            job_id="test_job_id",
+            prompt_type=PromptType.ANNOUNCER_DESCRIBE_ARENA,
+            model="test_model",
+            prompt="test_prompt",
+        )
         result = await ctrl.create_model(job, session)
-        retrieved = await ctrl.get_model(jid, session)
+        retrieved = await ctrl.get_model(result.id, session)
         assert result.id == retrieved.id
-        assert retrieved.url == result.url
-        assert retrieved.id == job.id
-        assert retrieved.url == "/test"
+        assert retrieved.model == job.model
+        assert retrieved.prompt == job.prompt
+        assert retrieved.prompt_type == job.prompt_type

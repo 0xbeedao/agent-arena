@@ -132,7 +132,7 @@ def parse_list(raw, log=None):
                 try:
                     work = json.loads(s)
                     continue
-                except Exception as e:
+                except json.JSONDecodeError as e:
                     fname = write_bad_payload(s)
                     if log:
                         log.error(
@@ -146,7 +146,7 @@ def parse_list(raw, log=None):
                 try:
                     work = json.loads(s)
                     continue
-                except Exception as e:
+                except json.JSONDecodeError as e:
                     fname = write_bad_payload(s)
                     if log:
                         log.error(

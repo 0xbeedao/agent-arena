@@ -12,7 +12,8 @@ from agentarena.actors.models import StrategyPrompt
 from agentarena.actors.services.template_service import InvalidTemplateException
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.models.constants import PromptType
-from agentarena.models.requests import ParticipantRequest
+from agentarena.models.public import ArenaPublic, ContestPublic
+from agentarena.models.requests import ContestRequestPayload, ParticipantContestRequest
 
 
 @pytest.fixture
@@ -40,12 +41,27 @@ def mock_session():
 @pytest.mark.asyncio
 async def test_expand_prompt_raw(template_service, mock_session):
     """Test expanding a raw prompt (non-Jinja)"""
-    agent = Agent(id="agent1", strategy_id="strategy1", participant_id="participant1")
-    req = ParticipantRequest(
-        job_id="job1",
+    arena = ArenaPublic(
+        id="arena1",
+        name="Super Fun Test Arena",
+        description="An entertaining proving ground",
+        height=20,
+        width=20,
+        rules="Capture the flag, no pvp, max two squares movement per turn if running, else one with other actions, such as moving and searching",
+        winning_condition="",
+    )
+    contest = ContestPublic(
+        id="contest1",
+        arena=arena,
+        rounds=[],
+        end_time=0,
+        start_time=0,
+    )
+    req = ParticipantContestRequest(
         command=PromptType.PLAYER_PLAYER_ACTION,
-        data="{}",
-        message="test",
+        data=ContestRequestPayload(
+            contest=contest,
+        ),
     )
 
     # Mock get_prompt to return a raw prompt
@@ -57,7 +73,11 @@ async def test_expand_prompt_raw(template_service, mock_session):
         )
     )
 
-    result = await template_service.expand_prompt(agent, req, mock_session)
+    agent = Agent(id="agent1", strategy_id="strategy1", participant_id="participant1")
+
+    result = await template_service.expand_prompt(
+        agent, "test-job-id", req, mock_session
+    )
     assert result == "Hello World"
 
 
