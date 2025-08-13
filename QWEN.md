@@ -19,3 +19,7 @@ To deactivate the virtual environment when you're done working, simply run:
 ```bash
 deactivate
 ```
+
+## Important Note for Code Navigation
+
+Do not search the `.history` directory, as it contains a full backup of every change and can significantly slow down searches.
