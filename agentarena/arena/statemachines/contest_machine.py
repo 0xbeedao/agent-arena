@@ -2,8 +2,6 @@
 The Contest State Machine
 """
 
-import asyncio
-from codecs import decode
 from datetime import datetime
 from typing import Any
 from typing import Dict

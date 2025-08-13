@@ -12,8 +12,10 @@ from agentarena.actors.models import StrategyPrompt
 from agentarena.actors.services.template_service import InvalidTemplateException
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.models.constants import PromptType
-from agentarena.models.public import ArenaPublic, ContestPublic
-from agentarena.models.requests import ContestRequestPayload, ParticipantContestRequest
+from agentarena.models.public import ArenaPublic
+from agentarena.models.public import ContestPublic
+from agentarena.models.requests import ContestRequestPayload
+from agentarena.models.requests import ParticipantContestRequest
 
 
 @pytest.fixture

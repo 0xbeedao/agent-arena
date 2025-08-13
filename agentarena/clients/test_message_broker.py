@@ -1,5 +1,7 @@
+from codecs import encode
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import Any
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -11,7 +13,6 @@ from agentarena.core.services.uuid_service import UUIDService
 from agentarena.models.constants import JobResponseState
 from agentarena.models.public import JobResponse
 from agentarena.models.public import ModelChangeMessage
-from codecs import encode
 
 
 @pytest.fixture

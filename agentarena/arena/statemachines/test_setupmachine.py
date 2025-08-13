@@ -6,6 +6,11 @@ import pytest
 from nats.aio.msg import Msg
 
 from agentarena.arena.models import Contest
+from agentarena.arena.statemachines.conftest import ONE_FEATURE
+from agentarena.arena.statemachines.conftest import make_agent_set
+from agentarena.arena.statemachines.conftest import make_arena
+from agentarena.arena.statemachines.conftest import make_contest
+from agentarena.arena.statemachines.conftest import make_feature
 from agentarena.arena.statemachines.setup_machine import SetupMachine
 from agentarena.clients.message_broker import MessageBroker
 from agentarena.models.constants import ContestRoundState
@@ -13,12 +18,6 @@ from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 from agentarena.models.public import JobResponse
-
-from agentarena.arena.statemachines.conftest import ONE_FEATURE
-from agentarena.arena.statemachines.conftest import make_agent_set
-from agentarena.arena.statemachines.conftest import make_arena
-from agentarena.arena.statemachines.conftest import make_contest
-from agentarena.arena.statemachines.conftest import make_feature
 
 
 @pytest.mark.asyncio

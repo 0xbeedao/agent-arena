@@ -10,7 +10,8 @@ from agentarena.core.factories.logger_factory import LoggingService
 from agentarena.core.services.db_service import DbService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import JobState, PromptType
+from agentarena.models.constants import JobState
+from agentarena.models.constants import PromptType
 from agentarena.models.job import GenerateJob
 from agentarena.models.job import GenerateJobCreate
 

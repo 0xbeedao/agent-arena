@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -9,12 +9,10 @@ from agentarena.actors.controllers.agent_controller import AgentController
 from agentarena.actors.controllers.strategy_controller import StrategyController
 from agentarena.actors.models import Agent
 from agentarena.actors.models import AgentCreate
-from agentarena.actors.models import AgentPublic
 from agentarena.actors.models import Strategy
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
 from agentarena.actors.models import StrategyPromptCreate
-from agentarena.actors.models import StrategyPublic
 from agentarena.actors.services.template_service import TemplateService
 from agentarena.core.factories.db_factory import get_engine
 from agentarena.core.factories.environment_factory import get_project_root
@@ -23,15 +21,16 @@ from agentarena.core.services.db_service import DbService
 from agentarena.core.services.llm_service import LLMService
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import ContestRoundState, JobState
-from agentarena.models.constants import JobResponseState
+from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
-from agentarena.models.job import GenerateJob, GenerateJobCreate
+from agentarena.models.job import GenerateJob
+from agentarena.models.job import GenerateJobCreate
 from agentarena.models.public import ArenaPublic
 from agentarena.models.public import ContestPublic
 from agentarena.models.public import ContestRoundPublic
-from agentarena.models.requests import ContestRequestPayload, ParticipantContestRequest
+from agentarena.models.requests import ContestRequestPayload
+from agentarena.models.requests import ParticipantContestRequest
 
 # from agentarena.models.requests import HealthResponse
 # from agentarena.models.requests import HealthStatus

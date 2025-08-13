@@ -6,7 +6,8 @@ from sqlmodel import Session
 from agentarena.actors.models import AgentCreate
 from agentarena.actors.models import StrategyCreate
 from agentarena.actors.models import StrategyPrompt
-from agentarena.arena.models import ArenaCreate, Contest
+from agentarena.arena.models import ArenaCreate
+from agentarena.arena.models import Contest
 from agentarena.arena.models import ContestCreate
 from agentarena.arena.models import Feature
 from agentarena.arena.models import FeatureCreate
@@ -14,7 +15,8 @@ from agentarena.arena.models import FeatureOriginType
 from agentarena.arena.models import ParticipantCreate
 from agentarena.core.services.model_service import ModelService
 from agentarena.core.services.uuid_service import UUIDService
-from agentarena.models.constants import ContestState, PromptType
+from agentarena.models.constants import ContestState
+from agentarena.models.constants import PromptType
 from agentarena.models.constants import RoleType
 
 ONE_FEATURE = json.dumps(

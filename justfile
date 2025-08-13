@@ -48,6 +48,16 @@ lint:
     isort --sl --gitignore agentarena
     black agentarena notebooks
 
+model-backup:
+    sqlite3 actor.db ".dump llmmodel" > etc/llmmodel.sql
+    sqlite3 actor.db ".dump llmmodelprice" > etc/llmmodelprice.sql
+    sqlite3 actor.db ".dump llmmodelstats" > etc/llmmodelstats.sql
+
+model-restore:
+    sqlite3 actor.db < etc/llmmodel.sql
+    sqlite3 actor.db < etc/llmmodelprice.sql
+    sqlite3 actor.db < etc/llmmodelstats.sql
+
 clean:
     rm *.db
 

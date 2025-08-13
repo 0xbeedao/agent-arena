@@ -221,6 +221,9 @@ class ContestBase(SQLModel, table=False):
     """
 
     arena_id: str = Field(description="Reference to ArenaDTO", foreign_key="arena.id")
+    auto_advance: bool = Field(
+        default=False, description="Should the contest auto-advance"
+    )
     current_round: int = Field(default=0, description="Current round")
     player_inventories: str = Field(
         default="[]",

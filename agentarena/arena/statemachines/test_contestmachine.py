@@ -1,17 +1,17 @@
 import json
-import pytest
 
-from agentarena.arena.models import Contest, ContestState
-from agentarena.arena.statemachines.contest_machine import ContestMachine
+import pytest
+from nats.aio.msg import Msg
+
+from agentarena.arena.models import ContestState
 from agentarena.arena.statemachines.conftest import add_contest_agents_to_contest
 from agentarena.arena.statemachines.conftest import make_arena
 from agentarena.arena.statemachines.conftest import make_contest
-from agentarena.arena.statemachines.conftest import make_feature
+from agentarena.arena.statemachines.contest_machine import ContestMachine
 from agentarena.models.constants import ContestRoundState
 from agentarena.models.constants import JobResponseState
 from agentarena.models.constants import PromptType
 from agentarena.models.public import JobResponse
-from nats.aio.msg import Msg
 
 
 @pytest.mark.asyncio
@@ -336,4 +336,3 @@ async def test_in_round_0(
         assert player2_called
         assert len(test_round.player_actions) == 2
         # remaining tests for round prompting in `test_roundmachine.py`
-
