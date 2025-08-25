@@ -326,3 +326,7 @@ Side goals:
 ## 2025-08-10
 
 Getting back to it - where I left off I had just finished writing tests for contestmachine and roundmachine.  These were quite tricky to get right, but immediately found a major error, where I was requesting "no json", but expecting JSON, which threw the "describe_arena" state into failure.
+
+## 2025-08-22
+
+It should run now, I think.

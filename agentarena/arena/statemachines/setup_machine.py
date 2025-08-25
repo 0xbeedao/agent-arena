@@ -88,7 +88,6 @@ class SetupMachine(StateMachine):
         self.round_service = round_service
         self.view_service = view_service
         self.session = session
-        self.pending_channel = f"arena.contest.{contest.id}.setupmachine.pending"
         self.log = log.bind(contest_id=contest.id)
         self.auto_advance = auto_advance
         super().__init__(
@@ -112,7 +111,8 @@ class SetupMachine(StateMachine):
                 state=self.current_state_value,
             )
             state = self.current_state_value or "ERROR - NO STATE"
-            await self.message_broker.send_message(self.pending_channel, state)
+            await self.message_broker.send_message(
+                f"arena.contest.{self.contest.id}.setupmachine.{self.current_state_value.lower()}.pause", event)
 
     async def on_enter_creating_round(self):
         """Called when entering the CreatingRound state."""
@@ -212,7 +212,9 @@ class SetupMachine(StateMachine):
             return
         await self.cycle_or_pause("from describing setup")  # type: ignore
 
-    async def on_enter_state(self, target, event):
+    def on_enter_state(self, target, event):
+        log = self.log.bind(state=target.id)
+        log.debug("entering state", event=event)
         if self.contest_round:
             # update the round state
             self.contest_round.state = target.id
@@ -220,9 +222,9 @@ class SetupMachine(StateMachine):
             self.session.commit()
 
         if target.final:
-            self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
+            log.debug(f"{self.name} enter final state: {target.id} from {event}")
         else:
-            self.log.debug(f"{self.name} enter: {target.id} from {event}")
+            log.debug(f"{self.name} enter: {target.id} from {event}")
 
     # message handlers
 

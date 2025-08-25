@@ -1,5 +1,6 @@
 # History
 .history/**/*
+.crush/**/*
 
 # Logs
 *.log

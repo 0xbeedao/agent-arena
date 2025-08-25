@@ -43,7 +43,7 @@ class ContestState(str, Enum):
     SETUP_ARENA = "setup_arena"
     CREATE_ROUND = "create_round"
     IN_ROUND = "in_round"
-    CHECK_WIN = "check_win"
+    CHECK_END = "check_end"
 
     # Final states
     FAIL = "fail"

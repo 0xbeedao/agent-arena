@@ -27,9 +27,6 @@ arena:
     just roll-log arena.log logs
     PYTHONPATH=. python scripts/agentarena.arena
 
-scheduler:
-    just roll-log scheduler.log logs
-    PYTHONPATH=. python scripts/agentarena.scheduler
 
 checkvenv:
     echo "If this fails, activate venv: $VIRTUAL_ENV"
@@ -49,17 +46,17 @@ lint:
     black agentarena notebooks
 
 model-backup:
-    sqlite3 actor.db ".dump llmmodel" > etc/llmmodel.sql
-    sqlite3 actor.db ".dump llmmodelprice" > etc/llmmodelprice.sql
-    sqlite3 actor.db ".dump llmmodelstats" > etc/llmmodelstats.sql
+    sqlite3 actor.db ".dump llmmodel" > etc/reset.sql
+    sqlite3 actor.db ".dump llmmodelprice" >> etc/reset.sql
+    sqlite3 actor.db ".dump llmmodelstats" >> etc/reset.sql
 
 model-restore:
-    sqlite3 actor.db < etc/llmmodel.sql
-    sqlite3 actor.db < etc/llmmodelprice.sql
-    sqlite3 actor.db < etc/llmmodelstats.sql
+    sqlite3 actor.db < etc/reset.sql
 
 clean:
     rm *.db
+    touch actor.db
+    sqlite3 actor.db < etc/reset.sql
 
 nats:
     nats-server -l logs/nats.log &

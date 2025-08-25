@@ -61,7 +61,8 @@ class ContestMachine(StateMachine):
     cycle = (
         starting.to(role_call)
         | role_call.to(setup_arena)
-        | setup_arena.to(in_round, unless="current_round_failed")
+        | setup_arena.to(create_round, unless="current_round_failed", cond="no_opening_round")
+        | setup_arena.to(in_round, unless="current_round_failed", cond="has_opening_round")
         | setup_arena.to(fail, cond="current_round_failed")
         | create_round.to(in_round)
         | in_round.to(check_end, unless="current_round_failed")
@@ -109,14 +110,9 @@ class ContestMachine(StateMachine):
         self.contest = contest
         self.auto_advance = auto_advance
 
-        state = contest.state or ContestState.STARTING.value
-        if contest.rounds:
-            round = contest.rounds[-1]
-            if round.state == ContestRoundState.SETUP_COMPLETE.value:
-                state = ContestState.IN_ROUND.value
-            elif round.state == ContestRoundState.SETUP_FAIL.value:
-                # TODO: Maybe restart the setup machine?
-                state = ContestState.FAIL.value
+        state = contest.state.value or ContestState.STARTING.value
+        if state == ContestState.CREATED.value:
+            state = ContestState.STARTING.value
         self.log = log.bind(contest=contest.id, state=state)
         StateMachine.__init__(self, start_value=state)
         self.log.info("contest machine initialized")
@@ -144,7 +140,23 @@ class ContestMachine(StateMachine):
                 ContestRoundState.ROUND_FAIL.value,
             ]
 
+        if self.contest.state == ContestState.FAIL.value:
+            return True
+
         return False
+
+    def has_opening_round(self) -> bool:
+        """
+        Check if the contest has an opening round.
+        """
+        return len(self.contest.rounds) > 0
+
+    def no_opening_round(self) -> bool:
+        """
+        Check if the contest has no opening round.
+        """
+        return len(self.contest.rounds) == 0
+
 
     def has_round_machine(self) -> bool:
         """
@@ -172,18 +184,20 @@ class ContestMachine(StateMachine):
                 "Pausing state machine",
                 state=self.current_state_value,
             )
+            await self.message_broker.send_message(
+                f"arena.contest.{self.contest.id}.contestmachine.{self.current_state_value.lower()}.pause", event)
 
     async def advance_state(self, event: str):
         log = self.log.bind(event=event)
         if (
             self._round_machine is not None
-            and not self._round_machine.current_state.final
+            and not self._round_machine.current_state in [ContestRoundState.COMPLETE.value, ContestRoundState.FAIL.value]
         ):
             log.debug("cycling round machine")
             await self._round_machine.cycle(event)
         elif (
             self._setup_machine is not None
-            and not self._setup_machine.current_state.final
+            and not self._setup_machine.current_state in [ContestRoundState.SETUP_COMPLETE.value, ContestRoundState.SETUP_FAIL.value]
         ):
             log.debug("cycling setup machine")
             await self._setup_machine.cycle(event)  # type: ignore
@@ -192,7 +206,7 @@ class ContestMachine(StateMachine):
             await self.cycle(event)
 
     async def on_enter_role_call(self):
-        """Called when entering the InSetup state."""
+        """Called when entering the role call state."""
         self.log.info("starting role call")
         healthy = True
         missing = []
@@ -234,27 +248,37 @@ class ContestMachine(StateMachine):
         setup_machine = self._setup_machine
 
         await setup_machine.activate_initial_state()  # type: ignore
-        await self.cycle_or_pause("setup arena")  # type: ignore
+        if setup_machine.current_state in [ContestRoundState.SETUP_COMPLETE.value, ContestRoundState.SETUP_FAIL.value]:
+            await self.cycle_or_pause("setup complete")  # type: ignore
 
     async def on_enter_create_round(self):
         """Called when entering the CreateRound state, which happens for all rounds after the first."""
         self.log.info("Entering CreateRound state")
-        rc = ContestRoundCreate(
-            contest_id=self.contest.id,
-            round_no=len(self.contest.rounds),
-            narrative=self.contest.rounds[-1].ending_narrative or "",
-            ending_narrative=None,
-            state=ContestRoundState.IDLE,
-        )
-        created, result = await self.round_service.create(rc, self.session)
-        if not created or not result.success:
-            self.log.error("Failed to create round", error=result)
-            await self.step_failed("round creation failed")  # type: ignore
-            return
-        self.log.info("Round created", round=created.id)
-        self.contest.current_round = len(self.contest.rounds) - 1
-        self.contest.rounds.append(created)
-        self.session.commit()
+        narrative = ""
+        needs_round = True
+        if self.contest.rounds:
+            narrative = self.contest.rounds[-1].ending_narrative or ""
+            current_round = self.contest.rounds[-1]
+            if current_round.state == ContestRoundState.IDLE.value:
+                self.log.info("Not creating new, round, current is IDLE")
+                needs_round = False
+        if needs_round:
+            rc = ContestRoundCreate(
+                contest_id=self.contest.id,
+                round_no=len(self.contest.rounds),
+                narrative=narrative,
+                ending_narrative=None,
+                state=ContestRoundState.IDLE,
+            )
+            created, result = await self.round_service.create(rc, self.session)
+            if not created or not result.success:
+                self.log.error("Failed to create round", error=result)
+                await self.step_failed("round creation failed")  # type: ignore
+                return
+            self.log.info("Round created", round=created.id)
+            self.contest.current_round = len(self.contest.rounds) - 1
+            self.contest.rounds.append(created)
+            self.session.commit()
         await self.cycle_or_pause("round created")  # type: ignore
 
     async def on_enter_in_round(self):
@@ -267,11 +291,13 @@ class ContestMachine(StateMachine):
             self._setup_machine = None
             self.log.info("Setup machine destroyed")
 
-        round = self.contest.rounds[-1]
-        round.state = ContestRoundState.IN_PROGRESS
-        self.session.commit()
+        current_round = self.contest.rounds[-1]
+        if current_round.state == ContestRoundState.IDLE.value:
+            self.log.info("Starting round", round=current_round.id)
+            current_round.state = ContestRoundState.ROUND_PROMPTING
+            self.session.commit()
         self._round_machine = RoundMachine(
-            round,
+            current_round,
             feature_service=self.feature_service,
             judge_result_service=self.judge_result_service,
             message_broker=self.message_broker,
@@ -283,7 +309,8 @@ class ContestMachine(StateMachine):
             auto_advance=self.auto_advance,
         )
         await self._round_machine.activate_initial_state()  # type: ignore
-        await self.cycle_or_pause("round created")  # type: ignore
+        if self._round_machine.current_state in [ContestRoundState.COMPLETE.value, ContestRoundState.FAIL.value]:
+            await self.cycle_or_pause("round complete")  # type: ignore
 
     async def on_enter_check_end(self):
         """Called when entering the CheckEnd state."""
@@ -301,7 +328,7 @@ class ContestMachine(StateMachine):
                 self.contest.updated_at = int(datetime.now().timestamp())
                 self.session.commit()
                 has_winner = True
-        else:
+        if not has_winner:
             self.log.info("No player has won, continuing to next round")
         await self.cycle_or_pause("winner found" if has_winner else "no winner found")  # type: ignore
 
@@ -334,12 +361,14 @@ class ContestMachine(StateMachine):
     #     )
 
     async def on_enter_state(self, target, event):
+        log = self.log.bind(state=target.id)
+        log.debug("entering state", evt=event)
         self.contest.state = target.id
         self.contest.updated_at = int(datetime.now().timestamp())
         self.session.commit()
 
         if target.final:
-            self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
+            log.debug(f"{self.name} enter final state: {target.id} from {event}")
             await self.subscriber.unsubscribe_all(self.log)
         else:
-            self.log.debug(f"{self.name} enter: {target.id} from {event}")
+            log.debug(f"{self.name} enter: {target.id} from {event}")

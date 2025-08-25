@@ -275,6 +275,11 @@ class ContestController(
         parts = msg.subject.split(".")
         contest_id = parts[2]
         state = parts[4]
+        job_id = parts[5]
+        if job_id == "pause":
+            # we don't need to do anything here, just return
+            return
+        
         lock = msg.subject
 
         log = self.log.bind(
@@ -296,30 +301,30 @@ class ContestController(
                 log.debug("Failed to acquire job lock", error=str(e))
                 return
 
+        
+            log = log.bind(state=state)
             log.info("Handling contest flow message", msg=msg)
-            try:
-                if state == ContestState.STARTING.value:
-                    log.info("Contest starting flow message received")
-                    contest, response = await self.model_service.get(
-                        contest_id, session
-                    )
-                    if not response.success:
-                        log.error("Failed to get contest", error=response.validation)
+            if state != ContestState.FAIL.value:
+                log.info("Contest advance flow message received")
+                contest, response = await self.model_service.get(
+                    contest_id, session
+                )
+                if not response.success:
+                    log.error("Failed to get contest", error=response.validation)
 
-                    if not contest:
-                        log.error("Contest not found")
+                if not contest:
+                    log.error("Contest not found")
 
-                    if not contest or not response.success:
-                        return
+                if not contest or not response.success:
+                    return
 
-                    # Create and run the contest machine in the current event loop
-                    try:
-                        await self.run_contest_machine(contest_id, log)
-                    except Exception as e:
-                        log.error("Failed to run contest machine", error=str(e))
+                # Create and run the contest machine in the current event loop
+                await self.run_contest_machine(contest_id, log)
 
-            except Exception as e:
-                log.error("Failed to handle contest flow message", error=str(e))
+            else:
+                log.info("Contest is in fail state, ignoring")
+                return
+
 
     async def prompt_announcer_describe_arena(
         self, contest_id: str, session: Session
@@ -457,34 +462,42 @@ class ContestController(
 
     async def run_contest_machine(self, contest_id: str, log: ILogger):
         """Run the contest machine in the current event loop context"""
-        machine = ContestMachine(
-            contest_id=contest_id,
-            message_broker=self.message_broker,
-            feature_service=self.feature_service,
-            playeraction_service=self.playeraction_service,
-            player_state_service=self.player_state_service,
-            round_service=self.round_service,
-            uuid_service=self.model_service.uuid_service,
-            view_service=self.view_service,
-            log=log,
-            judge_result_service=self.judge_result_service,
-        )
-        await machine.activate_initial_state()  # type: ignore
-        log = log.bind(state=machine.current_state.id)
-        if machine.current_state.initial:
-            log.info("Machine is in initial state, starting contest")
-            await machine.cycle("start_contest")
-        else:
-            log.info("Machine already started, not restarting")
+        with self.model_service.get_session() as session:
+            contest, response = await self.model_service.get(contest_id, session)
+            if not contest or not response.success:
+                log.error("Failed to get contest", error=response.validation)
+                return
 
-        log.info(
-            "started contest machine",
-            contest_id=contest_id,
-            state=machine.current_state.id,
-        )
+            machine = ContestMachine(
+                contest=contest,
+                message_broker=self.message_broker,
+                feature_service=self.feature_service,
+                judge_result_service=self.judge_result_service,
+                playeraction_service=self.playeraction_service,
+                player_state_service=self.player_state_service,
+                round_service=self.round_service,
+                session=session,
+                uuid_service=self.model_service.uuid_service,
+                view_service=self.view_service,
+                log=log,
+                auto_advance=contest.auto_advance,
+            )
+            await machine.activate_initial_state()  # type: ignore
+            log = log.bind(state=machine.current_state.id)
+            if machine.current_state in [ContestState.COMPLETE.value, ContestState.FAIL.value]:
+                log.info("Machine already in final state, not advancing")
+            else:
+                log.info("Machine is not in final state, advancing")
+                await machine.advance_state("controller")
+
+            log.info(
+                "advanced contest machine",
+                contest_id=contest_id,
+                state=machine.current_state.id,
+            )
 
     # @router.post("/contest/{contest_id}/start", response_model=Dict[str, str])
-    async def start_contest(self, contest_id: str, session: Session) -> ContestPublic:
+    async def advance_contest(self, contest_id: str, session: Session) -> ContestPublic:
         """
         Start a contest, and returns the ID of the started contest, with everything set up for first round.
 
@@ -496,7 +509,7 @@ class ContestController(
             A dictionary with the ID of the started contest
         """
         boundlog = self.log.bind(contest_id=contest_id)
-        boundlog.info("starting contest")
+        boundlog.info("advancing contest")
         contest, response = await self.model_service.get(contest_id, session)
         if not response.success:
             boundlog.error("failed to get contest")
@@ -525,15 +538,15 @@ class ContestController(
 
         # sanity check done, let's start
 
-        # Set contest state to STARTING
-        # and update start time
+        # If Contest is CREATED update start time
         if contest.state == ContestState.STARTING:
             contest.start_time = int(datetime.now().timestamp())
-        await self.model_service.update(contest_id, contest, session)
+            await self.model_service.update(contest_id, contest, session)
+
+        # Now, continue the contest machine
         job_id = self.model_service.uuid_service.make_id()
         await self.message_broker.send_message(
-            # should be STARTING, so that the machine starts
-            f"arena.contest.{contest_id}.contestflow.{ContestState.STARTING.value}.{job_id}",
+            f"arena.contest.{contest_id}.contestflow.{contest.state.value}.{job_id}",
             contest_id,
         )
 
@@ -612,10 +625,10 @@ class ContestController(
             with self.model_service.get_session() as session:
                 return await self.clone_contest(contest_id, session)
 
-        @router.post("/{contest_id}/start", response_model=ContestPublic)
-        async def start(contest_id: str):
+        @router.post("/{contest_id}/advance", response_model=ContestPublic)
+        async def advance(contest_id: str):
             with self.model_service.get_session() as session:
-                return await self.start_contest(contest_id, session)
+                return await self.advance_contest(contest_id, session)
 
         @router.get("/{obj_id}.{format}", response_model=str)
         async def get_md(obj_id: str, format: str = "md"):

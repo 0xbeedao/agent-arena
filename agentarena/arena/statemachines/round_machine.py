@@ -102,10 +102,12 @@ class RoundMachine(StateMachine):
         if self.auto_advance:
             await self.cycle(event)
         else:
-            self.log.info(
+            self.log.debug(
                 "Pausing state machine",
                 state=self.current_state_value,
             )
+            await self.message_broker.send_message(
+                f"arena.contest.{self.contest_round.contest.id}.roundmachine.{self.current_state_value.lower()}.pause", event)
 
     async def on_enter_in_progress(self):
         """Called when entering the InProgress state."""
@@ -467,13 +469,15 @@ class RoundMachine(StateMachine):
             log.error("Failed to handle describing results message", error=e)
             return False, "error in describing results message"
 
-    async def on_enter_state(self, target, event):
+    def on_enter_state(self, target, event):
         # update the round state
+        log = self.log.bind(state=target.id)
+        log.debug("entering state", event=event)
         self.contest_round.state = target.id
         self.contest_round.updated_at = int(datetime.now().timestamp())
         self.session.commit()
 
         if target.final:
-            self.log.debug(f"{self.name} enter final state: {target.id} from {event}")
+            log.debug(f"{self.name} enter final state: {target.id} from {event}")
         else:
-            self.log.debug(f"{self.name} enter: {target.id} from {event}")
+            log.debug(f"{self.name} enter: {target.id} from {event}")

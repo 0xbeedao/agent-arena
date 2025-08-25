@@ -353,6 +353,19 @@ BASE_COMMANDS = {
                     },
                 },
             },
+            "advance": {
+                "description": "advance a contest",
+                "commands": {
+                    "latest": {
+                        "description": "Advance the latest contest",
+                        "commands": {},
+                    },
+                    "$contest_ids": {
+                        "description": "Contest IDs",
+                        "commands": {},
+                    },
+                },
+            },
         },
     },
     "listen": {
@@ -606,6 +619,20 @@ class ArenaCommander:
             elif job_state == "fail":
                 print_title(f"Generation job {job_id} failed", error=True)
                 await self.unsubscribe(f"actor.llm.{id}.>")
+        elif parts[1] == "contest" and parts[-1] == "pause":
+            # arena.contest.{self.contest.id}.contestmachine.{self.current_state_value.lower()}.pause
+            contest_id = parts[2]
+            machine = parts[3]
+            state = parts[4]
+            print_title(f"Contest {contest_id} paused in {state} by {machine}", info=True)
+            r = await self.arena_client.get(f"/api/contest/{contest_id}")
+            r.raise_for_status()
+            self.loaded["contest"] = r.json()
+            print_title(f"Contest {contest_id} loaded", info=True)
+            if (machine == "contestmachine"):
+                await self.unsubscribe(f"arena.contest.{contest_id}.>")
+                body = await self.arena_client.get(f"/api/contest/{contest_id}.md")
+                print(render_markdown(body.content.decode("utf-8")))
         else:
             print_title(f"Message: {msg.subject}", info=True)
 
@@ -888,8 +915,8 @@ class ArenaCommander:
             return True
         elif cmd == "load":
             contest_id = await self.cmd_contest_load(args)
-        elif cmd == "start":
-            contest_id = await self.cmd_contest_start(args)
+        elif cmd == "advance" or cmd == "start":
+            contest_id = await self.cmd_contest_advance(args)
         elif cmd == "clone":
             contest_id = await self.cmd_contest_clone(args)
         elif cmd == "participants":
@@ -1026,12 +1053,13 @@ class ArenaCommander:
         print(json.dumps(data, indent=2))
         return True
 
-    async def cmd_contest_start(self, args: list[str]):
+    async def cmd_contest_advance(self, args: list[str]):
         contest_id = self.safe_get_id(args, "contest", "contests")
         if not contest_id:
             return True
 
-        r = await self.arena_client.post(f"/api/contest/{contest_id}/start", {})
+        await self.subscribe(f"arena.contest.{contest_id}.>")
+        r = await self.arena_client.post(f"/api/contest/{contest_id}/advance", {})
         r.raise_for_status()
         return contest_id
 

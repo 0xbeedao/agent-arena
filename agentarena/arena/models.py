@@ -274,6 +274,7 @@ class Contest(ContestBase, DbBase, table=True):
         return ContestPublic(
             id=self.id,
             arena=self.arena.get_public(),
+            auto_advance=self.auto_advance,
             participants=[p.get_public() for p in self.participants],
             rounds=[r.get_public() for r in self.rounds],
             start_time=self.start_time or 0,

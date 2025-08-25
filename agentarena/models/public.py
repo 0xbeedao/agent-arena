@@ -40,7 +40,8 @@ class ArenaPublic(BaseModel):
 
 class ContestPublic(BaseModel):
     id: str = Field(default="", description="ID")
-    arena: ArenaPublic = Field()
+    arena: ArenaPublic = Field(description="Arena")
+    auto_advance: bool = Field(description="Auto-advance")
     end_time: int = Field(description="Timestamp")
     participants: List["ParticipantPublic"] = Field(default=[])
     rounds: List["ContestRoundPublic"] = Field()
@@ -49,7 +50,7 @@ class ContestPublic(BaseModel):
         default=ContestState.CREATED, description="Contest state"
     )
     winner_id: Optional[str] = Field(default=None, description="ID of winning player")
-
+1
 
 class ContestRoundPublic(BaseModel):
     features: List["FeaturePublic"] = Field(default=[], description="Feature list")

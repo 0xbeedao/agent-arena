@@ -5,7 +5,8 @@
 
 "{{ contest.arena.description }}"
 
-- State: *{{ contest.state.value }}* 
+- State: *{{ contest.state.value }}*
+- Auto-advance: {{ contest.auto_advance }}
 {%- if contest.start_time %}
 - Started: {{ contest.start_time | datetimeformat }}
 - Ended: {{ contest.end_time | datetimeformat }}
