@@ -98,20 +98,34 @@ class RoundMachine(StateMachine):
         self.auto_advance = auto_advance
         super().__init__(start_value=contest_round.state.value)
 
-    async def cycle_or_pause(self, event: str):
+    async def cycle_or_pause(self, label: str, target_state: str = ""):
+        """
+        Cycle the round machine, either advancing to the next state or pausing.
+
+        On a pause, the machine will update the round state to the target
+        state, if needed, and send a message that the round machine is paused.
+        """
         if self.auto_advance:
-            await self.cycle(event)
+            await self.cycle(label)
         else:
+            current_state = self.current_state_value or "ERROR - NO STATE"
+            if target_state and target_state != current_state:
+                self.log.info("Updating round state", target_state=target_state)
+                self.contest_round.state = target_state
+                self.contest_round.updated_at = int(datetime.now().timestamp())
+                self.session.commit()
             self.log.debug(
                 "Pausing state machine",
                 state=self.current_state_value,
             )
             await self.message_broker.send_message(
-                f"arena.contest.{self.contest_round.contest.id}.roundmachine.{self.current_state_value.lower()}.pause", event)
+                f"arena.contest.{self.contest_round.contest.id}.roundmachine.{self.current_state_value.lower()}.pause",
+                target_state,
+            )
 
     async def on_enter_in_progress(self):
         """Called when entering the InProgress state."""
-        await self.cycle_or_pause("in_progress")
+        await self.cycle_or_pause("In Progress", "round_prompting")
 
     async def on_enter_round_prompting(self):
         """Called when entering the RoundPrompting state."""
@@ -119,7 +133,7 @@ class RoundMachine(StateMachine):
 
         if not players:
             self.log.error("No players found for round prompting")
-            await self.cycle_or_pause("round_fail")
+            await self.step_failed("round_fail")
             return
 
         success = True
@@ -137,14 +151,15 @@ class RoundMachine(StateMachine):
             self.log.info(
                 "all player actions received, transitioning to judging actions"
             )
-            await self.cycle_or_pause("round_prompting_done")
+            await self.cycle_or_pause("round_prompting_done", "judging_actions")
         else:
             await self.step_failed(error)
 
     async def on_enter_judging_actions(self):
         """Called when entering the JudgingActions state.
 
-        This state is a holding state, waiting for the judge results to be received.
+        This state is a holding state, waiting for the judge results to
+        be received.
         The message handler will transition to the next state.
         """
         judges = self.contest_round.contest.get_role(RoleType.JUDGE)
@@ -168,7 +183,7 @@ class RoundMachine(StateMachine):
             self.log.info(
                 "all judging actions received, transitioning to applying effects"
             )
-            await self.cycle_or_pause("judging_actions_done")
+            await self.cycle_or_pause("judging_actions_done", "applying_effects")
         else:
             await self.step_failed(error)
 
@@ -190,7 +205,7 @@ class RoundMachine(StateMachine):
             self.log.error("Failed to apply effects", error=error)
             await self.step_failed(error)
             return
-        await self.cycle_or_pause("applying_effects_done")
+        await self.cycle_or_pause("applying_effects_done", "describing_results")
 
     async def on_enter_describing_results(self):
         """Called when entering the DescribingResults state."""
@@ -206,7 +221,7 @@ class RoundMachine(StateMachine):
             self.log.error("Failed to describe results", error=error)
             await self.step_failed(error)
             return
-        await self.cycle_or_pause("describing_results_done")
+        await self.cycle_or_pause("describing_results_done", "round_complete")
 
     async def on_enter_round_fail(self, message: str):
         """Called when entering the RoundFail state."""
@@ -472,7 +487,7 @@ class RoundMachine(StateMachine):
     def on_enter_state(self, target, event):
         # update the round state
         log = self.log.bind(state=target.id)
-        log.debug("entering state", event=event)
+        log.debug("entering state")
         self.contest_round.state = target.id
         self.contest_round.updated_at = int(datetime.now().timestamp())
         self.session.commit()

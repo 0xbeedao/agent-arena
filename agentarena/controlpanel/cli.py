@@ -624,12 +624,14 @@ class ArenaCommander:
             contest_id = parts[2]
             machine = parts[3]
             state = parts[4]
-            print_title(f"Contest {contest_id} paused in {state} by {machine}", info=True)
+            print_title(
+                f"Contest {contest_id} paused in {state} by {machine}", info=True
+            )
             r = await self.arena_client.get(f"/api/contest/{contest_id}")
             r.raise_for_status()
             self.loaded["contest"] = r.json()
             print_title(f"Contest {contest_id} loaded", info=True)
-            if (machine == "contestmachine"):
+            if machine == "contestmachine":
                 await self.unsubscribe(f"arena.contest.{contest_id}.>")
                 body = await self.arena_client.get(f"/api/contest/{contest_id}.md")
                 print(render_markdown(body.content.decode("utf-8")))

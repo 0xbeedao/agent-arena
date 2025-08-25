@@ -61,8 +61,16 @@ class ContestMachine(StateMachine):
     cycle = (
         starting.to(role_call)
         | role_call.to(setup_arena)
-        | setup_arena.to(create_round, unless="current_round_failed", cond="no_opening_round")
-        | setup_arena.to(in_round, unless="current_round_failed", cond="has_opening_round")
+        | setup_arena.to(
+            create_round,
+            unless="current_round_failed",
+            cond="no_opening_round",
+        )
+        | setup_arena.to(
+            in_round,
+            unless="current_round_failed",
+            cond="has_opening_round",
+        )
         | setup_arena.to(fail, cond="current_round_failed")
         | create_round.to(in_round)
         | in_round.to(check_end, unless="current_round_failed")
@@ -157,7 +165,6 @@ class ContestMachine(StateMachine):
         """
         return len(self.contest.rounds) == 0
 
-
     def has_round_machine(self) -> bool:
         """
         Check if the contest has a round machine.
@@ -176,28 +183,53 @@ class ContestMachine(StateMachine):
         """
         return self.contest.winner_id is not None
 
-    async def cycle_or_pause(self, event: str):
+    async def cycle_or_pause(self, label: str, target_state: str = ""):
+        """
+        Cycle the contest machine, either advancing to the next state or
+        pausing.
+
+        On a pause, the machine will update the contest state to the target
+        state, if needed, and send a message that the contest machine is
+        paused.
+        """
         if self.auto_advance:
-            await self.advance_state(event)
+            await self.advance_state(label)
         else:
+            current_state = self.current_state_value or "ERROR - NO STATE"
+            if target_state and target_state != current_state:
+                self.log.info(
+                    "Updating contest state",
+                    target_state=target_state,
+                )
+                self.contest.state = target_state
+                self.contest.updated_at = int(datetime.now().timestamp())
+                self.session.commit()
             self.log.debug(
                 "Pausing state machine",
-                state=self.current_state_value,
+                target_state=target_state or "no target state",
+                source_state=current_state,
             )
             await self.message_broker.send_message(
-                f"arena.contest.{self.contest.id}.contestmachine.{self.current_state_value.lower()}.pause", event)
+                f"arena.contest.{self.contest.id}.contestmachine.{self.current_state_value.lower()}.pause",
+                target_state,
+            )
 
     async def advance_state(self, event: str):
         log = self.log.bind(event=event)
         if (
             self._round_machine is not None
-            and not self._round_machine.current_state in [ContestRoundState.COMPLETE.value, ContestRoundState.FAIL.value]
+            and not self._round_machine.current_state
+            in [ContestRoundState.COMPLETE.value, ContestRoundState.FAIL.value]
         ):
             log.debug("cycling round machine")
             await self._round_machine.cycle(event)
         elif (
             self._setup_machine is not None
-            and not self._setup_machine.current_state in [ContestRoundState.SETUP_COMPLETE.value, ContestRoundState.SETUP_FAIL.value]
+            and not self._setup_machine.current_state
+            in [
+                ContestRoundState.SETUP_COMPLETE.value,
+                ContestRoundState.SETUP_FAIL.value,
+            ]
         ):
             log.debug("cycling setup machine")
             await self._setup_machine.cycle(event)  # type: ignore
@@ -223,7 +255,7 @@ class ContestMachine(StateMachine):
                 log.error("Participant is not healthy")
                 healthy = False
         if healthy:
-            await self.cycle_or_pause("roles present")  # type: ignore
+            await self.cycle_or_pause("roles present", "setup_arena")  # type: ignore
         else:
             await self.roles_error("failed to get", missing=missing)  # type: ignore
 
@@ -248,11 +280,15 @@ class ContestMachine(StateMachine):
         setup_machine = self._setup_machine
 
         await setup_machine.activate_initial_state()  # type: ignore
-        if setup_machine.current_state in [ContestRoundState.SETUP_COMPLETE.value, ContestRoundState.SETUP_FAIL.value]:
-            await self.cycle_or_pause("setup complete")  # type: ignore
+        if setup_machine.current_state in [
+            ContestRoundState.SETUP_COMPLETE.value,
+            ContestRoundState.SETUP_FAIL.value,
+        ]:
+            await self.cycle_or_pause("setup complete", "create_round")  # type: ignore
 
     async def on_enter_create_round(self):
-        """Called when entering the CreateRound state, which happens for all rounds after the first."""
+        """Called when entering the CreateRound state, which happens for all
+        rounds after the first."""
         self.log.info("Entering CreateRound state")
         narrative = ""
         needs_round = True
@@ -279,12 +315,13 @@ class ContestMachine(StateMachine):
             self.contest.current_round = len(self.contest.rounds) - 1
             self.contest.rounds.append(created)
             self.session.commit()
-        await self.cycle_or_pause("round created")  # type: ignore
+        await self.cycle_or_pause("created round", "in_round")  # type: ignore
 
     async def on_enter_in_round(self):
         """Called when entering the InRound state.
-        This will create a new round machine and subscribe to the round complete channel.
-        When it is complete, it will send a message to the contest machine to transition to the next state.
+        This will create a new round machine and subscribe to the
+        round complete channel. When it is complete, it will send
+        a message to the contest machine to transition to the next state.
         """
         # Create a new round machine when entering the InRound state
         if self._setup_machine is not None:
@@ -309,8 +346,10 @@ class ContestMachine(StateMachine):
             auto_advance=self.auto_advance,
         )
         await self._round_machine.activate_initial_state()  # type: ignore
-        if self._round_machine.current_state in [ContestRoundState.COMPLETE.value, ContestRoundState.FAIL.value]:
-            await self.cycle_or_pause("round complete")  # type: ignore
+        if self._round_machine.current_state == ContestRoundState.COMPLETE.value:
+            await self.cycle_or_pause("round complete", "check_end")  # type: ignore
+        elif self._round_machine.current_state == ContestRoundState.FAIL.value:
+            await self.step_failed("round failed")  # type: ignore
 
     async def on_enter_check_end(self):
         """Called when entering the CheckEnd state."""
@@ -319,9 +358,9 @@ class ContestMachine(StateMachine):
             self._round_machine = None
             self.log.info("Round machine destroyed")
 
-        round = self.contest.rounds[-1]
+        current_round = self.contest.rounds[-1]
         has_winner = False
-        for state in round.player_states:
+        for state in current_round.player_states:
             if state.score > 100:
                 self.log.info("Player has won", player=state.participant.name)
                 self.contest.winner_id = state.participant.id
@@ -330,11 +369,17 @@ class ContestMachine(StateMachine):
                 has_winner = True
         if not has_winner:
             self.log.info("No player has won, continuing to next round")
-        await self.cycle_or_pause("winner found" if has_winner else "no winner found")  # type: ignore
+        if self.has_winner():
+            label = "winner found"
+            next_state = "complete"
+        else:
+            label = "no winner found"
+            next_state = "create_round"
+        await self.cycle_or_pause(label, next_state)  # type: ignore
 
     async def on_enter_complete(self, winner: Participant):
         """Called when entering the Complete state."""
-        self.log.info("Contest complete")
+        self.log.info("Contest complete", winner=winner)
 
     def get_state_dict(self) -> Dict[str, Any]:
         """
@@ -362,7 +407,7 @@ class ContestMachine(StateMachine):
 
     async def on_enter_state(self, target, event):
         log = self.log.bind(state=target.id)
-        log.debug("entering state", evt=event)
+        log.debug("entering state")
         self.contest.state = target.id
         self.contest.updated_at = int(datetime.now().timestamp())
         self.session.commit()

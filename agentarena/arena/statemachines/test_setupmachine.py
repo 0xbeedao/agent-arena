@@ -41,12 +41,13 @@ async def test_initialization(
             message_broker=message_broker,
             log=logger,
             auto_advance=False,
+            session=session,
         )
         await setup_machine.activate_initial_state()  # type: ignore
 
         # Check initial state
-        assert setup_machine.current_state.id == ContestRoundState.IDLE.value
-        assert setup_machine.current_state.initial
+        assert setup_machine.current_state.id == ContestRoundState.CREATING_ROUND.value
+        assert not setup_machine.current_state.initial
         assert not setup_machine.current_state.final
 
         # Check that the contest was set correctly
@@ -83,19 +84,12 @@ async def test_transition_to_creating_round(
         )
         await setup_machine.activate_initial_state()  # type: ignore
         session.refresh(test_contest)
-        assert len(test_contest.rounds) == 0
-
-        # Transition to generating_positions
-        await setup_machine.cycle("test_event")
-
-        # Check current state
-        session.refresh(test_contest)
         assert setup_machine.current_state.id == ContestRoundState.CREATING_ROUND.value
 
         # Check that the round was created
         assert len(test_contest.rounds) == 1
         assert test_contest.rounds[0].round_no == 0
-        assert test_contest.rounds[0].state == ContestRoundState.CREATING_ROUND.value
+        assert test_contest.rounds[0].state == ContestRoundState.ADDING_FIXED_FEATURES.value
         assert not setup_machine.current_state.initial
         assert not setup_machine.current_state.final
 
@@ -145,7 +139,9 @@ async def test_adding_fixed_features(
         )
         assert not setup_machine.current_state.initial
         assert not setup_machine.current_state.final
+        # round is set for next state
         session.refresh(round)
+        assert setup_machine.contest_round.state == ContestRoundState.GENERATING_FEATURES.value
 
         # did we add the features?
         assert len(round.features) == 2
@@ -445,11 +441,9 @@ async def test_full_lifecycle(
         )
 
         await setup_machine.activate_initial_state()  # type: ignore
-        assert setup_machine.current_state.id == ContestRoundState.IDLE.value
-        assert setup_machine.current_state.initial
-        assert not setup_machine.current_state.final
-
-        await setup_machine.cycle("test_event")
+        assert setup_machine.current_state.id == ContestRoundState.SETUP_COMPLETE.value
+        assert not setup_machine.current_state.initial
+        assert setup_machine.current_state.final
 
         await gen_sub.unsubscribe()
         await describe_sub.unsubscribe()

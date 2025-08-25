@@ -279,7 +279,7 @@ class ContestController(
         if job_id == "pause":
             # we don't need to do anything here, just return
             return
-        
+
         lock = msg.subject
 
         log = self.log.bind(
@@ -301,14 +301,11 @@ class ContestController(
                 log.debug("Failed to acquire job lock", error=str(e))
                 return
 
-        
             log = log.bind(state=state)
             log.info("Handling contest flow message", msg=msg)
             if state != ContestState.FAIL.value:
                 log.info("Contest advance flow message received")
-                contest, response = await self.model_service.get(
-                    contest_id, session
-                )
+                contest, response = await self.model_service.get(contest_id, session)
                 if not response.success:
                     log.error("Failed to get contest", error=response.validation)
 
@@ -324,7 +321,6 @@ class ContestController(
             else:
                 log.info("Contest is in fail state, ignoring")
                 return
-
 
     async def prompt_announcer_describe_arena(
         self, contest_id: str, session: Session
@@ -484,7 +480,10 @@ class ContestController(
             )
             await machine.activate_initial_state()  # type: ignore
             log = log.bind(state=machine.current_state.id)
-            if machine.current_state in [ContestState.COMPLETE.value, ContestState.FAIL.value]:
+            if machine.current_state in [
+                ContestState.COMPLETE.value,
+                ContestState.FAIL.value,
+            ]:
                 log.info("Machine already in final state, not advancing")
             else:
                 log.info("Machine is not in final state, advancing")

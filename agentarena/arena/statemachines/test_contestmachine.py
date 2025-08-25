@@ -129,7 +129,8 @@ async def test_role_call(
         assert len(channels) >= 4, "Expected at least 4 participants"
         # check that all channels in called are unique
         assert len(set(called)) == len(called), "Expected all channels to be called"
-        assert test_contest.state == ContestState.ROLE_CALL.value
+        # contest is set for next state
+        assert test_contest.state == ContestState.SETUP_ARENA.value
 
 
 @pytest.mark.asyncio
@@ -181,12 +182,12 @@ async def test_setup_arena(
         )
         await machine.activate_initial_state()  # type: ignore
         assert machine.current_state.id == ContestState.SETUP_ARENA.value
-        assert len(test_contest.rounds) == 0
+        assert len(test_contest.rounds) == 1
         assert test_contest.state == ContestState.SETUP_ARENA.value
         assert test_contest.current_round == 0
         assert machine.has_setup_machine()
         assert machine._setup_machine is not None
-        assert machine._setup_machine.current_state.id == ContestRoundState.IDLE.value
+        assert machine._setup_machine.current_state.id == ContestRoundState.CREATING_ROUND.value
 
         # test that if we cycle the setup machine, it advances to the next state in the setup machine
         # which is "creating_round"
@@ -198,7 +199,7 @@ async def test_setup_arena(
         assert machine._setup_machine is not None
         assert (
             machine._setup_machine.current_state.id
-            == ContestRoundState.CREATING_ROUND.value
+            == ContestRoundState.ADDING_FIXED_FEATURES.value
         )
         assert machine._setup_machine.contest_round is not None
         assert machine._setup_machine.contest_round.id == test_contest.rounds[0].id
@@ -228,7 +229,7 @@ async def test_in_round_0(
         )
         test_contest.player_positions = json.dumps(["1,1", "9,9"])
         test_round = await round_service.create_round(
-            test_contest.id, 0, session, state=ContestRoundState.SETUP_COMPLETE
+            test_contest.id, 0, session, state=ContestRoundState.IN_PROGRESS
         )
         test_contest.rounds.append(test_round)
         agents = await add_contest_agents_to_contest(

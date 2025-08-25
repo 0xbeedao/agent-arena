@@ -102,17 +102,37 @@ class SetupMachine(StateMachine):
         """Check if the contest has an opening round."""
         return self.contest_round is not None
 
-    async def cycle_or_pause(self, event: str):
+    async def cycle_or_pause(self, label: str, target_state: str = ""):
+        """
+        Cycle the setup machine, either advancing to the next state or pausing.
+
+        On a pause, the machine will update the setup state to the target
+        state, if needed, and send a message that the setup machine is paused.
+        """
         if self.auto_advance:
-            await self.cycle(event)
+            await self.cycle(label)
         else:
+            current_state = self.current_state_value or "ERROR - NO STATE"
+            if target_state and target_state != current_state:
+                self.log.info(
+                    "Updating setup state",
+                    target_state=target_state,
+                )
+                self.contest_round.state = target_state
+                self.contest_round.updated_at = int(datetime.now().timestamp())
+                self.session.commit()
             self.log.info(
                 "Pausing state machine",
                 state=self.current_state_value,
             )
-            state = self.current_state_value or "ERROR - NO STATE"
             await self.message_broker.send_message(
-                f"arena.contest.{self.contest.id}.setupmachine.{self.current_state_value.lower()}.pause", event)
+                f"arena.contest.{self.contest.id}.setupmachine.{current_state.lower()}.pause",
+                target_state,
+            )
+
+    async def on_enter_idle(self):
+        """Called when entering the Idle state."""
+        await self.cycle("idle complete")
 
     async def on_enter_creating_round(self):
         """Called when entering the CreatingRound state."""
@@ -127,7 +147,7 @@ class SetupMachine(StateMachine):
             self.log = self.log.bind(round_id=round.id)
             log.info("Round 0 created successfully")
 
-        await self.cycle_or_pause("from creating round")  # type: ignore
+        await self.cycle_or_pause("from creating round", "adding_fixed_features")  # type: ignore
 
     async def on_enter_adding_fixed_features(self):
         """Called when entering the AddingFixedFeatures state."""
@@ -151,7 +171,7 @@ class SetupMachine(StateMachine):
         self.session.commit()
 
         log.info(f"{ct} Fixed features added successfully")
-        await self.cycle_or_pause("added fixed features")  # type: ignore
+        await self.cycle_or_pause("added fixed features", "generating_features")  # type: ignore
 
     async def on_enter_generating_features(self):
         """Called when entering the GeneratingFeatures state, which adds the random features."""
@@ -166,14 +186,14 @@ class SetupMachine(StateMachine):
         needed = self.contest_public.arena.max_random_features
         if needed <= 0:
             self.log.info("No random features to generate, skipping")
-            await self.cycle_or_pause("from generating features")  # type: ignore
+            await self.cycle_or_pause("from generating features", "describing_setup")  # type: ignore
             return
         if (
             len([f for f in round.features if f.origin == FeatureOriginType.RANDOM])
             >= 1
         ):
             self.log.info("Already have features, skipping")
-            await self.cycle_or_pause("from generating features")  # type: ignore
+            await self.cycle_or_pause("from generating features", "describing_setup")  # type: ignore
             return
 
         agents = self.contest.get_role(RoleType.ARENA)
@@ -192,7 +212,7 @@ class SetupMachine(StateMachine):
             self.log.error("Failed to handle feature generation message", error=error)
             await self.step_failed("from generating features")  # type: ignore
             return
-        await self.cycle_or_pause("from generating features")  # type: ignore
+        await self.cycle_or_pause("from generating features", "describing_setup")  # type: ignore
 
     async def on_enter_describing_setup(self):
         """Called when entering the DescribingSetup state."""
@@ -210,11 +230,12 @@ class SetupMachine(StateMachine):
             self.log.error("Failed to handle describe setup message", error=error)
             await self.step_failed("from describing setup")  # type: ignore
             return
-        await self.cycle_or_pause("from describing setup")  # type: ignore
+        await self.cycle_or_pause("from describing setup", "setup_complete")  # type: ignore
 
     def on_enter_state(self, target, event):
+        """Called when entering a state."""
         log = self.log.bind(state=target.id)
-        log.debug("entering state", event=event)
+        log.debug("entering state")
         if self.contest_round:
             # update the round state
             self.contest_round.state = target.id
@@ -229,8 +250,8 @@ class SetupMachine(StateMachine):
     # message handlers
 
     async def get_describe_arena(self, announcer: Participant) -> Msg:
-        """Generate the arena description, now that we have all the features.
-        This will come back on our handler channel "arena.contest.{self.contest.id}.setup.description".
+        """
+        Generate the arena description, now that we have all the features.
         """
         log = self.log.bind(
             agent=announcer.name, prompt=PromptType.ANNOUNCER_DESCRIBE_ARENA.value

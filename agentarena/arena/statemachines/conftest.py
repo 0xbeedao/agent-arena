@@ -43,6 +43,7 @@ async def make_contest(
         participant_ids=[],
         player_positions=player_positions,
         player_inventories=player_inventories,
+        auto_advance=False,
     )
     contest, result = await contest_service.create(cc, session=session)
     assert result.success and contest is not None
