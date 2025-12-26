@@ -216,23 +216,35 @@ class ContestMachine(StateMachine):
 
     async def advance_state(self, event: str):
         log = self.log.bind(event=event)
+        round_machine = self._round_machine
+        setup_machine = self._setup_machine
         if (
-            self._round_machine is not None
-            and not self._round_machine.current_state
-            in [ContestRoundState.COMPLETE.value, ContestRoundState.FAIL.value]
+            round_machine is not None
+            and round_machine.current_state_value not in [
+                ContestRoundState.ROUND_COMPLETE.value,
+                ContestRoundState.ROUND_FAIL.value,
+            ]
+
         ):
             log.debug("cycling round machine")
-            await self._round_machine.cycle(event)
+            await round_machine.cycle(event)
+            if round_machine.current_state_value == ContestRoundState.COMPLETE.value:
+                await self.cycle_or_pause("round complete", "check_end")  # type: ignore
+            elif round_machine.current_state_value == ContestRoundState.FAIL.value:
+                await self.step_failed("round failed")  # type: ignore
         elif (
-            self._setup_machine is not None
-            and not self._setup_machine.current_state
-            in [
+            setup_machine is not None
+            and setup_machine.current_state_value not in [
                 ContestRoundState.SETUP_COMPLETE.value,
                 ContestRoundState.SETUP_FAIL.value,
             ]
         ):
             log.debug("cycling setup machine")
-            await self._setup_machine.cycle(event)  # type: ignore
+            await setup_machine.cycle(event)  # type: ignore
+            if setup_machine.current_state_value == ContestRoundState.SETUP_COMPLETE.value:
+                await self.cycle_or_pause("setup complete", "in_round")  # type: ignore
+            elif setup_machine.current_state_value == ContestRoundState.SETUP_FAIL.value:
+                await self.step_failed("setup failed")
         else:
             log.debug("cycling contest machine")
             await self.cycle(event)
@@ -329,7 +341,10 @@ class ContestMachine(StateMachine):
             self.log.info("Setup machine destroyed")
 
         current_round = self.contest.rounds[-1]
-        if current_round.state == ContestRoundState.IDLE.value:
+        if current_round.state in [
+            ContestRoundState.IDLE.value,
+            ContestRoundState.SETUP_COMPLETE.value,
+        ]:
             self.log.info("Starting round", round=current_round.id)
             current_round.state = ContestRoundState.ROUND_PROMPTING
             self.session.commit()

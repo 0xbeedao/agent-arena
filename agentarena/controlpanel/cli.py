@@ -633,8 +633,9 @@ class ArenaCommander:
             print_title(f"Contest {contest_id} loaded", info=True)
             if machine == "contestmachine":
                 await self.unsubscribe(f"arena.contest.{contest_id}.>")
-                body = await self.arena_client.get(f"/api/contest/{contest_id}.md")
-                print(render_markdown(body.content.decode("utf-8")))
+            body = await self.arena_client.get(f"/api/contest/{contest_id}.md")
+            print(render_markdown(body.content.decode("utf-8")))
+
         else:
             print_title(f"Message: {msg.subject}", info=True)
 
